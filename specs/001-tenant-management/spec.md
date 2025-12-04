@@ -52,6 +52,20 @@ This feature aligns with multiple constitutional principles:
 
 ---
 
+## Clarifications
+
+### Session 2025-12-04
+
+- Q: How should the replacement default branch be specified when archiving the current default branch? → A: Require two-step process: admin must explicitly set a new default branch first using `POST /api/v1/branches/:id/set-default`, then archive the old default. This makes intent explicit, avoids atomic operation complexity, and provides better UX clarity with clear error messages if attempted out of order.
+
+- Q: How should the tenant slug be generated from the tenant name, and who ensures uniqueness? → A: Auto-generate slug from tenant name during onboarding: convert to lowercase, replace spaces/special chars with hyphens, append numeric suffix on collision (e.g., "fitlife-gyms-2"). The Onboarding module owns this logic and ensures uniqueness before tenant creation. Tenant Management module only validates that slug exists and is unique when provided.
+
+- Q: Which database should be used for production deployment? → A: PostgreSQL. It is the industry standard for multi-tenant SaaS applications with excellent Prisma support, robust ACID compliance for tenant isolation guarantees, proven scalability to 10,000+ tenants, and strong indexing capabilities. SQLite is acceptable for development/testing only.
+
+- Q: What character set should be allowed in branch names? → A: Alphanumeric characters (a-z, A-Z, 0-9), spaces, hyphens (-), apostrophes ('), and ampersands (&). This supports common business naming patterns like "O'Brien's Gym", "East & West Location", "Downtown - Main St" while preventing problematic characters. Regex pattern: `^[a-zA-Z0-9 '\-&]+$`
+
+---
+
 ## Domain Model
 
 ### Core Concepts
@@ -94,7 +108,7 @@ interface Tenant {
 ```
 
 **Note on Tenant Slug:**
-The `slug` field is currently used as an internal identifier for the tenant. It provides a URL-friendly representation of the tenant name. Potential future use cases include subdomain-based routing (e.g., `fitlife.gymapp.com`) or custom tenant URLs, but these features are not part of the current implementation scope. For now, the slug serves primarily as a unique, human-readable identifier in the database.
+The `slug` field is currently used as an internal identifier for the tenant. It provides a URL-friendly representation of the tenant name. Slugs are auto-generated during tenant onboarding by converting the tenant name to lowercase and replacing spaces/special characters with hyphens (e.g., "FitLife Gyms" → "fitlife-gyms"). If a collision occurs, a numeric suffix is appended (e.g., "fitlife-gyms-2"). The Onboarding module handles slug generation and uniqueness validation; the Tenant Management module assumes slugs are provided correctly. Potential future use cases include subdomain-based routing (e.g., `fitlife.gymapp.com`), but this is not part of the current implementation scope.
 
 #### Branch
 
@@ -160,10 +174,11 @@ Branch (1) ──< (many) CheckIn (future module)
    - Archived branches cannot be used for new operations (member registration, check-ins)
    - Archived branches can be restored (sets `isActive = true`, `archivedAt = null`)
    - Historical data (members, check-ins) associated with archived branches remains intact
+   - **Archiving the default branch:** Admin must first promote another active branch to default using `POST /api/v1/branches/:id/set-default`, then archive the old default. Attempting to archive the current default branch returns 400 with error message: "Cannot archive default branch. Set another branch as default first."
 
 6. **Tenant Settings:**
    - Only ADMIN users can update tenant settings
-   - Tenant name and slug changes must be validated for conflicts (future consideration)
+   - Tenant name updates are allowed; slug remains unchanged after initial creation (slug modification is not supported in current scope to avoid breaking references)
    - Currency changes do not retroactively affect existing financial records
 
 ---
@@ -419,8 +434,8 @@ interface CreateBranchRequest {
 
 **Validation Rules:**
 
-- `name`: 2-100 characters, required, must be unique within tenant
-- `address`: 5-300 characters, required
+- `name`: 2-100 characters, required, must be unique within tenant (case-insensitive). Allowed characters: alphanumeric, spaces, hyphens, apostrophes, ampersands. Pattern: `^[a-zA-Z0-9 '\-&]+$`
+- `address`: 5-300 characters, required (free-form text to support international address formats)
 
 **Example Request:**
 
@@ -466,8 +481,8 @@ interface UpdateBranchRequest {
 
 **Validation Rules:**
 
-- `name`: 2-100 characters, must be unique within tenant if provided
-- `address`: 5-300 characters if provided
+- `name`: 2-100 characters, must be unique within tenant if provided (case-insensitive). Allowed characters: alphanumeric, spaces, hyphens, apostrophes, ampersands. Pattern: `^[a-zA-Z0-9 '\-&]+$`
+- `address`: 5-300 characters if provided (free-form text)
 - At least one field must be provided
 
 ---
@@ -498,7 +513,7 @@ interface UpdateBranchRequest {
 **Business Rule Validation:**
 
 - Cannot archive the last active branch of a tenant (returns 400 with message: "Cannot archive the last active branch")
-- If archiving the default branch, must specify which other branch should become default
+- Cannot archive the default branch (returns 400 with message: "Cannot archive default branch. Set another branch as default first."). Admin must use `POST /api/v1/branches/:id/set-default` to promote another branch to default before archiving the current default.
 
 ---
 
@@ -626,11 +641,18 @@ This specification uses the field name `password` for readability and simplicity
 
 ### Migration Considerations
 
+**Database Target:**
+
+- **Production:** PostgreSQL (version 14+ recommended for performance and modern features)
+- **Development/Testing:** PostgreSQL or SQLite (for lightweight local testing)
+- Prisma migrations should be tested against PostgreSQL to ensure production compatibility
+
 **Initial Migration:**
 
 - Creates `Tenant`, `Branch`, and updates `User` tables
 - Adds foreign key constraints and cascading deletes
 - Creates indexes for tenant-scoped queries
+- PostgreSQL-specific: Use `CUID` as text type, ensure proper collation for case-insensitive slug lookups
 
 **Backward Compatibility:**
 
@@ -999,9 +1021,10 @@ Critical domain logic that MUST have unit tests:
 
 - [ ] **Validation Logic**
 
-  - Tenant name validation (length, characters)
+  - Tenant name validation (length, alphanumeric and spaces only)
+  - Branch name validation (length, allowed character set: alphanumeric, spaces, hyphens, apostrophes, ampersands)
   - Currency code validation (valid ISO 4217 codes)
-  - Branch name and address validation
+  - Address validation (length only, free-form text)
 
 - [ ] **Default Branch Logic**
   - Setting a branch as default unsets previous default
@@ -1068,7 +1091,7 @@ API endpoints and flows that MUST have integration tests:
 
 Known edge cases to test:
 
-- [ ] Archiving default branch when it's not the last active branch (should require explicit default reassignment)
+- [ ] Archiving default branch when it's not the last active branch (should return 400; must set new default first via two-step process)
 - [ ] Concurrent requests to set different branches as default (last write wins, but exactly one remains default)
 - [ ] Creating branch with very long name (test max length validation)
 - [ ] Listing branches with no branches (empty state)
@@ -1080,7 +1103,7 @@ Known edge cases to test:
 ### Testing Tools
 
 - **Backend Testing:** Jest + Supertest for integration tests
-- **Database Testing:** In-memory SQLite or test database with Prisma
+- **Database Testing:** PostgreSQL test database with Prisma (SQLite acceptable for fast unit tests, but integration tests should use PostgreSQL to match production)
 - **Mocking:** Mock Prisma client for unit tests
 - **Test Data:** Use factories/fixtures for creating test tenants and branches
 
