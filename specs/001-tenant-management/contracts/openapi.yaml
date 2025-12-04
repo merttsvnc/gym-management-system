@@ -1,0 +1,585 @@
+openapi: 3.0.3
+info:
+  title: Gym Management System - Tenant Management API
+  description: |
+    API specification for the Tenant Management module.
+    Handles tenant settings and branch management with multi-tenant isolation.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: dev@gym-management.com
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development
+  - url: https://api.gym-management.com/api/v1
+    description: Production
+
+tags:
+  - name: Tenants
+    description: Tenant settings and information
+  - name: Branches
+    description: Branch (location) management
+
+security:
+  - BearerAuth: []
+
+paths:
+  /tenants/current:
+    get:
+      tags:
+        - Tenants
+      summary: Get current tenant
+      description: Retrieve information about the currently authenticated user's tenant
+      operationId: getCurrentTenant
+      responses:
+        '200':
+          description: Tenant retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    patch:
+      tags:
+        - Tenants
+      summary: Update current tenant
+      description: Update settings for the current tenant (ADMIN only)
+      operationId: updateTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantRequest'
+      responses:
+        '200':
+          description: Tenant updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /branches:
+    get:
+      tags:
+        - Branches
+      summary: List branches
+      description: List all branches for the current tenant with pagination
+      operationId: listBranches
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: includeArchived
+          in: query
+          description: Include archived branches
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Branches retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    post:
+      tags:
+        - Branches
+      summary: Create branch
+      description: Create a new branch for the current tenant (ADMIN only)
+      operationId: createBranch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBranchRequest'
+      responses:
+        '201':
+          description: Branch created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /branches/{id}:
+    get:
+      tags:
+        - Branches
+      summary: Get branch by ID
+      description: Retrieve details of a specific branch
+      operationId: getBranch
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+      responses:
+        '200':
+          description: Branch retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    patch:
+      tags:
+        - Branches
+      summary: Update branch
+      description: Update an existing branch (ADMIN only)
+      operationId: updateBranch
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBranchRequest'
+      responses:
+        '200':
+          description: Branch updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /branches/{id}/archive:
+    post:
+      tags:
+        - Branches
+      summary: Archive branch
+      description: Archive (soft-delete) a branch (ADMIN only)
+      operationId: archiveBranch
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+      responses:
+        '200':
+          description: Branch archived successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /branches/{id}/restore:
+    post:
+      tags:
+        - Branches
+      summary: Restore branch
+      description: Restore an archived branch (ADMIN only)
+      operationId: restoreBranch
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+      responses:
+        '200':
+          description: Branch restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /branches/{id}/set-default:
+    post:
+      tags:
+        - Branches
+      summary: Set default branch
+      description: Set a branch as the default branch for the tenant (ADMIN only)
+      operationId: setDefaultBranch
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+      responses:
+        '200':
+          description: Branch set as default successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token with tenantId claim
+
+  parameters:
+    BranchId:
+      name: id
+      in: path
+      required: true
+      description: Branch ID (CUID)
+      schema:
+        type: string
+        pattern: '^c[a-z0-9]{24}$'
+        example: 'clx2345678901abcdef'
+
+  schemas:
+    TenantResponse:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - defaultCurrency
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: Unique tenant identifier (CUID)
+          example: 'clx1234567890abcdef'
+        name:
+          type: string
+          description: Gym business name
+          example: 'FitLife Gyms'
+        slug:
+          type: string
+          description: URL-friendly identifier
+          example: 'fitlife-gyms'
+        defaultCurrency:
+          type: string
+          description: ISO 4217 currency code
+          example: 'USD'
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of tenant creation
+          example: '2025-01-15T10:30:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of last update
+          example: '2025-01-15T10:30:00Z'
+
+    UpdateTenantRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: New tenant name
+          example: 'FitLife Wellness Centers'
+        defaultCurrency:
+          type: string
+          enum: [USD, EUR, GBP, CAD, AUD, JPY, CNY, INR, BRL, MXN, ZAR, TRY, SGD, HKD, NZD]
+          description: New default currency (ISO 4217 code)
+          example: 'EUR'
+
+    BranchResponse:
+      type: object
+      required:
+        - id
+        - tenantId
+        - name
+        - address
+        - isDefault
+        - isActive
+        - createdAt
+        - updatedAt
+        - archivedAt
+      properties:
+        id:
+          type: string
+          description: Unique branch identifier (CUID)
+          example: 'clx2345678901abcdef'
+        tenantId:
+          type: string
+          description: Parent tenant identifier
+          example: 'clx1234567890abcdef'
+        name:
+          type: string
+          description: Branch name
+          example: 'Downtown Location'
+        address:
+          type: string
+          description: Physical address
+          example: '123 Fitness St, New York, NY 10001'
+        isDefault:
+          type: boolean
+          description: True if this is the default branch
+          example: true
+        isActive:
+          type: boolean
+          description: False if archived
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of branch creation
+          example: '2025-01-15T10:30:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of last update
+          example: '2025-01-15T10:30:00Z'
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of archival (null if active)
+          example: null
+
+    CreateBranchRequest:
+      type: object
+      required:
+        - name
+        - address
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9 ''\-&]+$'
+          description: Branch name (alphanumeric, spaces, hyphens, apostrophes, ampersands)
+          example: "O'Brien's Gym"
+        address:
+          type: string
+          minLength: 5
+          maxLength: 300
+          description: Physical address (free-form text)
+          example: '456 Health Ave, New York, NY 10002'
+
+    UpdateBranchRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9 ''\-&]+$'
+          description: New branch name
+          example: 'Westside Location'
+        address:
+          type: string
+          minLength: 5
+          maxLength: 300
+          description: New address
+          example: '789 Workout Blvd, Los Angeles, CA 90001'
+
+    BranchListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BranchResponse'
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+              description: Current page number
+              example: 1
+            limit:
+              type: integer
+              description: Items per page
+              example: 20
+            total:
+              type: integer
+              description: Total number of items
+              example: 42
+            totalPages:
+              type: integer
+              description: Total number of pages
+              example: 3
+
+    ErrorResponse:
+      type: object
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 400
+        message:
+          type: string
+          description: Human-readable error message
+          example: 'Validation failed'
+        errors:
+          type: array
+          description: Field-level validation errors (if applicable)
+          items:
+            type: object
+            required:
+              - field
+              - message
+            properties:
+              field:
+                type: string
+                description: Field name that failed validation
+                example: 'name'
+              message:
+                type: string
+                description: Validation error message
+                example: 'Name must be at least 3 characters'
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - Missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 401
+            message: 'Unauthorized'
+
+    Forbidden:
+      description: Forbidden - User lacks required permissions or accessing different tenant's data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 403
+            message: 'Access denied'
+
+    NotFound:
+      description: Not Found - Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: 'Branch not found'
+
+    Conflict:
+      description: Conflict - Resource already exists (e.g., duplicate branch name)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 409
+            message: 'Branch name already exists for this tenant'
+
+    ValidationError:
+      description: Bad Request - Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 400
+            message: 'Validation failed'
+            errors:
+              - field: 'name'
+                message: 'Name must be at least 3 characters'
+              - field: 'defaultCurrency'
+                message: 'Invalid currency code'
+
+    ServerError:
+      description: Internal Server Error - Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 500
+            message: 'Internal server error'
+
