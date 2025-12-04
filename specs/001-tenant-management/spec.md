@@ -1,8 +1,9 @@
 # Feature Specification: Tenant Management
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Author:** System Architect  
 **Date:** 2025-12-04  
+**Last Updated:** 2025-12-04  
 **Status:** Draft
 
 ---
@@ -91,6 +92,9 @@ interface Tenant {
   // subscriptionExpiresAt: Date // Subscription end date
 }
 ```
+
+**Note on Tenant Slug:**
+The `slug` field is currently used as an internal identifier for the tenant. It provides a URL-friendly representation of the tenant name. Potential future use cases include subdomain-based routing (e.g., `fitlife.gymapp.com`) or custom tenant URLs, but these features are not part of the current implementation scope. For now, the slug serves primarily as a unique, human-readable identifier in the database.
 
 #### Branch
 
@@ -616,6 +620,10 @@ enum Role {
 }
 ```
 
+**Note on Password Field Naming:**
+This specification uses the field name `password` for readability and simplicity in documentation. However, in the actual implementation, this field SHOULD be named `passwordHash` to make it explicit that the field stores a hashed value, not a plaintext password. This naming convention helps prevent security mistakes and makes the code's intent clearer to future developers. The comment "Hashed with bcrypt" serves as a reminder in the specification, but the field name itself should communicate this in the implementation.
+```
+
 ### Migration Considerations
 
 **Initial Migration:**
@@ -828,6 +836,52 @@ shared/
 - Tablet: Two-column form layout
 - Desktop: Branch table with all columns visible
 
+### Single-Branch Tenant UX
+
+For tenants with only one branch, the UI should provide a simplified experience that hides multi-branch complexity while maintaining consistency with the backend architecture.
+
+**UX Principles for Single-Branch Tenants:**
+
+1. **No Branch Selector:**
+   - Do not display branch selection dropdowns or branch switchers in the navigation
+   - Users should not be aware that "branch" is a concept if they only have one location
+   - The single branch exists in the backend but is transparent in the UI
+
+2. **Automatic Branch Assignment:**
+   - When a single-branch tenant creates members, subscriptions, or check-ins (future modules), the `defaultBranchId` is automatically applied
+   - No branch selection step appears in forms or workflows
+   - The user experience feels like a single-location gym system
+
+3. **Branch Management Page Behavior:**
+   - Single-branch tenants can still access `/settings/branches` to view their location details
+   - The page displays their single branch with options to edit name/address
+   - "Add Branch" button is available to upgrade to multi-branch mode
+   - Once a second branch is added, the UI automatically adapts to show branch selection throughout the application
+
+4. **Backend Consistency:**
+   - All database records still include `branchId` even for single-branch tenants
+   - Service layer logic remains branch-aware
+   - This ensures no refactoring is needed when a tenant adds additional branches
+
+5. **Detection Logic:**
+   - Frontend detects single-branch mode by checking if the tenant has exactly one active branch
+   - This check can be performed on initial app load and cached
+   - When branches are added/archived, the UI updates to reflect the new mode
+
+**Example Implementation Pattern:**
+```typescript
+// Frontend utility to determine if branch UI should be shown
+const useIsSingleBranchTenant = () => {
+  const { data: branches } = useBranches();
+  return branches?.filter(b => b.isActive).length === 1;
+};
+
+// Conditionally render branch selector
+{!isSingleBranchTenant && <BranchSelector />}
+```
+
+This approach provides the best of both worlds: a clean, simple UX for single-location gyms, while maintaining the architectural flexibility for multi-branch growth without requiring system redesign.
+
 ---
 
 ## Security & Tenant Isolation
@@ -847,6 +901,9 @@ shared/
     return next(params);
   });
   ```
+
+**Note on Prisma Middleware Implementation:**
+Prisma middleware for automatic tenant scoping is **optional for the initial implementation phase**. For clarity and explicit control, the first implementation should enforce tenant isolation at the service/query layer by explicitly including `tenantId` filters in all database queries. This makes the tenant scoping logic visible and easier to verify during code reviews. Prisma middleware can be added in a later phase once all tenant-scoped query patterns are stable and well-tested. This approach prioritizes code clarity and maintainability during initial development.
 
 **Application Level:**
 

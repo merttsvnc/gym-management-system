@@ -2,6 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning  
 **Created**: 2025-12-04  
+**Last Updated**: 2025-12-04 (v1.1.0 - Refinements Added)  
 **Feature**: [Tenant Management Specification](../spec.md)  
 
 ---
@@ -70,6 +71,20 @@
 ## Notes
 
 This specification successfully establishes the foundational multi-tenant architecture for the Gym Management System. It aligns with Constitutional Principles 1, 3, 5, 6, and 9 by prioritizing long-term maintainability, explicit domain rules, modular architecture, strict tenant isolation, and performance/scalability considerations.
+
+### Refinements Added in v1.1.0
+
+The following clarifications have been added to the specification to improve implementation guidance:
+
+1. **Password Field Naming**: Added note clarifying that the `password` field should be implemented as `passwordHash` in the actual code, while the spec uses `password` for readability.
+
+2. **Prisma Middleware Guidance**: Added clarification that Prisma middleware for tenant isolation is optional for the first implementation phase. Initial implementation should enforce tenant scoping explicitly at the service/query layer for clarity, with middleware as a potential future optimization.
+
+3. **Single-Branch UX Documentation**: Added comprehensive subsection explaining how the UI should handle single-branch tenants (hiding branch selectors, automatic branch assignment) while maintaining backend consistency for future multi-branch growth.
+
+4. **Tenant Slug Usage**: Added note clarifying that the `slug` field is currently used as an internal identifier, with subdomain-based routing (e.g., `tenant.app.com`) mentioned as a potential future feature but not in current scope.
+
+These refinements are additive and do not change the core requirements or scope of the feature. All checklist items remain validated.
 
 No clarifications needed. Ready for planning phase.
 
