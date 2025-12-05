@@ -69,13 +69,13 @@ function NewBranchDialog({
   };
 
   return (
-    <DialogContent className="sm:max-w-[425px]">
+    <DialogContent className="w-full sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>Create New Branch</DialogTitle>
         <DialogDescription>Add a new branch to your tenant</DialogDescription>
       </DialogHeader>
       <form onSubmit={handleSubmit}>
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 px-1">
           <div className="space-y-2">
             <Label htmlFor="branch-name">Name</Label>
             <Input
@@ -163,13 +163,13 @@ function EditBranchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-full sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Branch</DialogTitle>
           <DialogDescription>Update branch information</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 px-1">
             <div className="space-y-2">
               <Label htmlFor="edit-branch-name">Name</Label>
               <Input
@@ -269,31 +269,37 @@ export function BranchesPage() {
 
   if (tenantLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Branches</CardTitle>
-          <CardDescription>Loading tenant...</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Branches</CardTitle>
+            <CardDescription>Loading tenant...</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
     );
   }
 
   if (!tenant) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription>Tenant not found</AlertDescription>
-      </Alert>
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Alert variant="destructive">
+          <AlertDescription>Tenant not found</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   if (branchesError) {
     const apiError = branchesError as ApiError;
     return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          {apiError.message || "Failed to load branches"}
-        </AlertDescription>
-      </Alert>
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Alert variant="destructive">
+          <AlertDescription>
+            {apiError.message || "Failed to load branches"}
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
@@ -301,18 +307,18 @@ export function BranchesPage() {
   const isLoading = branchesLoading;
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <Card className="w-full">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Branches</CardTitle>
               <CardDescription>Manage branches for your tenant</CardDescription>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
               <label
                 htmlFor="show-archived-checkbox"
-                className="flex items-center gap-2 text-sm cursor-pointer"
+                className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap"
               >
                 <input
                   id="show-archived-checkbox"
@@ -325,7 +331,7 @@ export function BranchesPage() {
               </label>
               <Dialog open={newBranchOpen} onOpenChange={setNewBranchOpen}>
                 <DialogTrigger asChild>
-                  <Button>New branch</Button>
+                  <Button className="w-full sm:w-auto">New branch</Button>
                 </DialogTrigger>
                 <NewBranchDialog
                   tenantId={tenant.id}
@@ -355,91 +361,93 @@ export function BranchesPage() {
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[200px]">Name</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead className="w-[150px]">Status</TableHead>
-                  <TableHead className="w-[200px]">Created</TableHead>
-                  <TableHead className="w-[200px]">Updated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {branches.map((branch) => (
-                  <TableRow key={branch.id}>
-                    <TableCell className="font-medium">{branch.name}</TableCell>
-                    <TableCell className="max-w-[300px] truncate" title={branch.address}>
-                      {branch.address}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {branch.isDefault && (
-                          <Badge variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90">Default</Badge>
-                        )}
-                        {branch.archivedAt ? (
-                          <Badge variant="secondary" className="bg-muted text-muted-foreground">Archived</Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-primary/20 text-primary">Active</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(branch.createdAt)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(branch.updatedAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2 items-center">
-                        {!branch.archivedAt && !branch.isDefault && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSetDefault(branch.id)}
-                            disabled={setDefaultBranch.isPending}
-                            className="h-8"
-                          >
-                            Set Default
-                          </Button>
-                        )}
-                        {!branch.archivedAt && (
-                          <>
+            <div className="w-full overflow-x-auto">
+              <Table className="min-w-[700px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px]">Name</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead className="w-[150px]">Status</TableHead>
+                    <TableHead className="w-[200px]">Created</TableHead>
+                    <TableHead className="w-[200px]">Updated</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {branches.map((branch) => (
+                    <TableRow key={branch.id}>
+                      <TableCell className="font-medium">{branch.name}</TableCell>
+                      <TableCell className="max-w-[300px] truncate" title={branch.address}>
+                        {branch.address}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2 flex-wrap">
+                          {branch.isDefault && (
+                            <Badge variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap">Default</Badge>
+                          )}
+                          {branch.archivedAt ? (
+                            <Badge variant="secondary" className="bg-muted text-muted-foreground whitespace-nowrap">Archived</Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-primary/20 text-primary whitespace-nowrap">Active</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{formatDate(branch.createdAt)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{formatDate(branch.updatedAt)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2 items-center flex-wrap">
+                          {!branch.archivedAt && !branch.isDefault && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSetDefault(branch.id)}
+                              disabled={setDefaultBranch.isPending}
+                              className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                            >
+                              Set Default
+                            </Button>
+                          )}
+                          {!branch.archivedAt && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingBranch(branch)}
+                                className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                              >
+                                Edit
+                              </Button>
+                              {!branch.isDefault && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleArchive(branch.id)}
+                                  disabled={archiveBranch.isPending}
+                                  className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                >
+                                  Archive
+                                </Button>
+                              )}
+                            </>
+                          )}
+                          {branch.archivedAt && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setEditingBranch(branch)}
-                              className="h-8"
+                              onClick={() => handleRestore(branch.id)}
+                              disabled={restoreBranch.isPending}
+                              className="h-8 text-xs sm:text-sm whitespace-nowrap"
                             >
-                              Edit
+                              Restore
                             </Button>
-                            {!branch.isDefault && (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleArchive(branch.id)}
-                                disabled={archiveBranch.isPending}
-                                className="h-8"
-                              >
-                                Archive
-                              </Button>
-                            )}
-                          </>
-                        )}
-                        {branch.archivedAt && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRestore(branch.id)}
-                            disabled={restoreBranch.isPending}
-                            className="h-8"
-                          >
-                            Restore
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

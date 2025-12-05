@@ -44,7 +44,7 @@ export function TenantSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Card>
           <CardHeader>
             <CardTitle>Tenant Settings</CardTitle>
@@ -58,7 +58,7 @@ export function TenantSettingsPage() {
   if (error) {
     const apiError = error as ApiError
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Alert variant="destructive">
           <AlertDescription>
             {apiError.message || "Failed to load tenant settings"}
@@ -70,7 +70,7 @@ export function TenantSettingsPage() {
 
   if (!tenant) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Alert variant="destructive">
           <AlertDescription>Tenant not found</AlertDescription>
         </Alert>
@@ -79,8 +79,8 @@ export function TenantSettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <Card>
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Tenant Settings</CardTitle>
           <CardDescription>
@@ -115,14 +115,14 @@ export function TenantSettingsPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 rounded-lg border p-4 bg-card">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border p-4 bg-card">
               <div>
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Created At</Label>
-                <p className="mt-1 font-medium">{formatDate(tenant.createdAt)}</p>
+                <p className="mt-1 font-medium whitespace-nowrap">{formatDate(tenant.createdAt)}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Updated At</Label>
-                <p className="mt-1 font-medium">{formatDate(tenant.updatedAt)}</p>
+                <p className="mt-1 font-medium whitespace-nowrap">{formatDate(tenant.updatedAt)}</p>
               </div>
             </div>
 
