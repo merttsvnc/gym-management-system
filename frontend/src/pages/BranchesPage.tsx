@@ -69,7 +69,7 @@ function NewBranchDialog({
   };
 
   return (
-    <DialogContent>
+    <DialogContent className="sm:max-w-[425px]">
       <DialogHeader>
         <DialogTitle>Create New Branch</DialogTitle>
         <DialogDescription>Add a new branch to your tenant</DialogDescription>
@@ -163,7 +163,7 @@ function EditBranchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Branch</DialogTitle>
           <DialogDescription>Update branch information</DialogDescription>
@@ -358,11 +358,11 @@ export function BranchesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead className="w-[200px]">Name</TableHead>
                   <TableHead>Address</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Updated</TableHead>
+                  <TableHead className="w-[150px]">Status</TableHead>
+                  <TableHead className="w-[200px]">Created</TableHead>
+                  <TableHead className="w-[200px]">Updated</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -370,31 +370,34 @@ export function BranchesPage() {
                 {branches.map((branch) => (
                   <TableRow key={branch.id}>
                     <TableCell className="font-medium">{branch.name}</TableCell>
-                    <TableCell>{branch.address}</TableCell>
+                    <TableCell className="max-w-[300px] truncate" title={branch.address}>
+                      {branch.address}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         {branch.isDefault && (
-                          <Badge variant="default">Default</Badge>
+                          <Badge variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90">Default</Badge>
                         )}
                         {branch.archivedAt ? (
-                          <Badge variant="secondary">Archived</Badge>
+                          <Badge variant="secondary" className="bg-muted text-muted-foreground">Archived</Badge>
                         ) : (
-                          <Badge variant="outline">Active</Badge>
+                          <Badge variant="outline" className="border-primary/20 text-primary">Active</Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{formatDate(branch.createdAt)}</TableCell>
-                    <TableCell>{formatDate(branch.updatedAt)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(branch.createdAt)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(branch.updatedAt)}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 items-center">
                         {!branch.archivedAt && !branch.isDefault && (
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleSetDefault(branch.id)}
                             disabled={setDefaultBranch.isPending}
+                            className="h-8"
                           >
-                            Set as default
+                            Set Default
                           </Button>
                         )}
                         {!branch.archivedAt && (
@@ -403,6 +406,7 @@ export function BranchesPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => setEditingBranch(branch)}
+                              className="h-8"
                             >
                               Edit
                             </Button>
@@ -412,6 +416,7 @@ export function BranchesPage() {
                                 size="sm"
                                 onClick={() => handleArchive(branch.id)}
                                 disabled={archiveBranch.isPending}
+                                className="h-8"
                               >
                                 Archive
                               </Button>
@@ -424,6 +429,7 @@ export function BranchesPage() {
                             size="sm"
                             onClick={() => handleRestore(branch.id)}
                             disabled={restoreBranch.isPending}
+                            className="h-8"
                           >
                             Restore
                           </Button>

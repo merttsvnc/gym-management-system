@@ -25,6 +25,7 @@ export function TenantSettingsPage() {
 
   useEffect(() => {
     if (tenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(tenant.name)
     }
   }, [tenant])
@@ -36,7 +37,7 @@ export function TenantSettingsPage() {
     try {
       await updateTenant.mutateAsync({ name })
       setSuccessMessage("Tenant settings updated successfully")
-    } catch (err) {
+    } catch {
       // Error is handled by the mutation state
     }
   }
@@ -107,21 +108,21 @@ export function TenantSettingsPage() {
                 id="slug"
                 value={tenant.slug}
                 disabled
-                className="bg-slate-800"
+                className="bg-muted text-muted-foreground font-mono"
               />
               <p className="text-sm text-muted-foreground">
                 The slug cannot be changed
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-4 rounded-lg border p-4 bg-card">
               <div>
-                <Label className="text-muted-foreground">Created At</Label>
-                <p className="mt-1">{formatDate(tenant.createdAt)}</p>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Created At</Label>
+                <p className="mt-1 font-medium">{formatDate(tenant.createdAt)}</p>
               </div>
               <div>
-                <Label className="text-muted-foreground">Updated At</Label>
-                <p className="mt-1">{formatDate(tenant.updatedAt)}</p>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Updated At</Label>
+                <p className="mt-1 font-medium">{formatDate(tenant.updatedAt)}</p>
               </div>
             </div>
 
