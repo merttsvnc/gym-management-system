@@ -80,3 +80,4 @@ The dev token is a base64-encoded JSON object:
 - **403 Forbidden**: The tenantId in your token doesn't exist in the database
 - **Token expired**: Tokens don't expire in dev mode, but you can regenerate if needed
 
+

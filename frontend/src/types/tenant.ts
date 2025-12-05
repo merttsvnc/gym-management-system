@@ -24,3 +24,4 @@ export type UpdateTenantPayload = {
   defaultCurrency?: string; // ISO 4217 code
 };
 
+
