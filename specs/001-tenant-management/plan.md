@@ -157,32 +157,32 @@ Break down the work into logical phases that can be completed and tested increme
 **Goal:** Set up database schema, migrations, and seed data
 
 **Tasks:**
-1. [ ] Create Prisma schema for Tenant, Branch, User models
+1. [x] Create Prisma schema for Tenant, Branch, User models
    - Estimated effort: 2 hours
    - Dependencies: None
    - Files: `prisma/schema.prisma`
 
-2. [ ] Add indexes and constraints per data-model.md
+2. [x] Add indexes and constraints per data-model.md
    - Estimated effort: 1 hour
    - Dependencies: Task 1
    - Files: `prisma/schema.prisma`
 
-3. [ ] Generate and review migration
+3. [x] Generate and review migration
    - Estimated effort: 1 hour
    - Dependencies: Task 2
    - Files: `prisma/migrations/`
 
-4. [ ] Apply migration to development database
+4. [x] Apply migration to development database
    - Estimated effort: 30 min
    - Dependencies: Task 3
    - Command: `npx prisma migrate dev`
 
-5. [ ] Create seed script for development data
+5. [ ] Create seed script for development data (Deferred: will be implemented in a later phase; currently intentionally skipped to comply with backend constraints – no seed script yet)
    - Estimated effort: 2 hours
    - Dependencies: Task 4
    - Files: `prisma/seeds/tenant-seed.ts`
 
-6. [ ] Generate Prisma Client
+6. [x] Generate Prisma Client
    - Estimated effort: 15 min
    - Dependencies: Task 4
    - Command: `npx prisma generate`
