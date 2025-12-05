@@ -1,11 +1,15 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosError } from 'axios';
-import { toApiError } from '@/types/error';
+import axios, {
+  type AxiosInstance,
+  type AxiosRequestConfig,
+  type AxiosError,
+} from "axios";
+import { toApiError } from "@/types/error";
 
 /**
  * Base API client configuration
  */
 const baseURL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
 /**
  * Creates and configures an Axios instance
@@ -13,20 +17,37 @@ const baseURL =
 const axiosInstance: AxiosInstance = axios.create({
   baseURL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
+
+/**
+ * Safe localStorage access helper
+ */
+function getStorageItem(key: string): string | null {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      return localStorage.getItem(key);
+    }
+  } catch {
+    // localStorage access denied (incognito mode, iframe restrictions, etc.)
+    console.warn("⚠️ localStorage access denied. Using fallback.");
+  }
+  return null;
+}
 
 /**
  * Request interceptor: Adds Authorization header if token exists
  * Reads JWT token from localStorage (set via dev token utility or auth flow)
  */
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('jwt_token');
+  const token = getStorageItem("jwt_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   } else if (import.meta.env.DEV) {
-    console.warn('⚠️ No JWT token found. API requests may fail. Check localStorage for "jwt_token"');
+    console.warn(
+      '⚠️ No JWT token found. API requests may fail. Check localStorage for "jwt_token"'
+    );
   }
   return config;
 });
@@ -40,7 +61,7 @@ axiosInstance.interceptors.response.use(
     // Convert AxiosError to ApiError and rethrow
     const apiError = toApiError(error);
     return Promise.reject(apiError);
-  },
+  }
 );
 
 /**
@@ -52,11 +73,11 @@ export const apiClient = {
    */
   get: <T = unknown>(
     url: string,
-    config?: AxiosRequestConfig & { tenantId?: string },
+    config?: AxiosRequestConfig & { tenantId?: string }
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {
-      headers['X-Tenant-Id'] = config.tenantId;
+      headers["X-Tenant-Id"] = config.tenantId;
     }
     return axiosInstance
       .get<T>(url, { ...config, headers: { ...config?.headers, ...headers } })
@@ -72,14 +93,17 @@ export const apiClient = {
   post: <T = unknown, B = unknown>(
     url: string,
     body?: B,
-    config?: AxiosRequestConfig & { tenantId?: string },
+    config?: AxiosRequestConfig & { tenantId?: string }
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {
-      headers['X-Tenant-Id'] = config.tenantId;
+      headers["X-Tenant-Id"] = config.tenantId;
     }
     return axiosInstance
-      .post<T>(url, body, { ...config, headers: { ...config?.headers, ...headers } })
+      .post<T>(url, body, {
+        ...config,
+        headers: { ...config?.headers, ...headers },
+      })
       .then((response) => response.data)
       .catch((error) => {
         throw toApiError(error);
@@ -92,14 +116,17 @@ export const apiClient = {
   patch: <T = unknown, B = unknown>(
     url: string,
     body?: B,
-    config?: AxiosRequestConfig & { tenantId?: string },
+    config?: AxiosRequestConfig & { tenantId?: string }
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {
-      headers['X-Tenant-Id'] = config.tenantId;
+      headers["X-Tenant-Id"] = config.tenantId;
     }
     return axiosInstance
-      .patch<T>(url, body, { ...config, headers: { ...config?.headers, ...headers } })
+      .patch<T>(url, body, {
+        ...config,
+        headers: { ...config?.headers, ...headers },
+      })
       .then((response) => response.data)
       .catch((error) => {
         throw toApiError(error);
@@ -111,18 +138,20 @@ export const apiClient = {
    */
   del: <T = unknown>(
     url: string,
-    config?: AxiosRequestConfig & { tenantId?: string },
+    config?: AxiosRequestConfig & { tenantId?: string }
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {
-      headers['X-Tenant-Id'] = config.tenantId;
+      headers["X-Tenant-Id"] = config.tenantId;
     }
     return axiosInstance
-      .delete<T>(url, { ...config, headers: { ...config?.headers, ...headers } })
+      .delete<T>(url, {
+        ...config,
+        headers: { ...config?.headers, ...headers },
+      })
       .then((response) => response.data)
       .catch((error) => {
         throw toApiError(error);
       });
   },
 };
-
