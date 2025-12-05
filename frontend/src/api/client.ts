@@ -19,14 +19,14 @@ const axiosInstance: AxiosInstance = axios.create({
 
 /**
  * Request interceptor: Adds Authorization header if token exists
- * Placeholder for future JWT auth implementation
+ * Reads JWT token from localStorage (set via dev token utility or auth flow)
  */
 axiosInstance.interceptors.request.use((config) => {
-  // TODO: Implement JWT auth when ready
-  // For now, read from localStorage as placeholder
   const token = localStorage.getItem('jwt_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (import.meta.env.DEV) {
+    console.warn('⚠️ No JWT token found. API requests may fail. Check localStorage for "jwt_token"');
   }
   return config;
 });

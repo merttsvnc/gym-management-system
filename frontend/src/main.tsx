@@ -6,6 +6,12 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import './index.css'
 import App from './App.tsx'
 import { queryClient } from './lib/query-client'
+import { initDevToken } from './lib/auth-dev'
+
+// Initialize dev token for development
+if (import.meta.env.DEV) {
+  initDevToken()
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
