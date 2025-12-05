@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
   CanActivate,
@@ -7,10 +9,10 @@ import {
 
 /**
  * TenantGuard ensures that a valid tenantId is present in the request context.
- * 
+ *
  * This guard assumes that an authentication mechanism (e.g., JwtAuthGuard) has already
  * attached user information to the request object, including tenantId and role.
- * 
+ *
  * The guard:
  * - Validates that tenantId exists in request.user
  * - Attaches tenantId to request.tenantId for easy access in controllers/services
@@ -32,4 +34,3 @@ export class TenantGuard implements CanActivate {
     return true;
   }
 }
-

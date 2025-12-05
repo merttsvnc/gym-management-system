@@ -13,6 +13,7 @@ export class PrismaService
       process.env.DATABASE_URL ||
       'postgresql://postgres:postgres@localhost:5432/gym_management_test';
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
 

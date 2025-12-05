@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
   ExceptionFilter,
   Catch,
@@ -10,7 +13,7 @@ import { Prisma } from '@prisma/client';
 
 /**
  * Global HTTP Exception Filter
- * 
+ *
  * Normalizes all error responses to the ErrorResponse format defined in contracts.
  * Handles:
  * - Standard NestJS HttpException types
@@ -38,7 +41,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof exceptionResponse === 'object') {
         const responseObj = exceptionResponse as any;
         message = responseObj.message || exception.message;
-        
+
         // Handle validation errors from class-validator
         if (Array.isArray(responseObj.message)) {
           errors = responseObj.message.map((msg: string) => {
@@ -73,7 +76,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message,
       ...(errors && { errors }),
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: (request as { url: string }).url,
     };
 
     response.status(status).json(errorResponse);
@@ -122,4 +125,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
   }
 }
-

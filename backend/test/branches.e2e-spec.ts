@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -546,5 +550,10 @@ describe('BranchesController (e2e)', () => {
         .post(`/api/v1/branches/${branchId}/set-default`)
         .expect(401);
     });
+  });
+
+  afterAll(async () => {
+    await cleanupTestData(prisma, [tenantId]);
+    await app.close();
   });
 });

@@ -112,11 +112,7 @@ export class BranchesService {
    * - Branch names must be unique within tenant (case-insensitive)
    * - Cannot update archived branches
    */
-  async updateBranch(
-    tenantId: string,
-    branchId: string,
-    dto: UpdateBranchDto,
-  ) {
+  async updateBranch(tenantId: string, branchId: string, dto: UpdateBranchDto) {
     const branch = await this.getBranchById(tenantId, branchId);
 
     if (!branch.isActive) {
@@ -139,7 +135,9 @@ export class BranchesService {
       });
 
       if (existingBranch) {
-        throw new ConflictException('Branch name already exists for this tenant');
+        throw new ConflictException(
+          'Branch name already exists for this tenant',
+        );
       }
     }
 
@@ -252,4 +250,3 @@ export class BranchesService {
     });
   }
 }
-

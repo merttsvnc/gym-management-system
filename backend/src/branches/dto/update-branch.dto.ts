@@ -1,4 +1,10 @@
-import { IsOptional, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  MinLength,
+  MaxLength,
+  Matches,
+} from 'class-validator';
 
 export class UpdateBranchDto {
   @IsOptional()
@@ -6,7 +12,8 @@ export class UpdateBranchDto {
   @MinLength(2)
   @MaxLength(100)
   @Matches(/^[a-zA-Z0-9 '\-&]+$/, {
-    message: 'Only alphanumeric characters, spaces, hyphens, apostrophes, and ampersands allowed',
+    message:
+      'Only alphanumeric characters, spaces, hyphens, apostrophes, and ampersands allowed',
   })
   name?: string;
 
@@ -16,4 +23,3 @@ export class UpdateBranchDto {
   @MaxLength(300)
   address?: string;
 }
-

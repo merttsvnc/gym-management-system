@@ -1,3 +1,9 @@
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/require-await */
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   NotFoundException,
@@ -141,18 +147,18 @@ describe('BranchesService', () => {
     it('should throw NotFoundException when branch not found', async () => {
       mockPrismaService.branch.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.getBranchById(tenantId, branchId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getBranchById(tenantId, branchId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException when branch belongs to different tenant', async () => {
       const otherTenantBranch = { ...mockBranch, tenantId: 'other-tenant' };
       mockPrismaService.branch.findUnique.mockResolvedValue(otherTenantBranch);
 
-      await expect(
-        service.getBranchById(tenantId, branchId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getBranchById(tenantId, branchId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -203,12 +209,12 @@ describe('BranchesService', () => {
     it('should throw ConflictException for duplicate branch name', async () => {
       mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
 
-      await expect(
-        service.createBranch(tenantId, createDto),
-      ).rejects.toThrow(ConflictException);
-      await expect(
-        service.createBranch(tenantId, createDto),
-      ).rejects.toThrow('Branch name already exists for this tenant');
+      await expect(service.createBranch(tenantId, createDto)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(service.createBranch(tenantId, createDto)).rejects.toThrow(
+        'Branch name already exists for this tenant',
+      );
     });
 
     it('should enforce tenant isolation', async () => {
@@ -322,23 +328,21 @@ describe('BranchesService', () => {
       const archivedBranch = { ...mockBranch, isActive: false };
       mockPrismaService.branch.findUnique.mockResolvedValue(archivedBranch);
 
-      await expect(
-        service.archiveBranch(tenantId, branchId),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.archiveBranch(tenantId, branchId),
-      ).rejects.toThrow('Branch is already archived');
+      await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
+        'Branch is already archived',
+      );
     });
 
     it('should throw BadRequestException if archiving default branch', async () => {
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
 
-      await expect(
-        service.archiveBranch(tenantId, branchId),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.archiveBranch(tenantId, branchId),
-      ).rejects.toThrow(
+      await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
         'Cannot archive default branch. Set another branch as default first.',
       );
     });
@@ -348,12 +352,12 @@ describe('BranchesService', () => {
       mockPrismaService.branch.findUnique.mockResolvedValue(nonDefaultBranch);
       mockPrismaService.branch.count.mockResolvedValue(1);
 
-      await expect(
-        service.archiveBranch(tenantId, branchId),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.archiveBranch(tenantId, branchId),
-      ).rejects.toThrow('Cannot archive the last active branch');
+      await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
+        'Cannot archive the last active branch',
+      );
     });
   });
 
@@ -388,12 +392,12 @@ describe('BranchesService', () => {
     it('should throw BadRequestException if branch is not archived', async () => {
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
 
-      await expect(
-        service.restoreBranch(tenantId, branchId),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.restoreBranch(tenantId, branchId),
-      ).rejects.toThrow('Branch is not archived');
+      await expect(service.restoreBranch(tenantId, branchId)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.restoreBranch(tenantId, branchId)).rejects.toThrow(
+        'Branch is not archived',
+      );
     });
   });
 
@@ -456,7 +460,8 @@ describe('BranchesService', () => {
       await service.setDefaultBranch(tenantId, branchId);
 
       expect(prismaService.$transaction).toHaveBeenCalled();
-      const transactionCallback = mockPrismaService.$transaction.mock.calls[0][0];
+      const transactionCallback =
+        mockPrismaService.$transaction.mock.calls[0][0];
       const mockTx = {
         branch: {
           updateMany: jest.fn(),
@@ -476,4 +481,3 @@ describe('BranchesService', () => {
     });
   });
 });
-

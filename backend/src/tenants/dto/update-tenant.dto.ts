@@ -4,10 +4,7 @@ import {
   MinLength,
   MaxLength,
   IsIn,
-  IsNotEmpty,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 const SUPPORTED_CURRENCIES = [
   'USD',
@@ -26,12 +23,6 @@ const SUPPORTED_CURRENCIES = [
   'HKD',
   'NZD',
 ] as const;
-
-function AtLeastOneProperty() {
-  return function (object: Object, propertyName: string) {
-    // Custom validation will be done in controller
-  };
-}
 
 export class UpdateTenantDto {
   @IsOptional()

@@ -91,15 +91,24 @@ export async function cleanupTestData(
   tenantIds?: string[],
 ) {
   if (tenantIds && tenantIds.length > 0) {
+    // Filter out undefined values
+    const validTenantIds = tenantIds.filter(
+      (id): id is string => id !== undefined,
+    );
+
+    if (validTenantIds.length === 0) {
+      return;
+    }
+
     // Clean up only specific tenants and their related data
     await prisma.user.deleteMany({
-      where: { tenantId: { in: tenantIds } },
+      where: { tenantId: { in: validTenantIds } },
     });
     await prisma.branch.deleteMany({
-      where: { tenantId: { in: tenantIds } },
+      where: { tenantId: { in: validTenantIds } },
     });
     await prisma.tenant.deleteMany({
-      where: { id: { in: tenantIds } },
+      where: { id: { in: validTenantIds } },
     });
   } else {
     // Clean up all test data

@@ -20,4 +20,3 @@ export class BranchListQueryDto {
   @IsBoolean()
   includeArchived?: boolean = false;
 }
-
