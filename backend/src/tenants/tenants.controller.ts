@@ -1,30 +1,35 @@
-import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../auth/guards/tenant.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TenantsService } from './tenants.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
-// Note: Guards will be implemented in Phase 3
-// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { TenantGuard } from '../auth/guards/tenant.guard';
-// import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('api/v1/tenants')
-// @UseGuards(JwtAuthGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 
+  /**
+   * GET /api/v1/tenants/current
+   * Returns the current tenant information based on authenticated user's tenantId
+   */
   @Get('current')
-  getCurrentTenant(/* @CurrentUser('tenantId') tenantId: string */) {
-    // Placeholder: tenantId will come from JWT token in Phase 3
-    const tenantId = 'placeholder-tenant-id';
+  getCurrentTenant(@CurrentUser('tenantId') tenantId: string) {
     return this.tenantsService.getCurrentTenant(tenantId);
   }
 
+  /**
+   * PATCH /api/v1/tenants/current
+   * Updates tenant settings (name, defaultCurrency)
+   * Requires ADMIN role (TODO: add role check when roles are fully wired)
+   */
   @Patch('current')
+  @HttpCode(HttpStatus.OK)
   updateCurrentTenant(
-    /* @CurrentUser('tenantId') tenantId: string, */
+    @CurrentUser('tenantId') tenantId: string,
     @Body() dto: UpdateTenantDto,
   ) {
-    // Placeholder: tenantId will come from JWT token in Phase 3
-    const tenantId = 'placeholder-tenant-id';
     return this.tenantsService.updateCurrentTenant(tenantId, dto);
   }
 }
