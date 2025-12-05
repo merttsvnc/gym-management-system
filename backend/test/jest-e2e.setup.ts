@@ -9,8 +9,10 @@
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL =
     'postgresql://postgres:postgres@localhost:5432/gym_management_test';
-  
-  // Log for debugging (can be removed in production)
-  console.log('[jest-e2e.setup] DATABASE_URL set to:', process.env.DATABASE_URL);
-}
 
+  // Log for debugging (can be removed in production)
+  console.log(
+    '[jest-e2e.setup] DATABASE_URL set to:',
+    process.env.DATABASE_URL,
+  );
+}

@@ -1,22 +1,25 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor() {
-    // Ensure DATABASE_URL is set (fallback for test environments)
-    if (!process.env.DATABASE_URL) {
-      process.env.DATABASE_URL =
-        'postgresql://postgres:postgres@localhost:5432/gym_management_test';
-    }
+    const connectionString =
+      process.env.DATABASE_URL ||
+      'postgresql://postgres:postgres@localhost:5432/gym_management_test';
 
-    // PrismaClient reads DATABASE_URL from environment variables automatically
-    // The generated Prisma client requires a non-empty options object
-    // Use type assertion to satisfy TypeScript - Prisma will read DATABASE_URL from process.env
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
+
     super({
-      // Empty object satisfies the constructor requirement
-      // Prisma will automatically use DATABASE_URL from environment variables
-    } as any);
+      adapter,
+      log: ['error', 'warn'],
+    });
   }
 
   async onModuleInit() {
@@ -27,4 +30,3 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.$disconnect();
   }
 }
-
