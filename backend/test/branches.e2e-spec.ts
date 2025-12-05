@@ -26,7 +26,7 @@ describe('BranchesController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = moduleFixture.get<PrismaService>(PrismaService);
-    
+
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -35,7 +35,7 @@ describe('BranchesController (e2e)', () => {
       }),
     );
     app.useGlobalFilters(new HttpExceptionFilter());
-    
+
     await app.init();
 
     // Create test tenant and user
@@ -50,8 +50,8 @@ describe('BranchesController (e2e)', () => {
     });
 
     // Create default branch (first branch becomes default)
+    // Don't provide name so it generates a unique one
     const defaultBranch = await createTestBranch(prisma, tenantId, {
-      name: 'Main Branch',
       address: '123 Main St',
       isDefault: true,
     });
@@ -59,10 +59,9 @@ describe('BranchesController (e2e)', () => {
   });
 
   afterAll(async () => {
-    await cleanupTestData(prisma);
+    await cleanupTestData(prisma, [tenantId]);
     await app.close();
   });
-
   describe('GET /api/v1/branches', () => {
     it('should return branches for current tenant only', async () => {
       // Create another branch
@@ -131,9 +130,7 @@ describe('BranchesController (e2e)', () => {
     });
 
     it('should return 401 when unauthenticated', () => {
-      return request(app.getHttpServer())
-        .get('/api/v1/branches')
-        .expect(401);
+      return request(app.getHttpServer()).get('/api/v1/branches').expect(401);
     });
   });
 
@@ -272,8 +269,8 @@ describe('BranchesController (e2e)', () => {
     let branchId: string;
 
     beforeEach(async () => {
+      // Don't provide name so it generates a unique one for each test
       const branch = await createTestBranch(prisma, tenantId, {
-        name: 'Update Test Branch',
         address: '123 Update St',
       });
       branchId = branch.id;
@@ -394,11 +391,15 @@ describe('BranchesController (e2e)', () => {
           tenantName: 'Single Branch Tenant',
           tenantSlug: `single-${Date.now()}`,
         });
-      const singleBranch = await createTestBranch(prisma, singleBranchTenant.id, {
-        name: 'Only Branch',
-        address: '123 Only St',
-        isDefault: true,
-      });
+      const singleBranch = await createTestBranch(
+        prisma,
+        singleBranchTenant.id,
+        {
+          name: 'Only Branch',
+          address: '123 Only St',
+          isDefault: true,
+        },
+      );
       const singleToken = createMockToken({
         userId: singleBranchUser.id,
         tenantId: singleBranchTenant.id,
@@ -547,4 +548,3 @@ describe('BranchesController (e2e)', () => {
     });
   });
 });
-

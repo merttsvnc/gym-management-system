@@ -1,4 +1,13 @@
-import { IsOptional, IsString, MinLength, MaxLength, IsIn } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsIn,
+  IsNotEmpty,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 const SUPPORTED_CURRENCIES = [
   'USD',
@@ -18,6 +27,12 @@ const SUPPORTED_CURRENCIES = [
   'NZD',
 ] as const;
 
+function AtLeastOneProperty() {
+  return function (object: Object, propertyName: string) {
+    // Custom validation will be done in controller
+  };
+}
+
 export class UpdateTenantDto {
   @IsOptional()
   @IsString()
@@ -29,5 +44,11 @@ export class UpdateTenantDto {
   @IsString()
   @IsIn(SUPPORTED_CURRENCIES)
   defaultCurrency?: string;
-}
 
+  /**
+   * Validates that at least one property is provided
+   */
+  static hasAtLeastOneProperty(dto: UpdateTenantDto): boolean {
+    return dto.name !== undefined || dto.defaultCurrency !== undefined;
+  }
+}

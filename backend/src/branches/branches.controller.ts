@@ -84,6 +84,7 @@ export class BranchesController {
    * Cannot archive default branch or last active branch
    */
   @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
   archiveBranch(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') branchId: string,
@@ -97,6 +98,7 @@ export class BranchesController {
    * Requires ADMIN role (TODO: add role check when roles are fully wired)
    */
   @Post(':id/restore')
+  @HttpCode(HttpStatus.OK)
   restoreBranch(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') branchId: string,
@@ -111,6 +113,7 @@ export class BranchesController {
    * Automatically unsets previous default branch
    */
   @Post(':id/set-default')
+  @HttpCode(HttpStatus.OK)
   setDefaultBranch(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') branchId: string,
@@ -118,4 +121,3 @@ export class BranchesController {
     return this.branchesService.setDefaultBranch(tenantId, branchId);
   }
 }
-

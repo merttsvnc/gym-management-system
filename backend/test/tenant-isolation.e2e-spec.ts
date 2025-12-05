@@ -14,7 +14,7 @@ import {
 describe('Tenant Isolation (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  
+
   // Tenant A data
   let tenantAId: string;
   let userAId: string;
@@ -34,7 +34,7 @@ describe('Tenant Isolation (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = moduleFixture.get<PrismaService>(PrismaService);
-    
+
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -43,15 +43,18 @@ describe('Tenant Isolation (e2e)', () => {
       }),
     );
     app.useGlobalFilters(new HttpExceptionFilter());
-    
+
     await app.init();
 
     // Create Tenant A with user and branch
-    const { tenant: tenantA, user: userA } = await createTestTenantAndUser(prisma, {
-      tenantName: 'Tenant A Gym',
-      tenantSlug: `tenant-a-${Date.now()}`,
-      userEmail: `user-a-${Date.now()}@example.com`,
-    });
+    const { tenant: tenantA, user: userA } = await createTestTenantAndUser(
+      prisma,
+      {
+        tenantName: 'Tenant A Gym',
+        tenantSlug: `tenant-a-${Date.now()}`,
+        userEmail: `user-a-${Date.now()}@example.com`,
+      },
+    );
     tenantAId = tenantA.id;
     userAId = userA.id;
     tokenA = createMockToken({
@@ -69,11 +72,14 @@ describe('Tenant Isolation (e2e)', () => {
     branchAId = branchA.id;
 
     // Create Tenant B with user and branch
-    const { tenant: tenantB, user: userB } = await createTestTenantAndUser(prisma, {
-      tenantName: 'Tenant B Gym',
-      tenantSlug: `tenant-b-${Date.now()}`,
-      userEmail: `user-b-${Date.now()}@example.com`,
-    });
+    const { tenant: tenantB, user: userB } = await createTestTenantAndUser(
+      prisma,
+      {
+        tenantName: 'Tenant B Gym',
+        tenantSlug: `tenant-b-${Date.now()}`,
+        userEmail: `user-b-${Date.now()}@example.com`,
+      },
+    );
     tenantBId = tenantB.id;
     userBId = userB.id;
     tokenB = createMockToken({
@@ -92,7 +98,7 @@ describe('Tenant Isolation (e2e)', () => {
   });
 
   afterAll(async () => {
-    await cleanupTestData(prisma);
+    await cleanupTestData(prisma, [tenantAId, tenantBId]);
     await app.close();
   });
 
@@ -399,4 +405,3 @@ describe('Tenant Isolation (e2e)', () => {
     });
   });
 });
-

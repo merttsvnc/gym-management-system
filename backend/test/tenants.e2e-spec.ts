@@ -24,7 +24,7 @@ describe('TenantsController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = moduleFixture.get<PrismaService>(PrismaService);
-    
+
     // Apply same global pipes and filters as main.ts
     app.useGlobalPipes(
       new ValidationPipe({
@@ -34,7 +34,7 @@ describe('TenantsController (e2e)', () => {
       }),
     );
     app.useGlobalFilters(new HttpExceptionFilter());
-    
+
     await app.init();
 
     // Create test tenant and user
@@ -50,7 +50,7 @@ describe('TenantsController (e2e)', () => {
   });
 
   afterAll(async () => {
-    await cleanupTestData(prisma);
+    await cleanupTestData(prisma, [tenantId]);
     await app.close();
   });
 
@@ -157,4 +157,3 @@ describe('TenantsController (e2e)', () => {
     });
   });
 });
-
