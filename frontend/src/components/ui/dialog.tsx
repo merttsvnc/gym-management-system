@@ -1,76 +1,79 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cn } from "@/lib/utils";
 
 interface DialogContextValue {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 const DialogContext = React.createContext<DialogContextValue | undefined>(
   undefined
-)
+);
 
 const useDialogContext = () => {
-  const context = React.useContext(DialogContext)
+  const context = React.useContext(DialogContext);
   if (!context) {
-    throw new Error("Dialog components must be used within Dialog")
+    throw new Error("Dialog components must be used within Dialog");
   }
-  return context
-}
+  return context;
+};
 
 interface DialogProps {
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-  children: React.ReactNode
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children: React.ReactNode;
 }
 
 const Dialog = ({ open = false, onOpenChange, children }: DialogProps) => {
-  const [internalOpen, setInternalOpen] = React.useState(open)
+  const [internalOpen, setInternalOpen] = React.useState(open);
 
-  const isControlled = onOpenChange !== undefined
-  const isOpen = isControlled ? open : internalOpen
-  const setIsOpen = isControlled ? onOpenChange : setInternalOpen
+  const isControlled = onOpenChange !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
+  const setIsOpen = isControlled ? onOpenChange : setInternalOpen;
 
   React.useEffect(() => {
     if (isControlled) {
-      setInternalOpen(open)
+      setInternalOpen(open);
     }
-  }, [open, isControlled])
+  }, [open, isControlled]);
 
   return (
     <DialogContext.Provider value={{ open: isOpen, onOpenChange: setIsOpen }}>
       {children}
     </DialogContext.Provider>
-  )
-}
+  );
+};
 
 const DialogTrigger = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
->(({ children, onClick, ...props }, ref) => {
-  const { onOpenChange } = useDialogContext()
+>(({ children, onClick, asChild = false, ...props }, ref) => {
+  const { onOpenChange } = useDialogContext();
+  const Comp = asChild ? Slot : "button";
+
   return (
-    <button
+    <Comp
       ref={ref}
-      onClick={(e) => {
-        onOpenChange(true)
-        onClick?.(e)
+      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+        onOpenChange(true);
+        onClick?.(e);
       }}
       {...props}
     >
       {children}
-    </button>
-  )
-})
-DialogTrigger.displayName = "DialogTrigger"
+    </Comp>
+  );
+});
+DialogTrigger.displayName = "DialogTrigger";
 
 const DialogContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, children, ...props }, ref) => {
-  const { open, onOpenChange } = useDialogContext()
+  const { open, onOpenChange } = useDialogContext();
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <>
@@ -89,9 +92,9 @@ const DialogContent = React.forwardRef<
         {children}
       </div>
     </>
-  )
-})
-DialogContent.displayName = "DialogContent"
+  );
+});
+DialogContent.displayName = "DialogContent";
 
 const DialogHeader = ({
   className,
@@ -104,8 +107,8 @@ const DialogHeader = ({
     )}
     {...props}
   />
-)
-DialogHeader.displayName = "DialogHeader"
+);
+DialogHeader.displayName = "DialogHeader";
 
 const DialogFooter = ({
   className,
@@ -118,8 +121,8 @@ const DialogFooter = ({
     )}
     {...props}
   />
-)
-DialogFooter.displayName = "DialogFooter"
+);
+DialogFooter.displayName = "DialogFooter";
 
 const DialogTitle = React.forwardRef<
   HTMLHeadingElement,
@@ -133,8 +136,8 @@ const DialogTitle = React.forwardRef<
     )}
     {...props}
   />
-))
-DialogTitle.displayName = "DialogTitle"
+));
+DialogTitle.displayName = "DialogTitle";
 
 const DialogDescription = React.forwardRef<
   HTMLParagraphElement,
@@ -145,14 +148,14 @@ const DialogDescription = React.forwardRef<
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
-))
-DialogDescription.displayName = "DialogDescription"
+));
+DialogDescription.displayName = "DialogDescription";
 
 const DialogClose = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
 >(({ className, onClick, ...props }, ref) => {
-  const { onOpenChange } = useDialogContext()
+  const { onOpenChange } = useDialogContext();
   return (
     <button
       ref={ref}
@@ -162,16 +165,16 @@ const DialogClose = React.forwardRef<
         className
       )}
       onClick={(e) => {
-        onOpenChange(false)
-        onClick?.(e)
+        onOpenChange(false);
+        onClick?.(e);
       }}
       {...props}
     >
       ×
     </button>
-  )
-})
-DialogClose.displayName = "DialogClose"
+  );
+});
+DialogClose.displayName = "DialogClose";
 
 export {
   Dialog,
@@ -182,5 +185,4 @@ export {
   DialogTitle,
   DialogDescription,
   DialogClose,
-}
-
+};

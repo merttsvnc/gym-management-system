@@ -1,5 +1,5 @@
 import { IsOptional, IsInt, Min, Max, IsBoolean } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class BranchListQueryDto {
   @IsOptional()
@@ -16,7 +16,7 @@ export class BranchListQueryDto {
   limit?: number = 20;
 
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   includeArchived?: boolean = false;
 }

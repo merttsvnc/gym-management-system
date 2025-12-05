@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react"
-import { useCurrentTenant } from "@/hooks/useTenant"
+import React, { useState } from "react";
+import { useCurrentTenant } from "@/hooks/useTenant";
 import {
   useBranches,
   useCreateBranch,
@@ -7,16 +7,16 @@ import {
   useArchiveBranch,
   useRestoreBranch,
   useSetDefaultBranch,
-} from "@/hooks/useBranches"
+} from "@/hooks/useBranches";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -24,7 +24,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -33,48 +33,46 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import type { ApiError } from "@/types/error"
-import type { Branch } from "@/types/branch"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { ApiError } from "@/types/error";
+import type { Branch } from "@/types/branch";
 
 function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleString()
+  return new Date(dateString).toLocaleString();
 }
 
 function NewBranchDialog({
   tenantId,
   onOpenChange,
 }: {
-  tenantId: string
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  tenantId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const createBranch = useCreateBranch(tenantId)
-  const [name, setName] = useState("")
-  const [address, setAddress] = useState("")
+  const createBranch = useCreateBranch(tenantId);
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
-      await createBranch.mutateAsync({ name, address })
-      setName("")
-      setAddress("")
-      onOpenChange(false)
-    } catch (err) {
+      await createBranch.mutateAsync({ name, address });
+      setName("");
+      setAddress("");
+      onOpenChange(false);
+    } catch {
       // Error handled by mutation state
     }
-  }
+  };
 
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Create New Branch</DialogTitle>
-        <DialogDescription>
-          Add a new branch to your tenant
-        </DialogDescription>
+        <DialogDescription>Add a new branch to your tenant</DialogDescription>
       </DialogHeader>
       <form onSubmit={handleSubmit}>
         <div className="space-y-4 py-4">
@@ -125,7 +123,7 @@ function NewBranchDialog({
         </DialogFooter>
       </form>
     </DialogContent>
-  )
+  );
 }
 
 function EditBranchDialog({
@@ -134,35 +132,34 @@ function EditBranchDialog({
   open,
   onOpenChange,
 }: {
-  branch: Branch
-  tenantId: string
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  branch: Branch;
+  tenantId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const updateBranch = useUpdateBranch(tenantId)
-  const [name, setName] = useState(branch.name)
-  const [address, setAddress] = useState(branch.address)
+  const updateBranch = useUpdateBranch(tenantId);
+  const [name, setName] = useState(branch.name);
+  const [address, setAddress] = useState(branch.address);
 
-  // Update form when branch changes
-  useEffect(() => {
-    if (branch) {
-      setName(branch.name)
-      setAddress(branch.address)
-    }
-  }, [branch])
+  // Reset form when dialog opens with different branch
+  const branchId = branch.id;
+  React.useEffect(() => {
+    setName(branch.name);
+    setAddress(branch.address);
+  }, [branchId, branch.name, branch.address]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
       await updateBranch.mutateAsync({
         branchId: branch.id,
         payload: { name, address },
-      })
-      onOpenChange(false)
-    } catch (err) {
+      });
+      onOpenChange(false);
+    } catch {
       // Error handled by mutation state
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -221,52 +218,54 @@ function EditBranchDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 export function BranchesPage() {
-  const { data: tenant, isLoading: tenantLoading } = useCurrentTenant()
-  const [includeArchived, setIncludeArchived] = useState(false)
-  const [newBranchOpen, setNewBranchOpen] = useState(false)
-  const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+  const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [newBranchOpen, setNewBranchOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
 
   const {
     data: branchesData,
     isLoading: branchesLoading,
     error: branchesError,
-  } = useBranches(tenant?.id || "", { includeArchived })
+  } = useBranches(tenant?.id || "", { includeArchived });
 
-  const archiveBranch = useArchiveBranch(tenant?.id || "")
-  const restoreBranch = useRestoreBranch(tenant?.id || "")
-  const setDefaultBranch = useSetDefaultBranch(tenant?.id || "")
+  const archiveBranch = useArchiveBranch(tenant?.id || "");
+  const restoreBranch = useRestoreBranch(tenant?.id || "");
+  const setDefaultBranch = useSetDefaultBranch(tenant?.id || "");
 
   const handleArchive = async (branchId: string) => {
     if (
-      confirm("Are you sure you want to archive this branch? It can be restored later.")
+      confirm(
+        "Are you sure you want to archive this branch? It can be restored later."
+      )
     ) {
       try {
-        await archiveBranch.mutateAsync(branchId)
-      } catch (err) {
+        await archiveBranch.mutateAsync(branchId);
+      } catch {
         // Error handled by mutation state
       }
     }
-  }
+  };
 
   const handleRestore = async (branchId: string) => {
     try {
-      await restoreBranch.mutateAsync(branchId)
-    } catch (err) {
+      await restoreBranch.mutateAsync(branchId);
+    } catch {
       // Error handled by mutation state
     }
-  }
+  };
 
   const handleSetDefault = async (branchId: string) => {
     try {
-      await setDefaultBranch.mutateAsync(branchId)
-    } catch (err) {
+      await setDefaultBranch.mutateAsync(branchId);
+    } catch {
       // Error handled by mutation state
     }
-  }
+  };
 
   if (tenantLoading) {
     return (
@@ -276,7 +275,7 @@ export function BranchesPage() {
           <CardDescription>Loading tenant...</CardDescription>
         </CardHeader>
       </Card>
-    )
+    );
   }
 
   if (!tenant) {
@@ -284,22 +283,22 @@ export function BranchesPage() {
       <Alert variant="destructive">
         <AlertDescription>Tenant not found</AlertDescription>
       </Alert>
-    )
+    );
   }
 
   if (branchesError) {
-    const apiError = branchesError as ApiError
+    const apiError = branchesError as ApiError;
     return (
       <Alert variant="destructive">
         <AlertDescription>
           {apiError.message || "Failed to load branches"}
         </AlertDescription>
       </Alert>
-    )
+    );
   }
 
-  const branches = branchesData?.data || []
-  const isLoading = branchesLoading
+  const branches = branchesData?.data || [];
+  const isLoading = branchesLoading;
 
   return (
     <div className="space-y-6">
@@ -308,17 +307,19 @@ export function BranchesPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Branches</CardTitle>
-              <CardDescription>
-                Manage branches for your tenant
-              </CardDescription>
+              <CardDescription>Manage branches for your tenant</CardDescription>
             </div>
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm">
+              <label
+                htmlFor="show-archived-checkbox"
+                className="flex items-center gap-2 text-sm cursor-pointer"
+              >
                 <input
+                  id="show-archived-checkbox"
                   type="checkbox"
                   checked={includeArchived}
                   onChange={(e) => setIncludeArchived(e.target.checked)}
-                  className="rounded"
+                  className="rounded cursor-pointer"
                 />
                 Show archived
               </label>
@@ -446,6 +447,5 @@ export function BranchesPage() {
         />
       )}
     </div>
-  )
+  );
 }
-
