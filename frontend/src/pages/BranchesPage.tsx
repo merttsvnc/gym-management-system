@@ -364,7 +364,7 @@ export function BranchesPage() {
             </div>
           ) : (
             <>
-              <div className="hidden md:block w-full overflow-x-auto">
+              <div className="hidden lg:block w-full overflow-x-auto">
                 <Table className="min-w-[700px]">
                   <TableHeader>
                     <TableRow>
@@ -476,7 +476,7 @@ export function BranchesPage() {
                 </Table>
               </div>
 
-              <div className="grid gap-4 md:hidden">
+              <div className="grid gap-4 lg:hidden">
                 {branches.map((branch) => (
                   <div
                     key={branch.id}
