@@ -3,15 +3,20 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanService } from '../plan/plan.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import { BranchListQueryDto } from './dto/branch-list-query.dto';
 
 @Injectable()
 export class BranchesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planService: PlanService,
+  ) {}
 
   /**
    * List branches for a tenant with pagination
@@ -71,8 +76,21 @@ export class BranchesService {
    * Business rules:
    * - First branch for a tenant automatically becomes default
    * - Branch names must be unique within tenant (case-insensitive)
+   * - Enforces plan limit for maxBranches
    */
   async createBranch(tenantId: string, dto: CreateBranchDto) {
+    // Check plan limit before creating branch
+    const plan = await this.planService.getTenantPlan(tenantId);
+    const currentCount = await this.prisma.branch.count({
+      where: { tenantId },
+    });
+
+    if (currentCount >= plan.maxBranches) {
+      throw new ForbiddenException(
+        `Plan limit reached: max ${plan.maxBranches} branches allowed.`,
+      );
+    }
+
     // Check if branch name already exists for this tenant (case-insensitive)
     const existingBranch = await this.prisma.branch.findFirst({
       where: {

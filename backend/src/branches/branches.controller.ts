@@ -56,6 +56,7 @@ export class BranchesController {
    * Creates a new branch for the current tenant
    * Requires ADMIN role
    * Returns 201 Created
+   * Enforces plan limits (e.g., maxBranches)
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -66,8 +67,17 @@ export class BranchesController {
     @Body() dto: CreateBranchDto,
   ) {
     // user.tenantId is used to scope the branch creation to the tenant
+    // Plan limits are enforced in BranchesService.createBranch()
     return this.branchesService.createBranch(user.tenantId, dto);
   }
+
+  // Example future usage:
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles('ADMIN')
+  // async create(@CurrentUser() user: AuthUser) {
+  //   const plan = await this.planService.getTenantPlan(user.tenantId);
+  //   // Use plan.hasClasses, plan.maxBranches, etc.
+  // }
 
   /**
    * PATCH /api/v1/branches/:id

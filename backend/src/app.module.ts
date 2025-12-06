@@ -7,6 +7,7 @@ import { TenantsModule } from './tenants/tenants.module';
 import { BranchesModule } from './branches/branches.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { PlanModule } from './plan/plan.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     BranchesModule,
     UsersModule,
     AuthModule,
+    PlanModule,
   ],
   controllers: [AppController],
   providers: [AppService],
