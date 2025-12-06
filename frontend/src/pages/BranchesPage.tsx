@@ -269,7 +269,7 @@ export function BranchesPage() {
 
   if (tenantLoading) {
     return (
-      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Branches</CardTitle>
@@ -282,7 +282,7 @@ export function BranchesPage() {
 
   if (!tenant) {
     return (
-      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>Tenant not found</AlertDescription>
         </Alert>
@@ -293,7 +293,7 @@ export function BranchesPage() {
   if (branchesError) {
     const apiError = branchesError as ApiError;
     return (
-      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
             {apiError.message || "Failed to load branches"}
@@ -307,7 +307,7 @@ export function BranchesPage() {
   const isLoading = branchesLoading;
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <Card className="w-full">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -376,24 +376,48 @@ export function BranchesPage() {
                 <TableBody>
                   {branches.map((branch) => (
                     <TableRow key={branch.id}>
-                      <TableCell className="font-medium">{branch.name}</TableCell>
-                      <TableCell className="max-w-[300px] truncate" title={branch.address}>
+                      <TableCell className="font-medium">
+                        {branch.name}
+                      </TableCell>
+                      <TableCell
+                        className="max-w-[300px] truncate"
+                        title={branch.address}
+                      >
                         {branch.address}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2 flex-wrap">
                           {branch.isDefault && (
-                            <Badge variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap">Default</Badge>
+                            <Badge
+                              variant="default"
+                              className="bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
+                            >
+                              Default
+                            </Badge>
                           )}
                           {branch.archivedAt ? (
-                            <Badge variant="secondary" className="bg-muted text-muted-foreground whitespace-nowrap">Archived</Badge>
+                            <Badge
+                              variant="secondary"
+                              className="bg-muted text-muted-foreground whitespace-nowrap"
+                            >
+                              Archived
+                            </Badge>
                           ) : (
-                            <Badge variant="outline" className="border-primary/20 text-primary whitespace-nowrap">Active</Badge>
+                            <Badge
+                              variant="outline"
+                              className="border-primary/20 text-primary whitespace-nowrap"
+                            >
+                              Active
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{formatDate(branch.createdAt)}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{formatDate(branch.updatedAt)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                        {formatDate(branch.createdAt)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                        {formatDate(branch.updatedAt)}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2 items-center flex-wrap">
                           {!branch.archivedAt && !branch.isDefault && (

@@ -1,50 +1,50 @@
-import { useState, useEffect } from "react"
-import { useCurrentTenant, useUpdateTenant } from "@/hooks/useTenant"
+import { useState, useEffect } from "react";
+import { useCurrentTenant, useUpdateTenant } from "@/hooks/useTenant";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import type { ApiError } from "@/types/error"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { ApiError } from "@/types/error";
 
 function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleString()
+  return new Date(dateString).toLocaleString();
 }
 
 export function TenantSettingsPage() {
-  const { data: tenant, isLoading, error } = useCurrentTenant()
-  const updateTenant = useUpdateTenant()
-  const [name, setName] = useState("")
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const { data: tenant, isLoading, error } = useCurrentTenant();
+  const updateTenant = useUpdateTenant();
+  const [name, setName] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (tenant) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setName(tenant.name)
+      setName(tenant.name);
     }
-  }, [tenant])
+  }, [tenant]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSuccessMessage(null)
+    e.preventDefault();
+    setSuccessMessage(null);
 
     try {
-      await updateTenant.mutateAsync({ name })
-      setSuccessMessage("Tenant settings updated successfully")
+      await updateTenant.mutateAsync({ name });
+      setSuccessMessage("Tenant settings updated successfully");
     } catch {
       // Error is handled by the mutation state
     }
-  }
+  };
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Tenant Settings</CardTitle>
@@ -52,34 +52,34 @@ export function TenantSettingsPage() {
           </CardHeader>
         </Card>
       </div>
-    )
+    );
   }
 
   if (error) {
-    const apiError = error as ApiError
+    const apiError = error as ApiError;
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
             {apiError.message || "Failed to load tenant settings"}
           </AlertDescription>
         </Alert>
       </div>
-    )
+    );
   }
 
   if (!tenant) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>Tenant not found</AlertDescription>
         </Alert>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Tenant Settings</CardTitle>
@@ -117,12 +117,20 @@ export function TenantSettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border p-4 bg-card">
               <div>
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Created At</Label>
-                <p className="mt-1 font-medium whitespace-nowrap">{formatDate(tenant.createdAt)}</p>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Created At
+                </Label>
+                <p className="mt-1 font-medium whitespace-nowrap">
+                  {formatDate(tenant.createdAt)}
+                </p>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Updated At</Label>
-                <p className="mt-1 font-medium whitespace-nowrap">{formatDate(tenant.updatedAt)}</p>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Updated At
+                </Label>
+                <p className="mt-1 font-medium whitespace-nowrap">
+                  {formatDate(tenant.updatedAt)}
+                </p>
               </div>
             </div>
 
@@ -153,6 +161,5 @@ export function TenantSettingsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-
