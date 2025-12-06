@@ -310,25 +310,27 @@ export function BranchesPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <Card className="w-full">
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <CardTitle>Branches</CardTitle>
               <CardDescription>Manage branches for your tenant</CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-              <label
-                htmlFor="show-archived-checkbox"
-                className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap"
-              >
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+              <div className="flex items-center space-x-2 bg-muted/50 p-2 rounded-md border">
                 <input
                   id="show-archived-checkbox"
                   type="checkbox"
                   checked={includeArchived}
                   onChange={(e) => setIncludeArchived(e.target.checked)}
-                  className="rounded cursor-pointer"
+                  className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 />
-                Show archived
-              </label>
+                <Label
+                  htmlFor="show-archived-checkbox"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Show archived
+                </Label>
+              </div>
               <Dialog open={newBranchOpen} onOpenChange={setNewBranchOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full sm:w-auto">New branch</Button>
@@ -361,117 +363,219 @@ export function BranchesPage() {
               )}
             </div>
           ) : (
-            <div className="w-full overflow-x-auto">
-              <Table className="min-w-[700px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px]">Name</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead className="w-[150px]">Status</TableHead>
-                    <TableHead className="w-[200px]">Created</TableHead>
-                    <TableHead className="w-[200px]">Updated</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {branches.map((branch) => (
-                    <TableRow key={branch.id}>
-                      <TableCell className="font-medium">
-                        {branch.name}
-                      </TableCell>
-                      <TableCell
-                        className="max-w-[300px] truncate"
-                        title={branch.address}
-                      >
-                        {branch.address}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2 flex-wrap">
-                          {branch.isDefault && (
-                            <Badge
-                              variant="default"
-                              className="bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
-                            >
-                              Default
-                            </Badge>
-                          )}
-                          {branch.archivedAt ? (
-                            <Badge
-                              variant="secondary"
-                              className="bg-muted text-muted-foreground whitespace-nowrap"
-                            >
-                              Archived
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="border-primary/20 text-primary whitespace-nowrap"
-                            >
-                              Active
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
-                        {formatDate(branch.createdAt)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
-                        {formatDate(branch.updatedAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2 items-center flex-wrap">
-                          {!branch.archivedAt && !branch.isDefault && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSetDefault(branch.id)}
-                              disabled={setDefaultBranch.isPending}
-                              className="h-8 text-xs sm:text-sm whitespace-nowrap"
-                            >
-                              Set Default
-                            </Button>
-                          )}
-                          {!branch.archivedAt && (
-                            <>
+            <>
+              <div className="hidden md:block w-full overflow-x-auto">
+                <Table className="min-w-[700px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[200px]">Name</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead className="w-[150px]">Status</TableHead>
+                      <TableHead className="w-[200px]">Created</TableHead>
+                      <TableHead className="w-[200px]">Updated</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {branches.map((branch) => (
+                      <TableRow key={branch.id}>
+                        <TableCell className="font-medium">
+                          {branch.name}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[300px] truncate"
+                          title={branch.address}
+                        >
+                          {branch.address}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2 flex-wrap">
+                            {branch.isDefault && (
+                              <Badge
+                                variant="default"
+                                className="bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
+                              >
+                                Default
+                              </Badge>
+                            )}
+                            {branch.archivedAt ? (
+                              <Badge
+                                variant="secondary"
+                                className="bg-muted text-muted-foreground whitespace-nowrap"
+                              >
+                                Archived
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="border-primary/20 text-primary whitespace-nowrap"
+                              >
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                          {formatDate(branch.createdAt)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                          {formatDate(branch.updatedAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2 items-center flex-wrap">
+                            {!branch.archivedAt && !branch.isDefault && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleSetDefault(branch.id)}
+                                disabled={setDefaultBranch.isPending}
+                                className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                              >
+                                Set Default
+                              </Button>
+                            )}
+                            {!branch.archivedAt && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setEditingBranch(branch)}
+                                  className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                >
+                                  Edit
+                                </Button>
+                                {!branch.isDefault && (
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleArchive(branch.id)}
+                                    disabled={archiveBranch.isPending}
+                                    className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                  >
+                                    Archive
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                            {branch.archivedAt && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setEditingBranch(branch)}
+                                onClick={() => handleRestore(branch.id)}
+                                disabled={restoreBranch.isPending}
                                 className="h-8 text-xs sm:text-sm whitespace-nowrap"
                               >
-                                Edit
+                                Restore
                               </Button>
-                              {!branch.isDefault && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleArchive(branch.id)}
-                                  disabled={archiveBranch.isPending}
-                                  className="h-8 text-xs sm:text-sm whitespace-nowrap"
-                                >
-                                  Archive
-                                </Button>
-                              )}
-                            </>
-                          )}
-                          {branch.archivedAt && (
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="grid gap-4 md:hidden">
+                {branches.map((branch) => (
+                  <div
+                    key={branch.id}
+                    className="flex flex-col gap-4 rounded-lg border p-4 bg-card text-card-foreground shadow-sm"
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="space-y-1 min-w-0">
+                        <h3 className="font-semibold leading-none tracking-tight truncate">
+                          {branch.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground break-words">
+                          {branch.address}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2 items-end shrink-0">
+                        {branch.isDefault && (
+                          <Badge variant="default">Default</Badge>
+                        )}
+                        {branch.archivedAt ? (
+                          <Badge variant="secondary">Archived</Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="border-primary/20 text-primary"
+                          >
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-muted-foreground text-xs uppercase tracking-wider">
+                          Created
+                        </span>
+                        <span className="font-medium">
+                          {formatDate(branch.createdAt)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-muted-foreground text-xs uppercase tracking-wider">
+                          Updated
+                        </span>
+                        <span className="font-medium">
+                          {formatDate(branch.updatedAt)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      {!branch.archivedAt && !branch.isDefault && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSetDefault(branch.id)}
+                          disabled={setDefaultBranch.isPending}
+                          className="h-8 text-xs"
+                        >
+                          Set Default
+                        </Button>
+                      )}
+                      {!branch.archivedAt && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingBranch(branch)}
+                            className="h-8 text-xs"
+                          >
+                            Edit
+                          </Button>
+                          {!branch.isDefault && (
                             <Button
-                              variant="outline"
+                              variant="destructive"
                               size="sm"
-                              onClick={() => handleRestore(branch.id)}
-                              disabled={restoreBranch.isPending}
-                              className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                              onClick={() => handleArchive(branch.id)}
+                              disabled={archiveBranch.isPending}
+                              className="h-8 text-xs"
                             >
-                              Restore
+                              Archive
                             </Button>
                           )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                        </>
+                      )}
+                      {branch.archivedAt && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRestore(branch.id)}
+                          disabled={restoreBranch.isPending}
+                          className="h-8 text-xs"
+                        >
+                          Restore
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

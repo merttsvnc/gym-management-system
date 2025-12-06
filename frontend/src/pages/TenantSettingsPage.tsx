@@ -104,31 +104,33 @@ export function TenantSettingsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="slug">Slug</Label>
-              <Input
-                id="slug"
-                value={tenant.slug}
-                disabled
-                className="bg-muted text-muted-foreground font-mono"
-              />
-              <p className="text-sm text-muted-foreground">
-                The slug cannot be changed
+              <div className="relative">
+                <Input
+                  id="slug"
+                  value={tenant.slug}
+                  disabled
+                  className="bg-muted/50 text-muted-foreground font-mono"
+                />
+              </div>
+              <p className="text-[0.8rem] text-muted-foreground">
+                The unique identifier for your tenant. This cannot be changed.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border p-4 bg-card">
-              <div>
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+              <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                   Created At
                 </Label>
-                <p className="mt-1 font-medium whitespace-nowrap">
+                <p className="text-sm font-medium">
                   {formatDate(tenant.createdAt)}
                 </p>
               </div>
-              <div>
+              <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                   Updated At
                 </Label>
-                <p className="mt-1 font-medium whitespace-nowrap">
+                <p className="text-sm font-medium">
                   {formatDate(tenant.updatedAt)}
                 </p>
               </div>
