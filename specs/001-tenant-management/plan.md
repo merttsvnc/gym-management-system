@@ -2,17 +2,22 @@
 
 **Version:** 1.0.0  
 **Created:** 2025-12-04  
-**Updated:** 2025-12-05  
+**Updated:** 2025-12-06  
 **Status:** Backend Complete, Frontend Functional, UI Polish Ongoing  
 
 ---
 
 ## Current Status Summary
 
-**Overall Progress:** Backend implementation complete and fully tested. Frontend core functionality implemented and working. UI polish and responsive design improvements in progress.
+**Overall Progress:** Backend implementation complete and fully tested, including tenant management, authentication, authorization, and plan system. Backend is now secured with JWT + role guard + tenant guard. Frontend core functionality implemented and working. Frontend login + protected routes are the next major step. UI polish and responsive design improvements in progress.
 
 **Completed:**
 - ✅ Backend: Prisma schema, migrations, services, controllers, unit tests (34 tests passing), tenant isolation, error handling
+- ✅ **Backend:** Authentication system implemented (JWT login, refresh-ready structure, bcrypt password hashing)
+- ✅ **Backend:** Authorization implemented (JwtAuthGuard, RolesGuard, @CurrentUser decorator)
+- ✅ **Backend:** Tenant-based access control enforced (tenantId isolation in all protected routes)
+- ✅ **Backend:** SaaS plan system implemented (`planKey`, `PLAN_CONFIG`, `PlanService`, `maxBranches` limit)
+- ✅ **Backend:** Full test suite added (Auth, JWT, RolesGuard, Tenant Isolation, Plan Limits, CurrentUser)
 - ✅ Frontend: Project setup, API client, React Query integration, hooks, tenant settings UI, branch management UI (CRUD + archive/restore/default operations), dev authentication
 
 **In Progress:**
@@ -20,7 +25,18 @@
 - 🔄 Minor UI cleanup (spacing, typography, visual consistency)
 
 **Pending (Next Phases):**
-- ⬜ Full real authentication (login, JWT refresh, roles)
+- ⬜ **Frontend Authentication**
+  - Login page connected to `/auth/login`
+  - Token storage
+  - ProtectedDashboard layout
+  - Logout flow
+- ⬜ **Frontend Plan Awareness (future)**
+  - UI reacting to plan features
+  - Showing limits or upgrade prompts
+- ⬜ **Future Backend Enhancements**
+  - Expand roles beyond ADMIN (OWNER, STAFF, TRAINER)
+  - Support multiple plans (BASIC, PRO, ENTERPRISE)
+  - Payment integration (Stripe/iyzico) to manage subscription → auto-update `planKey`
 - ⬜ User management UI
 - ⬜ Multi-tenant admin UI (super admin features)
 - ⬜ Branch-level permission UI
@@ -55,10 +71,10 @@ Before proceeding, verify alignment with core constitutional principles:
   - ✅ Clear naming conventions (Tenant, Branch, User)
 
 - [x] **Security & Correctness:** Are security and correctness prioritized over simplicity?
-  - ✅ Tenant isolation enforced at database, application, and API levels
-  - ✅ JWT-based authentication with tenantId claim
-  - ✅ Authorization guards for ADMIN-only operations
-  - ✅ No cross-tenant data access allowed (403 Forbidden)
+  - ✅ Tenant isolation fully enforced at database, application, and API levels (validated by tests)
+  - ✅ JWT-based authentication implemented with tenantId claim (real auth, not dev-auth)
+  - ✅ Authorization guards for ADMIN-only operations (JwtAuthGuard, RolesGuard)
+  - ✅ No cross-tenant data access allowed (403 Forbidden, enforced in code and validated by tests)
   - ✅ Password hashing with bcrypt
 
 - [x] **Explicit Domain Rules:** Are business rules explicit, testable, and documented?
@@ -78,8 +94,8 @@ Before proceeding, verify alignment with core constitutional principles:
   - ✅ Every tenant-scoped entity has `tenantId` field
   - ✅ All queries automatically filter by `tenantId`
   - ✅ Service methods accept and validate `tenantId`
-  - ✅ JWT contains `tenantId` claim
-  - ✅ Cross-tenant access returns 403 Forbidden
+  - ✅ JWT contains `tenantId` claim (enforced via guards)
+  - ✅ Cross-tenant access returns 403 Forbidden (fully enforced and validated by tests)
 
 - [x] **Data Integrity:** Are migrations backward compatible and reviewed?
   - ✅ Initial migration (creates tables, no backward compat concerns)
@@ -361,6 +377,42 @@ Break down the work into logical phases that can be completed and tested increme
 
 ---
 
+### Phase A2 – Backend Authentication & Plan System (COMPLETED)
+
+**Goal:** Implement production-ready authentication, authorization, and SaaS plan system
+
+**Tasks:**
+1. ✔️ Added `Role` enum (currently ADMIN)
+2. ✔️ Added `Tenant.planKey` with default `SINGLE`
+3. ✔️ Implemented `/auth/login` with bcrypt password validation
+4. ✔️ Implemented JWT access token system (future-ready for refresh token)
+5. ✔️ Added `JwtStrategy`, `JwtAuthGuard`, `RolesGuard`, `@CurrentUser` and `@TenantId`
+6. ✔️ Implemented SaaS plan config: `PLAN_CONFIG`
+7. ✔️ Implemented `PlanService` and integrated plan limits (maxBranches for SINGLE)
+8. ✔️ Enforced tenant isolation across protected routes
+9. ✔️ Added complete test suite (unit & e2e) validating all authentication, authorization, plan logic, and tenant boundaries
+
+**Deliverables:**
+- JWT-based authentication system with `/auth/login` endpoint
+- Role-based authorization (ADMIN role enforced via RolesGuard)
+- Tenant-scoped access control (tenantId isolation in all protected routes)
+- SaaS plan system with `planKey` field on Tenant model
+- Plan configuration system (`PLAN_CONFIG`) with `maxBranches` limit for SINGLE plan
+- `PlanService` for checking plan limits and features
+- Complete test coverage (Auth, JWT, RolesGuard, Tenant Isolation, Plan Limits, CurrentUser decorator)
+
+**Testing:**
+- Unit tests for authentication logic
+- Unit tests for authorization guards
+- E2E tests for login flow
+- E2E tests for tenant isolation enforcement
+- E2E tests for plan limit enforcement (maxBranches)
+- Tests validating @CurrentUser decorator functionality
+
+**Status:** ✔️ Complete - Backend is production-ready for multi-tenant SaaS usage with single-role, single-plan MVP. Authentication, authorization, and plan system fully implemented and tested.
+
+---
+
 ### Phase 4: Frontend - API Client & Hooks
 
 **Goal:** Implement frontend data layer with React Query
@@ -601,10 +653,10 @@ Break down the work into logical phases that can be completed and tested increme
 **Goal:** Production-ready features and enhancements for future phases
 
 **Tasks:**
-1. ⬜ Full real authentication (login, JWT refresh, roles)
-   - Estimated effort: 8 hours
-   - Dependencies: None
-   - Status: Dev auth with auto-generated JWT currently in place
+1. ⬜ Frontend authentication integration (login page, token storage, protected routes)
+   - Estimated effort: 6 hours
+   - Dependencies: Phase A2 complete (backend auth implemented)
+   - Status: Backend authentication complete (JWT login, guards, tenant isolation). Frontend login page and protected routes pending.
 
 2. ⬜ User management UI
    - Estimated effort: 12 hours
@@ -1830,7 +1882,7 @@ After completion, reflect on:
 
 **Prepared By:** AI Planning Agent  
 **Date:** 2025-12-04  
-**Last Updated:** 2025-12-05  
+**Last Updated:** 2025-12-06  
 **Version:** 1.0.0  
 
 **Approval:**
