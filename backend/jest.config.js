@@ -15,4 +15,5 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   setupFiles: ['<rootDir>/test/jest-e2e.setup.ts'],
   testTimeout: 30000, // 30 seconds for e2e tests
+  maxWorkers: 1, // Run tests sequentially to avoid database conflicts
 };

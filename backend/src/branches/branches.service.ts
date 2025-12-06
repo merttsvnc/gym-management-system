@@ -79,10 +79,10 @@ export class BranchesService {
    * - Enforces plan limit for maxBranches
    */
   async createBranch(tenantId: string, dto: CreateBranchDto) {
-    // Check plan limit before creating branch
+    // Check plan limit before creating branch (only count active branches)
     const plan = await this.planService.getTenantPlan(tenantId);
     const currentCount = await this.prisma.branch.count({
-      where: { tenantId },
+      where: { tenantId, isActive: true },
     });
 
     if (currentCount >= plan.maxBranches) {

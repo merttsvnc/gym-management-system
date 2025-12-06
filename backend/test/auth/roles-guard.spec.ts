@@ -18,8 +18,8 @@ describe('Auth: Roles Guard (e2e)', () => {
   });
 
   afterAll(async () => {
-    await cleanupTestDatabase();
     await closeTestApp(app);
+    await cleanupTestDatabase();
   });
 
   afterEach(async () => {

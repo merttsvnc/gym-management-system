@@ -25,8 +25,8 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
   });
 
   afterAll(async () => {
-    await cleanupTestDatabase();
     await closeTestApp(app);
+    await cleanupTestDatabase();
   });
 
   afterEach(async () => {
@@ -204,7 +204,7 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
 
       const branch1Id = createResponse1.body.id;
       const getResponse = await request(app.getHttpServer())
-        .get(`/branches/${branch1Id}`)
+        .get(`/api/v1/branches/${branch1Id}`)
         .set('Authorization', `Bearer ${accessToken}`);
 
       // Assert - All operations use consistent user context

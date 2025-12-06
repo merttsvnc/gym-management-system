@@ -21,8 +21,8 @@ describe('Tenant Isolation (e2e)', () => {
   });
 
   afterAll(async () => {
-    await cleanupTestDatabase();
     await closeTestApp(app);
+    await cleanupTestDatabase();
   });
 
   afterEach(async () => {
@@ -204,7 +204,7 @@ describe('Tenant Isolation (e2e)', () => {
 
       // Act - Tenant 2 tries to update Tenant 1's branch
       const updateResponse = await request(app.getHttpServer())
-        .patch(`/branches/${branch1Id}`)
+        .patch(`/api/v1/branches/${branch1Id}`)
         .set('Authorization', `Bearer ${user2Login.accessToken}`)
         .send({
           name: 'Hacked Name',
@@ -215,7 +215,7 @@ describe('Tenant Isolation (e2e)', () => {
 
       // Verify original branch is unchanged
       const verifyResponse = await request(app.getHttpServer())
-        .get(`/branches/${branch1Id}`)
+        .get(`/api/v1/branches/${branch1Id}`)
         .set('Authorization', `Bearer ${user1Login.accessToken}`);
 
       expect(verifyResponse.body.name).toBe('Gym One Branch');

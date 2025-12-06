@@ -61,10 +61,12 @@ export async function resetDatabase() {
 }
 
 /**
- * Close database connection
+ * Close database connection and pool
  */
 export async function closeDatabase() {
   await prisma.$disconnect();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+  await pool.end();
 }
 
 /**
