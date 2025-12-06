@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -50,8 +52,9 @@ describe('Auth: JWT Guard (e2e)', () => {
 
     it('should reject request without token (401)', async () => {
       // Act - Try to access protected route without token
-      const response = await request(app.getHttpServer())
-        .get('/api/v1/branches');
+      const response = await request(app.getHttpServer()).get(
+        '/api/v1/branches',
+      );
 
       // Assert
       expect(response.status).toBe(401);
@@ -80,7 +83,8 @@ describe('Auth: JWT Guard (e2e)', () => {
     it('should reject request with expired token', async () => {
       // This test would require creating a token with past expiration
       // For now, we test with a completely invalid token structure
-      const expiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+      const expiredToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
 
       // Act
       const response = await request(app.getHttpServer())

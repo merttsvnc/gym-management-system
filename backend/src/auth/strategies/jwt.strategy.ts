@@ -13,18 +13,21 @@ export interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_ACCESS_SECRET') || 'your_access_secret_here',
+      secretOrKey:
+        configService.get<string>('JWT_ACCESS_SECRET') ||
+        'your_access_secret_here',
     });
   }
 
-  async validate(payload: JwtPayload) {
+  validate(payload: JwtPayload) {
     if (!payload.sub || !payload.tenantId) {
       throw new UnauthorizedException('Invalid token payload');
     }
     return payload;
   }
 }
-

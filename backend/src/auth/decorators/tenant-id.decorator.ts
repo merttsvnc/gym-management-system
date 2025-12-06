@@ -21,10 +21,9 @@ import { AuthUser } from '../types/auth-user.type';
  */
 export const TenantId = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string | undefined => {
-    const request = ctx.switchToHttp().getRequest();
-    const user = request.user as AuthUser | undefined;
+    const request = ctx.switchToHttp().getRequest<{ user?: AuthUser }>();
+    const user = request.user;
 
     return user?.tenantId;
   },
 );
-

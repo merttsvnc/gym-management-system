@@ -9,4 +9,3 @@ import { JwtPayload } from '../strategies/jwt.strategy';
  * successful JWT validation.
  */
 export type AuthUser = JwtPayload;
-

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import type { StringValue } from 'ms';
@@ -31,7 +31,7 @@ export class AuthService {
     return user;
   }
 
-  async login(user: User) {
+  login(user: User) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -39,8 +39,12 @@ export class AuthService {
       role: user.role,
     };
 
-    const accessExpiresIn = (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '900s') as StringValue;
-    const refreshExpiresIn = (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '30d') as StringValue;
+    const accessExpiresIn = (this.configService.get<string>(
+      'JWT_ACCESS_EXPIRES_IN',
+    ) || '900s') as StringValue;
+    const refreshExpiresIn = (this.configService.get<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+    ) || '30d') as StringValue;
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
@@ -64,4 +68,3 @@ export class AuthService {
     };
   }
 }
-

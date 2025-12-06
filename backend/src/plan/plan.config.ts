@@ -8,4 +8,3 @@ export const PLAN_CONFIG = {
 
 export type PlanKey = keyof typeof PLAN_CONFIG;
 export type PlanConfig = (typeof PLAN_CONFIG)[PlanKey];
-

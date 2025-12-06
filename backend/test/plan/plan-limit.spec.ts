@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -272,7 +275,7 @@ describe('Plan Limits (e2e)', () => {
       const results = await Promise.all(promises);
 
       // Assert - One succeeds (201), one fails (403)
-      const statuses = results.map(r => r.status).sort();
+      const statuses = results.map((r) => r.status).sort();
       expect(statuses).toEqual([201, 403]);
 
       // Verify final count is exactly 3

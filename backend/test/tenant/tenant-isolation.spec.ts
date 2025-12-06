@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -66,7 +71,7 @@ describe('Tenant Isolation (e2e)', () => {
       expect(branch2Response.body.tenantId).toBe(tenant2.id);
     });
 
-    it('should only show branches belonging to the authenticated user\'s tenant', async () => {
+    it("should only show branches belonging to the authenticated user's tenant", async () => {
       // Arrange - Create two tenants with branches
       const tenant1 = await createTenant(prisma, 'Gym One');
       const tenant2 = await createTenant(prisma, 'Gym Two');
@@ -136,7 +141,7 @@ describe('Tenant Isolation (e2e)', () => {
       expect(tenant2BranchNames).not.toContain('Gym One Branch B');
     });
 
-    it('should prevent tenant from accessing another tenant\'s branch by ID', async () => {
+    it("should prevent tenant from accessing another tenant's branch by ID", async () => {
       // Arrange
       const tenant1 = await createTenant(prisma, 'Gym One');
       const tenant2 = await createTenant(prisma, 'Gym Two');
@@ -171,7 +176,7 @@ describe('Tenant Isolation (e2e)', () => {
       expect(unauthorizedAccess.status).toBe(404);
     });
 
-    it('should prevent tenant from updating another tenant\'s branch', async () => {
+    it("should prevent tenant from updating another tenant's branch", async () => {
       // Arrange
       const tenant1 = await createTenant(prisma, 'Gym One');
       const tenant2 = await createTenant(prisma, 'Gym Two');

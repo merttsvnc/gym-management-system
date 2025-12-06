@@ -12,7 +12,9 @@ const connectionString =
   process.env.DATABASE_URL ||
   'postgresql://postgres:postgres@localhost:5432/gym_management_test';
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
 const pool = new Pool({ connectionString });
+
 const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({
@@ -24,7 +26,7 @@ export const prisma = new PrismaClient({
  * Initialize test database
  * Runs migrations to ensure schema is up to date
  */
-export async function initTestDatabase() {
+export function initTestDatabase() {
   try {
     // Run migrations
     execSync('npx prisma migrate deploy', {
@@ -70,7 +72,7 @@ export async function closeDatabase() {
  * Call in beforeAll
  */
 export async function setupTestDatabase() {
-  await initTestDatabase();
+  initTestDatabase();
   await resetDatabase();
 }
 

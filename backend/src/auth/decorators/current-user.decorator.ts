@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { AuthUser } from '../types/auth-user.type';
 
@@ -24,7 +24,10 @@ import { AuthUser } from '../types/auth-user.type';
  * }
  */
 export const CurrentUser = createParamDecorator(
-  (data: string | undefined, ctx: ExecutionContext): AuthUser | string | undefined => {
+  (
+    data: string | undefined,
+    ctx: ExecutionContext,
+  ): AuthUser | string | undefined => {
     const request = ctx.switchToHttp().getRequest();
     const user = request.user as AuthUser | undefined;
 

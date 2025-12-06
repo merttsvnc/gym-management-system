@@ -1,9 +1,18 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { createTestApp, closeTestApp } from '../utils/test-app';
 import { setupTestDatabase, cleanupTestDatabase } from '../utils/test-db';
-import { createTenant, createAdminUser, createUserWithRole, loginUser } from '../test-helpers';
+import {
+  createTenant,
+  createAdminUser,
+  createUserWithRole,
+  loginUser,
+} from '../test-helpers';
 
 describe('Auth: CurrentUser Decorator (e2e)', () => {
   let app: INestApplication;
@@ -48,7 +57,7 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
       // Assert - Branch should be created with correct user context
       expect(response.status).toBe(201);
       expect(response.body.tenantId).toBe(tenant.id);
-      
+
       // Verify the userId matches
       expect(userId).toBe(user.id);
     });
@@ -90,13 +99,23 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
     it('should provide different user context for different authenticated users', async () => {
       // Arrange - Create two users in same tenant
       const tenant = await createTenant(prisma, 'Test Gym');
-      
+
       const admin1Email = 'admin1@testgym.com';
       const admin2Email = 'admin2@testgym.com';
       const password = 'Pass123!';
-      
-      const user1 = await createAdminUser(prisma, tenant.id, admin1Email, password);
-      const user2 = await createAdminUser(prisma, tenant.id, admin2Email, password);
+
+      const user1 = await createAdminUser(
+        prisma,
+        tenant.id,
+        admin1Email,
+        password,
+      );
+      const user2 = await createAdminUser(
+        prisma,
+        tenant.id,
+        admin2Email,
+        password,
+      );
 
       const user1Login = await loginUser(app, admin1Email, password);
       const user2Login = await loginUser(app, admin2Email, password);
@@ -105,7 +124,7 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
       expect(user1Login.userId).toBe(user1.id);
       expect(user2Login.userId).toBe(user2.id);
       expect(user1Login.userId).not.toBe(user2Login.userId);
-      
+
       // Both users should have same tenantId
       expect(user1Login.tenantId).toBe(tenant.id);
       expect(user2Login.tenantId).toBe(tenant.id);
@@ -114,13 +133,25 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
     it('should extract role from JWT for authorization', async () => {
       // Arrange
       const tenant = await createTenant(prisma, 'Test Gym');
-      
+
       const admin1Email = 'admin1@testgym.com';
       const admin2Email = 'admin2@testgym.com';
       const password = 'Pass123!';
-      
-      await createUserWithRole(prisma, tenant.id, admin1Email, 'ADMIN', password);
-      await createUserWithRole(prisma, tenant.id, admin2Email, 'ADMIN', password);
+
+      await createUserWithRole(
+        prisma,
+        tenant.id,
+        admin1Email,
+        'ADMIN',
+        password,
+      );
+      await createUserWithRole(
+        prisma,
+        tenant.id,
+        admin2Email,
+        'ADMIN',
+        password,
+      );
 
       const admin1Login = await loginUser(app, admin1Email, password);
       const admin2Login = await loginUser(app, admin2Email, password);
@@ -181,7 +212,7 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
       expect(createResponse2.body.tenantId).toBe(tenantId);
       expect(listResponse.body.data).toHaveLength(2);
       expect(getResponse.body.tenantId).toBe(tenantId);
-      
+
       // All branches belong to same tenant
       listResponse.body.data.forEach((branch: any) => {
         expect(branch.tenantId).toBe(tenantId);
@@ -219,7 +250,9 @@ describe('Auth: CurrentUser Decorator (e2e)', () => {
       expect(branch2Response.status).toBe(201);
       expect(branch1Response.body.tenantId).toBe(tenant1.id);
       expect(branch2Response.body.tenantId).toBe(tenant2.id);
-      expect(branch1Response.body.tenantId).not.toBe(branch2Response.body.tenantId);
+      expect(branch1Response.body.tenantId).not.toBe(
+        branch2Response.body.tenantId,
+      );
     });
 
     it('should not leak user context between different authenticated requests', async () => {

@@ -16,9 +16,12 @@ import { UsersModule } from '../users/users.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const expiresIn = (configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '900s') as StringValue;
+        const expiresIn = (configService.get<string>('JWT_ACCESS_EXPIRES_IN') ||
+          '900s') as StringValue;
         return {
-          secret: configService.get<string>('JWT_ACCESS_SECRET') || 'your_access_secret_here',
+          secret:
+            configService.get<string>('JWT_ACCESS_SECRET') ||
+            'your_access_secret_here',
           signOptions: {
             expiresIn,
           },
@@ -32,4 +35,3 @@ import { UsersModule } from '../users/users.module';
   exports: [AuthService],
 })
 export class AuthModule {}
-

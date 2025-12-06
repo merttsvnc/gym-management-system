@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -54,14 +56,26 @@ describe('Auth: Roles Guard (e2e)', () => {
     it('should allow all authenticated ADMIN users to list branches (no specific role guard on GET)', async () => {
       // Arrange
       const tenant = await createTenant(prisma, 'Test Gym');
-      
+
       // Create multiple admin users
       const admin1Email = 'admin1@testgym.com';
       const admin2Email = 'admin2@testgym.com';
       const password = 'Pass123!';
-      
-      await createUserWithRole(prisma, tenant.id, admin1Email, 'ADMIN', password);
-      await createUserWithRole(prisma, tenant.id, admin2Email, 'ADMIN', password);
+
+      await createUserWithRole(
+        prisma,
+        tenant.id,
+        admin1Email,
+        'ADMIN',
+        password,
+      );
+      await createUserWithRole(
+        prisma,
+        tenant.id,
+        admin2Email,
+        'ADMIN',
+        password,
+      );
 
       const admin1Login = await loginUser(app, admin1Email, password);
       const admin2Login = await loginUser(app, admin2Email, password);
@@ -87,7 +101,13 @@ describe('Auth: Roles Guard (e2e)', () => {
       const tenant = await createTenant(prisma, 'Test Gym');
       const adminEmail = 'admin@testgym.com';
       const password = 'Pass123!';
-      await createUserWithRole(prisma, tenant.id, adminEmail, 'ADMIN', password);
+      await createUserWithRole(
+        prisma,
+        tenant.id,
+        adminEmail,
+        'ADMIN',
+        password,
+      );
 
       const { accessToken } = await loginUser(app, adminEmail, password);
 

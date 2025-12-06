@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -126,11 +128,11 @@ describe('Auth: /auth/login (e2e)', () => {
       // Arrange
       const tenant1 = await createTenant(prisma, 'Gym One');
       const tenant2 = await createTenant(prisma, 'Gym Two');
-      
+
       const user1Email = 'admin1@gym1.com';
       const user2Email = 'admin2@gym2.com';
       const password = 'Pass123!';
-      
+
       await createAdminUser(prisma, tenant1.id, user1Email, password);
       await createAdminUser(prisma, tenant2.id, user2Email, password);
 
@@ -149,7 +151,9 @@ describe('Auth: /auth/login (e2e)', () => {
       expect(response2.status).toBe(201);
       expect(response1.body.user.tenantId).toBe(tenant1.id);
       expect(response2.body.user.tenantId).toBe(tenant2.id);
-      expect(response1.body.user.tenantId).not.toBe(response2.body.user.tenantId);
+      expect(response1.body.user.tenantId).not.toBe(
+        response2.body.user.tenantId,
+      );
     });
   });
 });

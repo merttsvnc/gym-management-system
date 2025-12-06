@@ -62,10 +62,7 @@ export class BranchesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @HttpCode(HttpStatus.CREATED)
-  createBranch(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: CreateBranchDto,
-  ) {
+  createBranch(@CurrentUser() user: AuthUser, @Body() dto: CreateBranchDto) {
     // user.tenantId is used to scope the branch creation to the tenant
     // Plan limits are enforced in BranchesService.createBranch()
     return this.branchesService.createBranch(user.tenantId, dto);
