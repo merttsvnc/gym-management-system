@@ -111,7 +111,12 @@ export async function loginUser(
   app: INestApplication,
   email: string,
   password: string,
-): Promise<{ accessToken: string; refreshToken: string; userId: string; tenantId: string }> {
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  userId: string;
+  tenantId: string;
+}> {
   const response = await request(app.getHttpServer())
     .post('/auth/login')
     .send({ email, password })

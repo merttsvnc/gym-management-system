@@ -30,7 +30,9 @@ export async function initTestDatabase() {
     execSync('npx prisma migrate deploy', {
       env: {
         ...process.env,
-        DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/gym_management_test',
+        DATABASE_URL:
+          process.env.DATABASE_URL ||
+          'postgresql://postgres:postgres@localhost:5432/gym_management_test',
       },
       stdio: 'inherit',
     });
