@@ -269,7 +269,7 @@ export function BranchesPage() {
 
   if (tenantLoading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Branches</CardTitle>
@@ -282,7 +282,7 @@ export function BranchesPage() {
 
   if (!tenant) {
     return (
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>Tenant not found</AlertDescription>
         </Alert>
@@ -293,7 +293,7 @@ export function BranchesPage() {
   if (branchesError) {
     const apiError = branchesError as ApiError;
     return (
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
             {apiError.message || "Failed to load branches"}
@@ -307,7 +307,7 @@ export function BranchesPage() {
   const isLoading = branchesLoading;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <Card className="w-full">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -364,15 +364,19 @@ export function BranchesPage() {
             </div>
           ) : (
             <>
-              <div className="hidden lg:block w-full overflow-x-auto">
-                <Table className="min-w-[700px]">
+              <div className="hidden lg:block w-full">
+                <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[200px]">Name</TableHead>
+                      <TableHead>Name</TableHead>
                       <TableHead>Address</TableHead>
-                      <TableHead className="w-[150px]">Status</TableHead>
-                      <TableHead className="w-[200px]">Created</TableHead>
-                      <TableHead className="w-[200px]">Updated</TableHead>
+                      <TableHead className="w-[100px]">Status</TableHead>
+                      <TableHead className="hidden lg:table-cell w-[150px]">
+                        Created
+                      </TableHead>
+                      <TableHead className="hidden xl:table-cell w-[150px]">
+                        Updated
+                      </TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -380,13 +384,20 @@ export function BranchesPage() {
                     {branches.map((branch) => (
                       <TableRow key={branch.id}>
                         <TableCell className="font-medium">
-                          {branch.name}
+                          <div
+                            className="truncate max-w-[120px] lg:max-w-[150px] xl:max-w-[200px]"
+                            title={branch.name}
+                          >
+                            {branch.name}
+                          </div>
                         </TableCell>
-                        <TableCell
-                          className="max-w-[300px] truncate"
-                          title={branch.address}
-                        >
-                          {branch.address}
+                        <TableCell>
+                          <div
+                            className="truncate max-w-[150px] lg:max-w-[200px] xl:max-w-[300px]"
+                            title={branch.address}
+                          >
+                            {branch.address}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2 flex-wrap">
@@ -415,10 +426,10 @@ export function BranchesPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm hidden lg:table-cell">
                           {formatDate(branch.createdAt)}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm hidden xl:table-cell">
                           {formatDate(branch.updatedAt)}
                         </TableCell>
                         <TableCell className="text-right">
