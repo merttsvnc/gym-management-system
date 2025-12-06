@@ -11,8 +11,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AuthUser } from '../auth/types/auth-user.type';
 import { BranchesService } from './branches.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
@@ -51,16 +54,19 @@ export class BranchesController {
   /**
    * POST /api/v1/branches
    * Creates a new branch for the current tenant
-   * Requires ADMIN role (TODO: add role check when roles are fully wired)
+   * Requires ADMIN role
    * Returns 201 Created
    */
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @HttpCode(HttpStatus.CREATED)
   createBranch(
-    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateBranchDto,
   ) {
-    return this.branchesService.createBranch(tenantId, dto);
+    // user.tenantId is used to scope the branch creation to the tenant
+    return this.branchesService.createBranch(user.tenantId, dto);
   }
 
   /**

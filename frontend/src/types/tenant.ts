@@ -23,3 +23,4 @@ export type UpdateTenantPayload = {
   name?: string; // 3-100 characters, alphanumeric and spaces
   defaultCurrency?: string; // ISO 4217 code
 };
+
