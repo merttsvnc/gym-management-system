@@ -1,4 +1,7 @@
 import { PrismaService } from '../src/prisma/prisma.service';
+import { INestApplication } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import request from 'supertest';
 
 /**
  * Test helper to create a mock JWT token for testing
@@ -17,6 +20,109 @@ export function createMockToken(user: {
     role: user.role || 'ADMIN',
   };
   return Buffer.from(JSON.stringify(payload)).toString('base64');
+}
+
+/**
+ * Create a tenant in the database
+ */
+export async function createTenant(
+  prisma: PrismaService,
+  name: string,
+  planKey: 'SINGLE' = 'SINGLE',
+) {
+  return prisma.tenant.create({
+    data: {
+      name,
+      slug: `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+      defaultCurrency: 'USD',
+      planKey,
+    },
+  });
+}
+
+/**
+ * Create an admin user with a hashed password
+ */
+export async function createAdminUser(
+  prisma: PrismaService,
+  tenantId: string,
+  email: string,
+  rawPassword: string = 'Pass123!',
+) {
+  const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+  return prisma.user.create({
+    data: {
+      tenantId,
+      email,
+      passwordHash,
+      firstName: 'Admin',
+      lastName: 'User',
+      role: 'ADMIN',
+    },
+  });
+}
+
+/**
+ * Create a user with a specific role
+ * Note: Currently only ADMIN role is available in the schema
+ */
+export async function createUserWithRole(
+  prisma: PrismaService,
+  tenantId: string,
+  email: string,
+  role: 'ADMIN',
+  rawPassword: string = 'Pass123!',
+) {
+  const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+  return prisma.user.create({
+    data: {
+      tenantId,
+      email,
+      passwordHash,
+      firstName: 'Test',
+      lastName: 'User',
+      role,
+    },
+  });
+}
+
+/**
+ * Create a regular user (non-admin) for testing
+ * Since only ADMIN role exists, we'll create an ADMIN but can simulate different
+ * permissions in future when more roles are added
+ */
+export async function createRegularUser(
+  prisma: PrismaService,
+  tenantId: string,
+  email: string,
+  rawPassword: string = 'Pass123!',
+) {
+  // For now, all users are ADMIN since that's the only role
+  // In the future, this would create a user with limited permissions
+  return createAdminUser(prisma, tenantId, email, rawPassword);
+}
+
+/**
+ * Login and get access token
+ */
+export async function loginUser(
+  app: INestApplication,
+  email: string,
+  password: string,
+): Promise<{ accessToken: string; refreshToken: string; userId: string; tenantId: string }> {
+  const response = await request(app.getHttpServer())
+    .post('/auth/login')
+    .send({ email, password })
+    .expect(201);
+
+  return {
+    accessToken: response.body.accessToken,
+    refreshToken: response.body.refreshToken,
+    userId: response.body.user.id,
+    tenantId: response.body.user.tenantId,
+  };
 }
 
 /**
