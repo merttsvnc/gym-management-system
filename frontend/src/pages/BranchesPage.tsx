@@ -498,7 +498,7 @@ export function BranchesPage() {
                         <h3 className="font-semibold leading-none tracking-tight truncate">
                           {branch.name}
                         </h3>
-                        <p className="text-sm text-muted-foreground break-words">
+                        <p className="text-sm text-muted-foreground wrap-break-word">
                           {branch.address}
                         </p>
                       </div>
