@@ -436,7 +436,7 @@ export function BranchesPage() {
                           <div className="flex justify-end gap-2 items-center flex-wrap">
                             {!branch.archivedAt && !branch.isDefault && (
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleSetDefault(branch.id)}
                                 disabled={setDefaultBranch.isPending}
@@ -539,7 +539,7 @@ export function BranchesPage() {
                     <div className="flex justify-end gap-2 pt-4 border-t">
                       {!branch.archivedAt && !branch.isDefault && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => handleSetDefault(branch.id)}
                           disabled={setDefaultBranch.isPending}
