@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { BranchesService } from './branches.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanService } from '../plan/plan.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import { BranchListQueryDto } from './dto/branch-list-query.dto';
@@ -33,6 +34,15 @@ describe('BranchesService', () => {
     $transaction: jest.fn(),
   };
 
+  const mockPlanService = {
+    getTenantPlan: jest.fn().mockResolvedValue({
+      key: 'SINGLE',
+      maxBranches: 3,
+      hasClasses: false,
+      hasPayments: false,
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -40,6 +50,10 @@ describe('BranchesService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: PlanService,
+          useValue: mockPlanService,
         },
       ],
     }).compile();
