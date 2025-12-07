@@ -36,7 +36,8 @@ function BranchFormContent({
 
   // Initialize form state based on mode and initialData
   const initialName = mode === "edit" && initialData ? initialData.name : "";
-  const initialAddress = mode === "edit" && initialData ? initialData.address : "";
+  const initialAddress =
+    mode === "edit" && initialData ? initialData.address : "";
 
   const [name, setName] = useState(initialName);
   const [address, setAddress] = useState(initialAddress);
@@ -70,7 +71,10 @@ function BranchFormContent({
 
     try {
       if (mode === "create") {
-        await createBranch.mutateAsync({ name: name.trim(), address: address.trim() });
+        await createBranch.mutateAsync({
+          name: name.trim(),
+          address: address.trim(),
+        });
       } else if (initialData) {
         await updateBranch.mutateAsync({
           branchId: initialData.id,
@@ -84,7 +88,8 @@ function BranchFormContent({
     }
   };
 
-  const isPending = mode === "create" ? createBranch.isPending : updateBranch.isPending;
+  const isPending =
+    mode === "create" ? createBranch.isPending : updateBranch.isPending;
   const error = mode === "create" ? createBranch.error : updateBranch.error;
 
   return (
@@ -128,7 +133,8 @@ function BranchFormContent({
                 value={address}
                 onChange={(e) => {
                   setAddress(e.target.value);
-                  if (errors.address) setErrors({ ...errors, address: undefined });
+                  if (errors.address)
+                    setErrors({ ...errors, address: undefined });
                 }}
                 placeholder="Örn: İstiklal Caddesi No: 5, Beyoğlu"
                 className={errors.address ? "border-destructive" : ""}
@@ -162,8 +168,8 @@ function BranchFormContent({
                   ? "Oluşturuluyor..."
                   : "Güncelleniyor..."
                 : mode === "create"
-                  ? "Oluştur"
-                  : "Güncelle"}
+                ? "Oluştur"
+                : "Güncelle"}
             </Button>
           </DialogFooter>
         </form>
