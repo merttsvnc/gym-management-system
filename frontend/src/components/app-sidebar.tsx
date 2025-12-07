@@ -1,5 +1,10 @@
 import * as React from "react";
-import { IconSettings, IconBuilding, IconHelp } from "@tabler/icons-react";
+import {
+  IconSettings,
+  IconBuilding,
+  IconHelp,
+  IconLayoutDashboard,
+} from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -19,12 +24,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
 
   const navMain = [
-    // TODO: Panel - will be added when dashboard page is ready
-    // {
-    //   title: "Panel",
-    //   url: "/",
-    //   icon: IconDashboard,
-    // },
+    {
+      title: "Panel",
+      url: "/panel",
+      icon: IconLayoutDashboard,
+    },
     {
       title: "Genel Ayarlar",
       url: "/settings/tenant",

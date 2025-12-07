@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
+import { PanelPage } from "./pages/PanelPage";
 import { TenantSettingsPage } from "./pages/TenantSettingsPage";
 import { BranchesPage } from "./pages/BranchesPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -19,9 +20,10 @@ function App() {
           </ProtectedRoute>
         }
       >
+        <Route path="/panel" element={<PanelPage />} />
         <Route path="/settings/tenant" element={<TenantSettingsPage />} />
         <Route path="/settings/branches" element={<BranchesPage />} />
-        <Route path="/" element={<Navigate to="/settings/tenant" replace />} />
+        <Route path="/" element={<Navigate to="/panel" replace />} />
       </Route>
     </Routes>
   );
