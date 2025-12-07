@@ -1,7 +1,7 @@
 import { MobileNav } from "./mobile-nav";
 import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/AuthContext";
+import { useAuth } from "@/features/auth/useAuth";
 
 export function AppHeader() {
   const { user, logout } = useAuth();
@@ -18,12 +18,7 @@ export function AppHeader() {
           <span className="hidden sm:inline text-muted-foreground/60">•</span>
           <span className="hidden sm:inline">Admin</span>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={logout}
-          className="gap-2"
-        >
+        <Button variant="ghost" size="sm" onClick={logout} className="gap-2">
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">Logout</span>
           <span className="sr-only">Logout</span>
