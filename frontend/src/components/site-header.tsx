@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/features/auth/useAuth";
 import { IconUser, IconLogout } from "@tabler/icons-react";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export function SiteHeader() {
   const { user, logout } = useAuth();
@@ -28,6 +29,7 @@ export function SiteHeader() {
           <h1 className="text-base font-medium">Gym Admin</h1>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <ModeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2">
