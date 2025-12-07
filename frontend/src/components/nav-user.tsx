@@ -3,13 +3,9 @@ import {
   IconLogout,
   IconSettings,
   IconUserCircle,
-} from "@tabler/icons-react"
+} from "@tabler/icons-react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,43 +14,43 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { useAuth } from "@/features/auth/useAuth"
+} from "@/components/ui/sidebar";
+import { useAuth } from "@/features/auth/useAuth";
 
 export function NavUser({
   user,
 }: {
   user: {
-    name: string
-    email: string
-    avatar: string
-  }
+    name: string;
+    email: string;
+    avatar: string;
+  };
 }) {
-  const { isMobile } = useSidebar()
-  const { logout } = useAuth()
+  const { isMobile } = useSidebar();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    logout()
-  }
+    logout();
+  };
 
   // Get initials from name or email
   const getInitials = (name: string, email: string) => {
     if (name && name !== "Kullanıcı") {
-      return name.substring(0, 2).toUpperCase()
+      return name.substring(0, 2).toUpperCase();
     }
     if (email) {
-      return email.substring(0, 1).toUpperCase()
+      return email.substring(0, 1).toUpperCase();
     }
-    return "KU"
-  }
+    return "KU";
+  };
 
-  const initials = getInitials(user.name, user.email)
+  const initials = getInitials(user.name, user.email);
 
   return (
     <SidebarMenu>
@@ -67,7 +63,9 @@ export function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -88,7 +86,9 @@ export function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -118,5 +118,5 @@ export function NavUser({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }
