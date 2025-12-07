@@ -54,10 +54,29 @@ axiosInstance.interceptors.request.use((config) => {
 
 /**
  * Response interceptor: Handles errors globally
+ * - Centralized 401 handling: auto-logout and redirect
+ * - Convert AxiosError to ApiError
  */
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    // Centralized 401 handling: logout and redirect
+    if (error.response?.status === 401) {
+      // Clear auth tokens
+      try {
+        localStorage.removeItem("gymms_auth");
+        localStorage.removeItem("jwt_token");
+      } catch {
+        console.warn("⚠️ Could not clear auth tokens from localStorage");
+      }
+
+      // Dispatch custom event for components listening
+      window.dispatchEvent(new Event("auth:logout"));
+
+      // Redirect to login
+      window.location.href = "/login";
+    }
+
     // Convert AxiosError to ApiError and rethrow
     const apiError = toApiError(error);
     return Promise.reject(apiError);

@@ -12,6 +12,8 @@ const authBaseURL =
  * Login API function
  * POST to /auth/login with email and password
  * Note: Auth endpoint is at /auth/login (not /api/v1/auth/login)
+ *
+ * Returns stable, user-friendly error codes (not backend messages)
  */
 export async function login(
   email: string,
@@ -29,16 +31,16 @@ export async function login(
     );
     return response.data;
   } catch (error: unknown) {
-    // Handle API errors and throw friendly messages
+    // Handle API errors - throw stable error codes, not backend messages
     if (axios.isAxiosError(error)) {
       if (error.response?.status === 401) {
-        throw new Error("Invalid email or password");
+        // Stable error code for invalid credentials
+        throw new Error("INVALID_CREDENTIALS");
       }
-      const message =
-        error.response?.data?.message || error.message || "Failed to sign in";
-      throw new Error(message);
+      // Generic error for other failures (network, 5xx, etc.)
+      throw new Error("LOGIN_FAILED");
     }
-    throw new Error("Failed to sign in. Please try again.");
+    // Catch-all for non-Axios errors
+    throw new Error("LOGIN_FAILED");
   }
 }
-

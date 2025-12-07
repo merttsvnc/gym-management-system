@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthUser, AuthResponse } from "./types";
 import { login as loginApi } from "./api";
@@ -69,16 +75,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (stored) {
       try {
         const authData: AuthStorage = JSON.parse(stored);
+
+        // Basic shape validation: ensure required fields exist
+        if (!authData.user || !authData.accessToken || !authData.refreshToken) {
+          throw new Error("Invalid auth data shape");
+        }
+
         setUser(authData.user);
         setAccessToken(authData.accessToken);
         setRefreshToken(authData.refreshToken);
-        
+
         // Also update the jwt_token for API client compatibility
         setStorageItem("jwt_token", authData.accessToken);
       } catch (error) {
-        console.error("Failed to restore auth session:", error);
+        console.error(
+          "Failed to restore auth session (corrupted data):",
+          error
+        );
+        // Clear corrupted data and reset to logged-out state
         removeStorageItem(AUTH_STORAGE_KEY);
         removeStorageItem("jwt_token");
+        setUser(null);
+        setAccessToken(null);
+        setRefreshToken(null);
       }
     }
     setIsInitialized(true);
@@ -86,12 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const response: AuthResponse = await loginApi(email, password);
-    
+
     // Update state
     setUser(response.user);
     setAccessToken(response.accessToken);
     setRefreshToken(response.refreshToken);
-    
+
     // Persist to localStorage
     const authData: AuthStorage = {
       user: response.user,
@@ -99,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshToken: response.refreshToken,
     };
     setStorageItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-    
+
     // Also update jwt_token for API client compatibility
     setStorageItem("jwt_token", response.accessToken);
   }, []);
@@ -137,4 +156,3 @@ export function useAuth(): AuthContextType {
   }
   return context;
 }
-
