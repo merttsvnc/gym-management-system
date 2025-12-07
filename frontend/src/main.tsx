@@ -6,19 +6,27 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import './index.css'
 import App from './App.tsx'
 import { queryClient } from './lib/query-client'
+import { AuthProvider } from './features/auth/AuthContext'
 import { initDevToken } from './lib/auth-dev'
 
-// Initialize dev token for development
+// Initialize dev token for development (only if not using real auth)
+// This will be skipped if user is already authenticated
 if (import.meta.env.DEV) {
-  initDevToken()
+  // Only init dev token if no auth exists
+  const existingAuth = localStorage.getItem('gymms_auth');
+  if (!existingAuth) {
+    initDevToken()
+  }
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <App />
-        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+        <AuthProvider>
+          <App />
+          {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+        </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>
   </StrictMode>,
