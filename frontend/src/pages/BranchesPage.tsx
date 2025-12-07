@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import { useCurrentTenant } from "@/hooks/useTenant";
 import {
   useBranches,
-  useCreateBranch,
-  useUpdateBranch,
   useArchiveBranch,
   useRestoreBranch,
   useSetDefaultBranch,
@@ -25,206 +23,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { BranchFormDialog } from "@/features/branches/BranchFormDialog";
 import type { ApiError } from "@/types/error";
 import type { Branch } from "@/types/branch";
+
+// Plan limits - currently hardcoded for SINGLE plan
+const MAX_BRANCHES_SINGLE_PLAN = 3;
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleString();
 }
 
-function NewBranchDialog({
-  tenantId,
-  onOpenChange,
-}: {
-  tenantId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const createBranch = useCreateBranch(tenantId);
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await createBranch.mutateAsync({ name, address });
-      setName("");
-      setAddress("");
-      onOpenChange(false);
-    } catch {
-      // Error handled by mutation state
-    }
-  };
-
-  return (
-    <DialogContent className="w-full sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle>Create New Branch</DialogTitle>
-        <DialogDescription>Add a new branch to your tenant</DialogDescription>
-      </DialogHeader>
-      <form onSubmit={handleSubmit}>
-        <div className="space-y-4 py-4 px-1">
-          <div className="space-y-2">
-            <Label htmlFor="branch-name">Name</Label>
-            <Input
-              id="branch-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter branch name"
-              required
-              minLength={2}
-              maxLength={100}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="branch-address">Address</Label>
-            <Input
-              id="branch-address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter branch address"
-              required
-              minLength={5}
-              maxLength={300}
-            />
-          </div>
-          {createBranch.error && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {(createBranch.error as ApiError).message ||
-                  "Failed to create branch"}
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={createBranch.isPending}>
-            {createBranch.isPending ? "Creating..." : "Create"}
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  );
-}
-
-function EditBranchDialog({
-  branch,
-  tenantId,
-  open,
-  onOpenChange,
-}: {
-  branch: Branch;
-  tenantId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const updateBranch = useUpdateBranch(tenantId);
-  const [name, setName] = useState(branch.name);
-  const [address, setAddress] = useState(branch.address);
-
-  // Reset form when dialog opens with different branch
-  const branchId = branch.id;
-  React.useEffect(() => {
-    setName(branch.name);
-    setAddress(branch.address);
-  }, [branchId, branch.name, branch.address]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await updateBranch.mutateAsync({
-        branchId: branch.id,
-        payload: { name, address },
-      });
-      onOpenChange(false);
-    } catch {
-      // Error handled by mutation state
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Branch</DialogTitle>
-          <DialogDescription>Update branch information</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4 px-1">
-            <div className="space-y-2">
-              <Label htmlFor="edit-branch-name">Name</Label>
-              <Input
-                id="edit-branch-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter branch name"
-                required
-                minLength={2}
-                maxLength={100}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-branch-address">Address</Label>
-              <Input
-                id="edit-branch-address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Enter branch address"
-                required
-                minLength={5}
-                maxLength={300}
-              />
-            </div>
-            {updateBranch.error && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  {(updateBranch.error as ApiError).message ||
-                    "Failed to update branch"}
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={updateBranch.isPending}>
-              {updateBranch.isPending ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function BranchesPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
   const [includeArchived, setIncludeArchived] = useState(false);
-  const [newBranchOpen, setNewBranchOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
 
   const {
@@ -240,7 +56,7 @@ export function BranchesPage() {
   const handleArchive = async (branchId: string) => {
     if (
       confirm(
-        "Are you sure you want to archive this branch? It can be restored later."
+        "Bu şubeyi arşivlemek istediğinizden emin misiniz? Daha sonra geri yükleyebilirsiniz."
       )
     ) {
       try {
@@ -306,6 +122,10 @@ export function BranchesPage() {
   const branches = branchesData?.data || [];
   const isLoading = branchesLoading;
 
+  // Calculate active branches count (excluding archived)
+  const activeBranchesCount = branches.filter((b) => !b.archivedAt).length;
+  const canCreateBranch = activeBranchesCount < MAX_BRANCHES_SINGLE_PLAN;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -315,16 +135,20 @@ export function BranchesPage() {
             Salonunuza bağlı şubeleri görüntüleyin ve yönetin.
           </p>
         </div>
-        <Dialog open={newBranchOpen} onOpenChange={setNewBranchOpen}>
-          <DialogTrigger asChild>
-            <Button>Yeni Şube</Button>
-          </DialogTrigger>
-          <NewBranchDialog
-            tenantId={tenant.id}
-            open={newBranchOpen}
-            onOpenChange={setNewBranchOpen}
-          />
-        </Dialog>
+        <div className="flex flex-col items-end gap-2">
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            disabled={!canCreateBranch}
+          >
+            Yeni Şube
+          </Button>
+          {!canCreateBranch && (
+            <p className="text-xs text-muted-foreground text-right max-w-[200px]">
+              Plan limitine ulaştınız. Mevcut planınız en fazla{" "}
+              {MAX_BRANCHES_SINGLE_PLAN} şubeye izin veriyor.
+            </p>
+          )}
+        </div>
       </div>
       <Card className="w-full">
         <CardHeader>
@@ -357,18 +181,18 @@ export function BranchesPage() {
         <CardContent>
           {isLoading ? (
             <div className="py-8 text-center text-muted-foreground">
-              Loading branches...
+              Şubeler yükleniyor...
             </div>
           ) : branches.length === 0 ? (
             <div className="py-8 text-center space-y-4">
               <p className="text-muted-foreground">
                 {includeArchived
-                  ? "No branches found"
-                  : "No branches yet. Create your first branch to get started."}
+                  ? "Şube bulunamadı"
+                  : "Henüz şube yok. Başlamak için ilk şubenizi oluşturun."}
               </p>
               {!includeArchived && (
-                <Button onClick={() => setNewBranchOpen(true)}>
-                  Create your first branch
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  İlk şubenizi oluşturun
                 </Button>
               )}
             </div>
@@ -378,16 +202,16 @@ export function BranchesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead className="w-[100px]">Status</TableHead>
+                      <TableHead>Şube Adı</TableHead>
+                      <TableHead>Adres</TableHead>
+                      <TableHead className="w-[100px]">Durum</TableHead>
                       <TableHead className="hidden lg:table-cell w-[150px]">
-                        Created
+                        Oluşturulma
                       </TableHead>
                       <TableHead className="hidden xl:table-cell w-[150px]">
-                        Updated
+                        Güncelleme
                       </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right">İşlemler</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -416,7 +240,7 @@ export function BranchesPage() {
                                 variant="default"
                                 className="bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
                               >
-                                Default
+                                Varsayılan
                               </Badge>
                             )}
                             {branch.archivedAt ? (
@@ -424,14 +248,14 @@ export function BranchesPage() {
                                 variant="secondary"
                                 className="bg-muted text-muted-foreground whitespace-nowrap"
                               >
-                                Archived
+                                Arşivlenmiş
                               </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
                                 className="border-primary/20 text-primary whitespace-nowrap"
                               >
-                                Active
+                                Aktif
                               </Badge>
                             )}
                           </div>
@@ -460,7 +284,10 @@ export function BranchesPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => setEditingBranch(branch)}
+                                  onClick={() => {
+                                    setEditingBranch(branch);
+                                    setEditDialogOpen(true);
+                                  }}
                                   className="h-8 text-xs sm:text-sm whitespace-nowrap"
                                 >
                                   Düzenle
@@ -514,16 +341,16 @@ export function BranchesPage() {
                       </div>
                       <div className="flex flex-col gap-2 items-end shrink-0">
                         {branch.isDefault && (
-                          <Badge variant="default">Default</Badge>
+                          <Badge variant="default">Varsayılan</Badge>
                         )}
                         {branch.archivedAt ? (
-                          <Badge variant="secondary">Archived</Badge>
+                          <Badge variant="secondary">Arşivlenmiş</Badge>
                         ) : (
                           <Badge
                             variant="outline"
                             className="border-primary/20 text-primary"
                           >
-                            Active
+                            Aktif
                           </Badge>
                         )}
                       </div>
@@ -531,7 +358,7 @@ export function BranchesPage() {
                     <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
                       <div className="flex flex-col gap-1">
                         <span className="text-muted-foreground text-xs uppercase tracking-wider">
-                          Created
+                          Oluşturulma
                         </span>
                         <span className="font-medium">
                           {formatDate(branch.createdAt)}
@@ -539,7 +366,7 @@ export function BranchesPage() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-muted-foreground text-xs uppercase tracking-wider">
-                          Updated
+                          Güncelleme
                         </span>
                         <span className="font-medium">
                           {formatDate(branch.updatedAt)}
@@ -555,7 +382,7 @@ export function BranchesPage() {
                           disabled={setDefaultBranch.isPending}
                           className="h-8 text-xs"
                         >
-                          Set Default
+                          Varsayılan Yap
                         </Button>
                       )}
                       {!branch.archivedAt && (
@@ -563,10 +390,13 @@ export function BranchesPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setEditingBranch(branch)}
+                            onClick={() => {
+                              setEditingBranch(branch);
+                              setEditDialogOpen(true);
+                            }}
                             className="h-8 text-xs"
                           >
-                            Edit
+                            Düzenle
                           </Button>
                           {!branch.isDefault && (
                             <Button
@@ -576,7 +406,7 @@ export function BranchesPage() {
                               disabled={archiveBranch.isPending}
                               className="h-8 text-xs"
                             >
-                              Archive
+                              Arşivle
                             </Button>
                           )}
                         </>
@@ -589,7 +419,7 @@ export function BranchesPage() {
                           disabled={restoreBranch.isPending}
                           className="h-8 text-xs"
                         >
-                          Restore
+                          Geri Yükle
                         </Button>
                       )}
                     </div>
@@ -601,12 +431,25 @@ export function BranchesPage() {
         </CardContent>
       </Card>
 
+      {/* Create Branch Dialog */}
+      <BranchFormDialog
+        mode="create"
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        tenantId={tenant.id}
+      />
+
+      {/* Edit Branch Dialog */}
       {editingBranch && (
-        <EditBranchDialog
-          branch={editingBranch}
+        <BranchFormDialog
+          mode="edit"
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) setEditingBranch(null);
+          }}
           tenantId={tenant.id}
-          open={!!editingBranch}
-          onOpenChange={(open) => !open && setEditingBranch(null)}
+          initialData={editingBranch}
         />
       )}
     </div>
