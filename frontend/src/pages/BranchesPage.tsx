@@ -143,9 +143,11 @@ export function BranchesPage() {
             Yeni Şube
           </Button>
           {!canCreateBranch && (
-            <p className="text-xs text-muted-foreground text-right max-w-[200px]">
-              Plan limitine ulaştınız. Mevcut planınız en fazla{" "}
-              {MAX_BRANCHES_SINGLE_PLAN} şubeye izin veriyor.
+            <p className="text-xs text-muted-foreground mt-1">
+              Plan limitine ulaştınız.
+              <br />
+              Mevcut planınız en fazla {MAX_BRANCHES_SINGLE_PLAN} şubeye izin
+              veriyor.
             </p>
           )}
         </div>
@@ -216,7 +218,14 @@ export function BranchesPage() {
                   </TableHeader>
                   <TableBody>
                     {branches.map((branch) => (
-                      <TableRow key={branch.id}>
+                      <TableRow
+                        key={branch.id}
+                        className={
+                          branch.archivedAt
+                            ? "opacity-60 text-muted-foreground"
+                            : ""
+                        }
+                      >
                         <TableCell className="font-medium">
                           <div
                             className="truncate max-w-[120px] lg:max-w-[150px] xl:max-w-[200px]"
