@@ -44,11 +44,11 @@ export function TenantSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Tenant Settings</CardTitle>
-            <CardDescription>Loading tenant...</CardDescription>
+            <CardTitle>Genel Ayarlar</CardTitle>
+            <CardDescription>Yükleniyor...</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -58,10 +58,10 @@ export function TenantSettingsPage() {
   if (error) {
     const apiError = error as ApiError;
     return (
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
-            {apiError.message || "Failed to load tenant settings"}
+            {apiError.message || "Ayarlar yüklenirken hata oluştu"}
           </AlertDescription>
         </Alert>
       </div>
@@ -70,7 +70,7 @@ export function TenantSettingsPage() {
 
   if (!tenant) {
     return (
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6">
         <Alert variant="destructive">
           <AlertDescription>Tenant not found</AlertDescription>
         </Alert>
@@ -79,13 +79,17 @@ export function TenantSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Genel Ayarlar</h1>
+        <p className="text-sm text-muted-foreground">
+          Salonunuzun temel bilgilerini ve görünümünü buradan yönetin.
+        </p>
+      </div>
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Tenant Settings</CardTitle>
-          <CardDescription>
-            Manage your tenant information and settings
-          </CardDescription>
+          <CardTitle>Salon Bilgileri</CardTitle>
+          <CardDescription>Temel salon bilgilerini güncelleyin</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -154,9 +158,10 @@ export function TenantSettingsPage() {
             <div className="flex justify-end">
               <Button
                 type="submit"
+                variant="default"
                 disabled={updateTenant.isPending || name === tenant.name}
               >
-                {updateTenant.isPending ? "Saving..." : "Save changes"}
+                {updateTenant.isPending ? "Kaydediliyor..." : "Kaydet"}
               </Button>
             </div>
           </form>

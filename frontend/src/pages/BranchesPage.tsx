@@ -269,11 +269,11 @@ export function BranchesPage() {
 
   if (tenantLoading) {
     return (
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="space-y-6">
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Branches</CardTitle>
-            <CardDescription>Loading tenant...</CardDescription>
+            <CardTitle>Şubeler</CardTitle>
+            <CardDescription>Yükleniyor...</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -282,9 +282,9 @@ export function BranchesPage() {
 
   if (!tenant) {
     return (
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="space-y-6">
         <Alert variant="destructive">
-          <AlertDescription>Tenant not found</AlertDescription>
+          <AlertDescription>Salon bilgisi bulunamadı</AlertDescription>
         </Alert>
       </div>
     );
@@ -293,10 +293,10 @@ export function BranchesPage() {
   if (branchesError) {
     const apiError = branchesError as ApiError;
     return (
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
-            {apiError.message || "Failed to load branches"}
+            {apiError.message || "Şubeler yüklenirken hata oluştu"}
           </AlertDescription>
         </Alert>
       </div>
@@ -307,13 +307,33 @@ export function BranchesPage() {
   const isLoading = branchesLoading;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Şubeler</h1>
+          <p className="text-sm text-muted-foreground">
+            Salonunuza bağlı şubeleri görüntüleyin ve yönetin.
+          </p>
+        </div>
+        <Dialog open={newBranchOpen} onOpenChange={setNewBranchOpen}>
+          <DialogTrigger asChild>
+            <Button>Yeni Şube</Button>
+          </DialogTrigger>
+          <NewBranchDialog
+            tenantId={tenant.id}
+            open={newBranchOpen}
+            onOpenChange={setNewBranchOpen}
+          />
+        </Dialog>
+      </div>
       <Card className="w-full">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle>Branches</CardTitle>
-              <CardDescription>Manage branches for your tenant</CardDescription>
+              <CardTitle>Şube Listesi</CardTitle>
+              <CardDescription>
+                Tüm şubelerinizi buradan yönetebilirsiniz
+              </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <div className="flex items-center space-x-2 bg-muted/50 p-2 rounded-md border">
@@ -328,19 +348,9 @@ export function BranchesPage() {
                   htmlFor="show-archived-checkbox"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                 >
-                  Show archived
+                  Arşivleri göster
                 </Label>
               </div>
-              <Dialog open={newBranchOpen} onOpenChange={setNewBranchOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto">New branch</Button>
-                </DialogTrigger>
-                <NewBranchDialog
-                  tenantId={tenant.id}
-                  open={newBranchOpen}
-                  onOpenChange={setNewBranchOpen}
-                />
-              </Dialog>
             </div>
           </div>
         </CardHeader>
@@ -442,18 +452,18 @@ export function BranchesPage() {
                                 disabled={setDefaultBranch.isPending}
                                 className="h-8 text-xs sm:text-sm whitespace-nowrap"
                               >
-                                Set Default
+                                Varsayılan Yap
                               </Button>
                             )}
                             {!branch.archivedAt && (
                               <>
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => setEditingBranch(branch)}
                                   className="h-8 text-xs sm:text-sm whitespace-nowrap"
                                 >
-                                  Edit
+                                  Düzenle
                                 </Button>
                                 {!branch.isDefault && (
                                   <Button
@@ -463,7 +473,7 @@ export function BranchesPage() {
                                     disabled={archiveBranch.isPending}
                                     className="h-8 text-xs sm:text-sm whitespace-nowrap"
                                   >
-                                    Archive
+                                    Arşivle
                                   </Button>
                                 )}
                               </>
@@ -476,7 +486,7 @@ export function BranchesPage() {
                                 disabled={restoreBranch.isPending}
                                 className="h-8 text-xs sm:text-sm whitespace-nowrap"
                               >
-                                Restore
+                                Geri Yükle
                               </Button>
                             )}
                           </div>

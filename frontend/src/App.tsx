@@ -1,9 +1,10 @@
-import { Routes, Route, Navigate } from "react-router-dom"
-import { AppShell } from "./components/layout/AppShell"
-import { TenantSettingsPage } from "./pages/TenantSettingsPage"
-import { BranchesPage } from "./pages/BranchesPage"
-import { LoginPage } from "./pages/LoginPage"
-import { ProtectedRoute } from "./features/auth/ProtectedRoute"
+import { Routes, Route, Navigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { AppLayout } from "./layouts/AppLayout";
+import { TenantSettingsPage } from "./pages/TenantSettingsPage";
+import { BranchesPage } from "./pages/BranchesPage";
+import { LoginPage } from "./pages/LoginPage";
+import { ProtectedRoute } from "./features/auth/ProtectedRoute";
 
 function App() {
   return (
@@ -12,7 +13,9 @@ function App() {
       <Route
         element={
           <ProtectedRoute>
-            <AppShell />
+            <AppLayout>
+              <Outlet />
+            </AppLayout>
           </ProtectedRoute>
         }
       >
@@ -21,7 +24,7 @@ function App() {
         <Route path="/" element={<Navigate to="/settings/tenant" replace />} />
       </Route>
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;
