@@ -30,7 +30,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: IconLayoutDashboard,
     },
     {
-      title: "Genel Ayarlar",
+      title: "Salon Ayarları",
       url: "/settings/tenant",
       icon: IconSettings,
     },

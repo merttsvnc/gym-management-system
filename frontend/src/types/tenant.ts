@@ -6,6 +6,7 @@ export type Tenant = {
   name: string;
   slug: string;
   defaultCurrency: string; // ISO 4217 code (e.g., "USD", "EUR")
+  planKey: "SINGLE"; // Plan key from backend enum
   createdAt: string; // ISO 8601 datetime
   updatedAt: string; // ISO 8601 datetime
 };
@@ -23,7 +24,3 @@ export type UpdateTenantPayload = {
   name?: string; // 3-100 characters, alphanumeric and spaces
   defaultCurrency?: string; // ISO 4217 code
 };
-
-
-
-
