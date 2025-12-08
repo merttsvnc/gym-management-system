@@ -27,13 +27,20 @@ export function toApiError(error: unknown): ApiError {
     };
 
     if (axiosError.response?.data) {
+      let message =
+        axiosError.response.data.message ??
+        axiosError.message ??
+        "An error occurred";
+
+      // Handle validation errors that come as an array of messages
+      if (Array.isArray(message)) {
+        message = message.join(". ");
+      }
+
       return {
         statusCode:
           axiosError.response.data.statusCode ?? axiosError.response.status,
-        message:
-          axiosError.response.data.message ??
-          axiosError.message ??
-          "An error occurred",
+        message,
         error: axiosError.response.data.error,
         details: axiosError.response.data.details,
       };

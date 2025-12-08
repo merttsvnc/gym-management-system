@@ -110,10 +110,7 @@ export const apiClient = {
     }
     return axiosInstance
       .get<T>(url, { ...config, headers: { ...config?.headers, ...headers } })
-      .then((response) => response.data)
-      .catch((error) => {
-        throw toApiError(error);
-      });
+      .then((response) => response.data);
   },
 
   /**
@@ -133,10 +130,7 @@ export const apiClient = {
         ...config,
         headers: { ...config?.headers, ...headers },
       })
-      .then((response) => response.data)
-      .catch((error) => {
-        throw toApiError(error);
-      });
+      .then((response) => response.data);
   },
 
   /**
@@ -156,10 +150,7 @@ export const apiClient = {
         ...config,
         headers: { ...config?.headers, ...headers },
       })
-      .then((response) => response.data)
-      .catch((error) => {
-        throw toApiError(error);
-      });
+      .then((response) => response.data);
   },
 
   /**
@@ -178,9 +169,6 @@ export const apiClient = {
         ...config,
         headers: { ...config?.headers, ...headers },
       })
-      .then((response) => response.data)
-      .catch((error) => {
-        throw toApiError(error);
-      });
+      .then((response) => response.data);
   },
 };

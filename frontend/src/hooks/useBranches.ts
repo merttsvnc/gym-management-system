@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listBranches,
   createBranch,
@@ -6,24 +6,24 @@ import {
   archiveBranch,
   restoreBranch,
   setDefaultBranch,
-} from '@/api/branches';
+} from "@/api/branches";
 import type {
   Branch,
   BranchListQuery,
   BranchListResponse,
   CreateBranchPayload,
   UpdateBranchPayload,
-} from '@/types/branch';
-import type { ApiError } from '@/types/error';
+} from "@/types/branch";
+import type { ApiError } from "@/types/error";
 
 /**
  * Query keys for branch-related queries
  */
 const branchKeys = {
   list: (tenantId: string, query?: Partial<BranchListQuery>) =>
-    ['branches', tenantId, query] as const,
+    ["branches", tenantId, query] as const,
   detail: (tenantId: string, branchId: string) =>
-    ['branches', tenantId, branchId] as const,
+    ["branches", tenantId, branchId] as const,
 };
 
 /**
@@ -32,7 +32,7 @@ const branchKeys = {
  */
 export function useBranches(
   tenantId: string,
-  query?: Partial<BranchListQuery>,
+  query?: Partial<BranchListQuery>
 ) {
   return useQuery<BranchListResponse, ApiError>({
     queryKey: branchKeys.list(tenantId, query),
@@ -53,8 +53,14 @@ export function useCreateBranch(tenantId: string) {
     onSuccess: () => {
       // Invalidate branch list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['branches', tenantId],
+        queryKey: ["branches", tenantId],
       });
+    },
+    onError: (error) => {
+      // Error will be thrown and can be caught by the caller
+      // The global interceptor already shows a toast, but we allow
+      // the caller to handle plan-limit errors specifically
+      return error;
     },
   });
 }
@@ -76,7 +82,7 @@ export function useUpdateBranch(tenantId: string) {
     onSuccess: () => {
       // Invalidate branch list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['branches', tenantId],
+        queryKey: ["branches", tenantId],
       });
     },
   });
@@ -94,7 +100,7 @@ export function useArchiveBranch(tenantId: string) {
     onSuccess: () => {
       // Invalidate branch list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['branches', tenantId],
+        queryKey: ["branches", tenantId],
       });
     },
   });
@@ -112,8 +118,14 @@ export function useRestoreBranch(tenantId: string) {
     onSuccess: () => {
       // Invalidate branch list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['branches', tenantId],
+        queryKey: ["branches", tenantId],
       });
+    },
+    onError: (error) => {
+      // Error will be thrown and can be caught by the caller
+      // The global interceptor already shows a toast, but we allow
+      // the caller to handle plan-limit errors specifically
+      return error;
     },
   });
 }
@@ -130,9 +142,8 @@ export function useSetDefaultBranch(tenantId: string) {
     onSuccess: () => {
       // Invalidate branch list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['branches', tenantId],
+        queryKey: ["branches", tenantId],
       });
     },
   });
 }
-

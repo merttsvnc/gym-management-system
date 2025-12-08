@@ -70,11 +70,31 @@ export function BranchesPage() {
   };
 
   const handleRestore = async (branchId: string) => {
+    // Prevent restore if we've already reached the plan limit
+    if (hasReachedLimit) {
+      toast.error("Plan limitine ulaşıldı", {
+        description:
+          "Başka bir şubeyi arşivlemeden bu şubeyi geri yükleyemezsiniz.",
+      });
+      return;
+    }
+
     try {
       await restoreBranch.mutateAsync(branchId);
       toast.success("Şube geri yüklendi");
-    } catch {
-      // Error handled by mutation state
+    } catch (error) {
+      // The global error handler shows a toast, but we can check
+      // if it's a plan-limit specific error for additional handling
+      const apiError = error as ApiError;
+      if (
+        apiError.statusCode === 403 ||
+        (apiError.statusCode === 400 &&
+          apiError.message?.toLowerCase().includes("plan"))
+      ) {
+        // Specific plan-limit error already shown by global handler
+        // Just ensure the query is invalidated to show correct state
+        // Query invalidation happens automatically in onSuccess, but let's be safe
+      }
     }
   };
 
@@ -126,9 +146,11 @@ export function BranchesPage() {
   const branches = branchesData?.data || [];
   const isLoading = branchesLoading;
 
-  // Calculate active branches count (excluding archived)
-  const activeBranchesCount = branches.filter((b) => !b.archivedAt).length;
-  const canCreateBranch = activeBranchesCount < MAX_BRANCHES_SINGLE_PLAN;
+  // Calculate active branches count based on backend isActive flag
+  // This is the source of truth from the backend
+  const activeBranchesCount = branches.filter((b) => b.isActive).length;
+  const hasReachedLimit = activeBranchesCount >= MAX_BRANCHES_SINGLE_PLAN;
+  const canCreateBranch = !hasReachedLimit;
 
   return (
     <div className="space-y-6">
@@ -323,8 +345,15 @@ export function BranchesPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleRestore(branch.id)}
-                                disabled={restoreBranch.isPending}
+                                disabled={
+                                  restoreBranch.isPending || hasReachedLimit
+                                }
                                 className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                title={
+                                  hasReachedLimit
+                                    ? "Plan limitine ulaşıldı. Başka bir şubeyi arşivleyin."
+                                    : undefined
+                                }
                               >
                                 Geri Yükle
                               </Button>
@@ -429,8 +458,13 @@ export function BranchesPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleRestore(branch.id)}
-                          disabled={restoreBranch.isPending}
+                          disabled={restoreBranch.isPending || hasReachedLimit}
                           className="h-8 text-xs"
+                          title={
+                            hasReachedLimit
+                              ? "Plan limitine ulaşıldı. Başka bir şubeyi arşivleyin."
+                              : undefined
+                          }
                         >
                           Geri Yükle
                         </Button>

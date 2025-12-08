@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -44,6 +44,17 @@ function BranchFormContent({
   const [address, setAddress] = useState(initialAddress);
   const [errors, setErrors] = useState<{ name?: string; address?: string }>({});
 
+  // Reset form when mode changes or initialData changes
+  useEffect(() => {
+    const newName = mode === "edit" && initialData ? initialData.name : "";
+    const newAddress =
+      mode === "edit" && initialData ? initialData.address : "";
+
+    setName(newName);
+    setAddress(newAddress);
+    setErrors({});
+  }, [mode, initialData]);
+
   const validateForm = (): boolean => {
     const newErrors: { name?: string; address?: string } = {};
 
@@ -84,10 +95,33 @@ function BranchFormContent({
         });
         toast.success("Şube başarıyla güncellendi");
       }
+
+      // Reset form state
+      setName("");
+      setAddress("");
+      setErrors({});
+
       onOpenChange(false);
       onSuccess?.();
-    } catch {
-      // Error handled by mutation state
+    } catch (error) {
+      // Check if it's a plan-limit specific error
+      const apiError = error as ApiError;
+      if (
+        apiError.statusCode === 403 ||
+        (apiError.statusCode === 400 &&
+          apiError.message?.toLowerCase().includes("plan"))
+      ) {
+        // Show specific plan-limit error
+        // Global handler already shows a toast, but we keep the dialog open
+        // so the user can see the error in context
+      } else if (apiError.statusCode === 400) {
+        // Handle validation errors from backend
+        // The error message should be displayed in the Alert component below
+        console.error("Validation error:", apiError.message);
+      } else {
+        // Other errors are handled by mutation state and global handler
+        console.error("Unexpected error:", error);
+      }
     }
   };
 

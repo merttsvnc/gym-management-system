@@ -44,7 +44,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
         // Handle validation errors from class-validator
         if (Array.isArray(responseObj.message)) {
-          errors = responseObj.message.map((msg: string) => {
+          // Join all validation messages into a single readable message
+          const validationMessages = responseObj.message as string[];
+          message = validationMessages.join('. ');
+
+          errors = validationMessages.map((msg: string) => {
             // Extract field name from validation message if possible
             const fieldMatch = msg.match(/^(\w+)/);
             return {
@@ -52,7 +56,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
               message: msg,
             };
           });
-          message = 'Validation failed';
         }
       }
     }
