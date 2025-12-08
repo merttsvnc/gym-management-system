@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/useAuth";
 import {
@@ -44,6 +45,9 @@ export function LoginPage() {
         }
       }
       setError(errorMessage);
+      toast.error("Giriş yapılamadı", {
+        description: "E-posta veya şifre hatalı olabilir.",
+      });
     } finally {
       setIsLoading(false);
     }

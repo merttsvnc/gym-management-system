@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -75,11 +76,13 @@ function BranchFormContent({
           name: name.trim(),
           address: address.trim(),
         });
+        toast.success("Şube başarıyla oluşturuldu");
       } else if (initialData) {
         await updateBranch.mutateAsync({
           branchId: initialData.id,
           payload: { name: name.trim(), address: address.trim() },
         });
+        toast.success("Şube başarıyla güncellendi");
       }
       onOpenChange(false);
       onSuccess?.();

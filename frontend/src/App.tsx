@@ -6,10 +6,12 @@ import { TenantSettingsPage } from "./pages/TenantSettingsPage";
 import { BranchesPage } from "./pages/BranchesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProtectedRoute } from "./features/auth/ProtectedRoute";
+import { Toaster } from "@/components/ui/sonner";
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
         element={
@@ -26,6 +28,8 @@ function App() {
         <Route path="/" element={<Navigate to="/panel" replace />} />
       </Route>
     </Routes>
+    <Toaster richColors />
+    </>
   );
 }
 

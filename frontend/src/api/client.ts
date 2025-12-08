@@ -3,6 +3,7 @@ import axios, {
   type AxiosRequestConfig,
   type AxiosError,
 } from "axios";
+import { toast } from "sonner";
 import { toApiError } from "@/types/error";
 
 /**
@@ -55,11 +56,15 @@ axiosInstance.interceptors.request.use((config) => {
 /**
  * Response interceptor: Handles errors globally
  * - Centralized 401 handling: auto-logout and redirect
+ * - Show toast notifications for non-401 errors
  * - Convert AxiosError to ApiError
  */
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    // Convert AxiosError to ApiError
+    const apiError = toApiError(error);
+
     // Centralized 401 handling: logout and redirect
     if (error.response?.status === 401) {
       // Clear auth tokens
@@ -75,10 +80,15 @@ axiosInstance.interceptors.response.use(
 
       // Redirect to login
       window.location.href = "/login";
+      // Don't show toast for 401 errors as user is being redirected
+    } else {
+      // Show toast for non-401 errors (including network errors)
+      toast.error("İşlem sırasında bir hata oluştu", {
+        description: apiError.message || "Beklenmeyen bir hata oluştu",
+      });
     }
 
-    // Convert AxiosError to ApiError and rethrow
-    const apiError = toApiError(error);
+    // Rethrow ApiError
     return Promise.reject(apiError);
   }
 );

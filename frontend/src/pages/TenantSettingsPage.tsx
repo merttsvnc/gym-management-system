@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useCurrentTenant, useUpdateTenant } from "@/hooks/useTenant";
 import { useBranches } from "@/hooks/useBranches";
 import {
@@ -51,6 +52,7 @@ export function TenantSettingsPage() {
 
     try {
       await updateTenant.mutateAsync({ name });
+      toast.success("Salon ayarları güncellendi");
       setSuccessMessage("Salon ayarları başarıyla güncellendi");
     } catch {
       // Error is handled by the mutation state

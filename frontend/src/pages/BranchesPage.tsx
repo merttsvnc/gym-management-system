@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { useCurrentTenant } from "@/hooks/useTenant";
 import {
   useBranches,
@@ -61,6 +62,7 @@ export function BranchesPage() {
     ) {
       try {
         await archiveBranch.mutateAsync(branchId);
+        toast.success("Şube arşivlendi");
       } catch {
         // Error handled by mutation state
       }
@@ -70,6 +72,7 @@ export function BranchesPage() {
   const handleRestore = async (branchId: string) => {
     try {
       await restoreBranch.mutateAsync(branchId);
+      toast.success("Şube geri yüklendi");
     } catch {
       // Error handled by mutation state
     }
@@ -78,6 +81,7 @@ export function BranchesPage() {
   const handleSetDefault = async (branchId: string) => {
     try {
       await setDefaultBranch.mutateAsync(branchId);
+      toast.success("Varsayılan şube güncellendi");
     } catch {
       // Error handled by mutation state
     }
