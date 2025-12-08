@@ -413,6 +413,24 @@ describe('BranchesService', () => {
         'Branch is not archived',
       );
     });
+
+    it('should throw ForbiddenException if restoring would exceed plan limit', async () => {
+      const archivedBranch = {
+        ...mockBranch,
+        isActive: false,
+        archivedAt: new Date(),
+      };
+      mockPrismaService.branch.findUnique.mockResolvedValue(archivedBranch);
+      mockPlanService.getTenantPlan.mockResolvedValue({
+        maxBranches: 3,
+      } as any);
+      // Mock that tenant already has 3 active branches
+      mockPrismaService.branch.count.mockResolvedValue(3);
+
+      await expect(service.restoreBranch(tenantId, branchId)).rejects.toThrow(
+        'Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor.',
+      );
+    });
   });
 
   describe('setDefaultBranch', () => {

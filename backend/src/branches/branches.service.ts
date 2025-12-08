@@ -209,12 +209,25 @@ export class BranchesService {
    * Restore an archived branch
    * Business rules:
    * - Can only restore branches that are archived
+   * - Enforces plan limit for maxBranches (cannot exceed active branch limit)
    */
   async restoreBranch(tenantId: string, branchId: string) {
     const branch = await this.getBranchById(tenantId, branchId);
 
     if (branch.isActive) {
       throw new BadRequestException('Branch is not archived');
+    }
+
+    // Check plan limit before restoring branch (only count active branches)
+    const plan = await this.planService.getTenantPlan(tenantId);
+    const currentCount = await this.prisma.branch.count({
+      where: { tenantId, isActive: true },
+    });
+
+    if (currentCount >= plan.maxBranches) {
+      throw new ForbiddenException(
+        'Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor.',
+      );
     }
 
     return this.prisma.branch.update({
