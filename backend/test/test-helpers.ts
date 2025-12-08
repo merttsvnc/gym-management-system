@@ -152,6 +152,7 @@ export async function createTestTenantAndUser(
         data?.tenantSlug ||
         `test-gym-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       defaultCurrency: 'USD',
+      planKey: 'SINGLE', // Default to SINGLE plan (max 3 branches)
     },
   });
 

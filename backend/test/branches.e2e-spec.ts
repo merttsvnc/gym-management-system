@@ -213,11 +213,21 @@ describe('BranchesController (e2e)', () => {
     });
 
     it('should return 409 for duplicate branch name within tenant', async () => {
+      // Delete all non-default branches to start fresh
+      const allBranches = await prisma.branch.findMany({
+        where: { tenantId, isDefault: false },
+      });
+      for (const branch of allBranches) {
+        await prisma.branch.delete({ where: { id: branch.id } });
+      }
+
+      // Now create the duplicate branch directly via Prisma (bypasses plan limit)
       await createTestBranch(prisma, tenantId, {
         name: 'Duplicate Branch',
         address: '123 Duplicate St',
       });
 
+      // Try to create another branch with same name via API (should fail with 409)
       return request(app.getHttpServer())
         .post('/api/v1/branches')
         .set('Authorization', `Bearer ${authToken}`)
@@ -459,7 +469,12 @@ describe('BranchesController (e2e)', () => {
       archivedBranchId = branch.id;
     });
 
-    it('should restore archived branch successfully', () => {
+    it('should restore archived branch successfully', async () => {
+      // Delete all non-default active branches to ensure we're under limit
+      await prisma.branch.deleteMany({
+        where: { tenantId, isDefault: false, isActive: true },
+      });
+
       return request(app.getHttpServer())
         .post(`/api/v1/branches/${archivedBranchId}/restore`)
         .set('Authorization', `Bearer ${authToken}`)
