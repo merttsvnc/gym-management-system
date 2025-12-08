@@ -7,9 +7,9 @@ import { AppModule } from '../src/app.module';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
-  createMockToken,
   createTestTenantAndUser,
   cleanupTestData,
+  loginUser,
 } from './test-helpers';
 
 describe('TenantsController (e2e)', () => {
@@ -40,15 +40,15 @@ describe('TenantsController (e2e)', () => {
     await app.init();
 
     // Create test tenant and user
-    const { tenant, user } = await createTestTenantAndUser(prisma);
+    const { tenant, user } = await createTestTenantAndUser(prisma, {
+      userEmail: `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
+    });
     tenantId = tenant.id;
     userId = user.id;
-    authToken = createMockToken({
-      userId,
-      tenantId,
-      email: user.email,
-      role: user.role,
-    });
+
+    // Login to get real token
+    const { accessToken } = await loginUser(app, user.email, 'Pass123!');
+    authToken = accessToken;
   });
 
   afterAll(async () => {

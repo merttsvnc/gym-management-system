@@ -2,16 +2,14 @@ import axios from "axios";
 import type { AuthResponse } from "./types";
 
 /**
- * Base URL for auth endpoints (auth controller doesn't use /api/v1 prefix)
+ * Base URL for API endpoints
  */
-const authBaseURL =
-  import.meta.env.VITE_API_BASE_URL?.replace("/api/v1", "") ||
-  "http://localhost:3000";
+const apiBaseURL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
 /**
  * Login API function
- * POST to /auth/login with email and password
- * Note: Auth endpoint is at /auth/login (not /api/v1/auth/login)
+ * POST to /api/v1/auth/login with email and password
  *
  * Returns stable, user-friendly error codes (not backend messages)
  */
@@ -21,7 +19,7 @@ export async function login(
 ): Promise<AuthResponse> {
   try {
     const response = await axios.post<AuthResponse>(
-      `${authBaseURL}/auth/login`,
+      `${apiBaseURL}/auth/login`,
       { email, password },
       {
         headers: {

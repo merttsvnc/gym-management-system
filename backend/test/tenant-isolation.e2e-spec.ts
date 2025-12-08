@@ -8,10 +8,10 @@ import { AppModule } from '../src/app.module';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
-  createMockToken,
   createTestTenantAndUser,
   createTestBranch,
   cleanupTestData,
+  loginUser,
 } from './test-helpers';
 
 describe('Tenant Isolation (e2e)', () => {
@@ -60,12 +60,14 @@ describe('Tenant Isolation (e2e)', () => {
     );
     tenantAId = tenantA.id;
     userAId = userA.id;
-    tokenA = createMockToken({
-      userId: userAId,
-      tenantId: tenantAId,
-      email: userA.email,
-      role: userA.role,
-    });
+
+    // Login to get real token for Tenant A
+    const { accessToken: accessTokenA } = await loginUser(
+      app,
+      userA.email,
+      'Pass123!',
+    );
+    tokenA = accessTokenA;
 
     const branchA = await createTestBranch(prisma, tenantAId, {
       name: 'Tenant A Branch',
@@ -85,12 +87,14 @@ describe('Tenant Isolation (e2e)', () => {
     );
     tenantBId = tenantB.id;
     userBId = userB.id;
-    tokenB = createMockToken({
-      userId: userBId,
-      tenantId: tenantBId,
-      email: userB.email,
-      role: userB.role,
-    });
+
+    // Login to get real token for Tenant B
+    const { accessToken: accessTokenB } = await loginUser(
+      app,
+      userB.email,
+      'Pass123!',
+    );
+    tokenB = accessTokenB;
 
     const branchB = await createTestBranch(prisma, tenantBId, {
       name: 'Tenant B Branch',

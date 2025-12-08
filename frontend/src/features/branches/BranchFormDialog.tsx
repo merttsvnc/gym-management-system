@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -43,17 +43,6 @@ function BranchFormContent({
   const [name, setName] = useState(initialName);
   const [address, setAddress] = useState(initialAddress);
   const [errors, setErrors] = useState<{ name?: string; address?: string }>({});
-
-  // Reset form when mode changes or initialData changes
-  useEffect(() => {
-    const newName = mode === "edit" && initialData ? initialData.name : "";
-    const newAddress =
-      mode === "edit" && initialData ? initialData.address : "";
-
-    setName(newName);
-    setAddress(newAddress);
-    setErrors({});
-  }, [mode, initialData]);
 
   const validateForm = (): boolean => {
     const newErrors: { name?: string; address?: string } = {};

@@ -401,10 +401,13 @@ describe('Plan Limits (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(listArchivedResponse.body.pagination.total).toBe(4);
-      const archivedBranch = listArchivedResponse.body.data.find(
-        (b: any) => b.id === branch2Id,
-      );
-      expect(archivedBranch.isActive).toBe(false);
+      const archivedBranch = (
+        listArchivedResponse.body.data as Array<{
+          id: string;
+          isActive: boolean;
+        }>
+      ).find((b) => b.id === branch2Id);
+      expect(archivedBranch?.isActive).toBe(false);
     });
 
     it('should prevent the exact bug scenario: restore after archive + create', async () => {
@@ -418,7 +421,7 @@ describe('Plan Limits (e2e)', () => {
       const { accessToken } = await loginUser(app, email, password);
 
       // Step 1: Create 3 branches (all active) → OK
-      const branch1Response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/api/v1/branches')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ name: 'Branch 1', address: '123 St' });

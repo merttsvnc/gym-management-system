@@ -9,10 +9,11 @@ import { AppModule } from '../src/app.module';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
-  createMockToken,
   createTestTenantAndUser,
   createTestBranch,
   cleanupTestData,
+  loginUser,
+  createAdminUser,
 } from './test-helpers';
 
 describe('BranchesController (e2e)', () => {
@@ -43,15 +44,15 @@ describe('BranchesController (e2e)', () => {
     await app.init();
 
     // Create test tenant and user
-    const { tenant, user } = await createTestTenantAndUser(prisma);
+    const { tenant, user } = await createTestTenantAndUser(prisma, {
+      userEmail: `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
+    });
     tenantId = tenant.id;
     userId = user.id;
-    authToken = createMockToken({
-      userId,
-      tenantId,
-      email: user.email,
-      role: user.role,
-    });
+
+    // Login to get real token
+    const { accessToken } = await loginUser(app, user.email, 'Pass123!');
+    authToken = accessToken;
 
     // Create default branch (first branch becomes default)
     // Don't provide name so it generates a unique one
@@ -188,13 +189,15 @@ describe('BranchesController (e2e)', () => {
         await createTestTenantAndUser(prisma, {
           tenantName: 'New Tenant',
           tenantSlug: `new-tenant-${Date.now()}`,
+          userEmail: `newuser-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
         });
-      const newToken = createMockToken({
-        userId: newUser.id,
-        tenantId: newTenant.id,
-        email: newUser.email,
-        role: newUser.role,
-      });
+
+      // Login to get real token
+      const { accessToken: newToken } = await loginUser(
+        app,
+        newUser.email,
+        'Pass123!',
+      );
 
       return request(app.getHttpServer())
         .post('/api/v1/branches')
@@ -404,12 +407,12 @@ describe('BranchesController (e2e)', () => {
           isDefault: true,
         },
       );
-      const singleToken = createMockToken({
-        userId: singleBranchUser.id,
-        tenantId: singleBranchTenant.id,
-        email: singleBranchUser.email,
-        role: singleBranchUser.role,
-      });
+      // Login to get real token
+      const { accessToken: singleToken } = await loginUser(
+        app,
+        singleBranchUser.email,
+        'Pass123!',
+      );
 
       return request(app.getHttpServer())
         .post(`/api/v1/branches/${singleBranch.id}/archive`)

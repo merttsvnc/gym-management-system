@@ -121,7 +121,7 @@ export async function loginUser(
   tenantId: string;
 }> {
   const response = await request(app.getHttpServer())
-    .post('/auth/login')
+    .post('/api/v1/auth/login')
     .send({ email, password })
     .expect(201);
 
@@ -142,21 +142,29 @@ export async function createTestTenantAndUser(
     tenantName?: string;
     tenantSlug?: string;
     userEmail?: string;
+    userPassword?: string;
   },
 ) {
   const tenant = await prisma.tenant.create({
     data: {
       name: data?.tenantName || 'Test Gym',
-      slug: data?.tenantSlug || `test-gym-${Date.now()}`,
+      slug:
+        data?.tenantSlug ||
+        `test-gym-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       defaultCurrency: 'USD',
     },
   });
 
+  const password = data?.userPassword || 'Pass123!';
+  const passwordHash = await bcrypt.hash(password, 10);
+
   const user = await prisma.user.create({
     data: {
       tenantId: tenant.id,
-      email: data?.userEmail || `test-${Date.now()}@example.com`,
-      passwordHash: 'hashed-password',
+      email:
+        data?.userEmail ||
+        `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
+      passwordHash,
       firstName: 'Test',
       lastName: 'User',
       role: 'ADMIN',

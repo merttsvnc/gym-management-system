@@ -38,7 +38,7 @@ describe('Auth: /auth/login (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({ email, password });
 
       // Assert
@@ -62,7 +62,7 @@ describe('Auth: /auth/login (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email,
           password: 'WrongPassword',
@@ -76,7 +76,7 @@ describe('Auth: /auth/login (e2e)', () => {
     it('should reject login with non-existent user', async () => {
       // Act
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: 'nonexistent@example.com',
           password: 'SomePassword123!',
@@ -90,7 +90,7 @@ describe('Auth: /auth/login (e2e)', () => {
     it('should reject login with missing email', async () => {
       // Act
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           password: 'SomePassword123!',
         });
@@ -102,7 +102,7 @@ describe('Auth: /auth/login (e2e)', () => {
     it('should reject login with missing password', async () => {
       // Act
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: 'admin@testgym.com',
         });
@@ -114,7 +114,7 @@ describe('Auth: /auth/login (e2e)', () => {
     it('should reject login with invalid email format', async () => {
       // Act
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: 'not-an-email',
           password: 'SomePassword123!',
@@ -138,12 +138,12 @@ describe('Auth: /auth/login (e2e)', () => {
 
       // Act - Login as user1
       const response1 = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({ email: user1Email, password });
 
       // Act - Login as user2
       const response2 = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({ email: user2Email, password });
 
       // Assert - Each user gets their own tenant
