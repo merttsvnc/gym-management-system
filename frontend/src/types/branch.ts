@@ -53,9 +53,3 @@ export type BranchListResponse = {
     totalPages: number;
   };
 };
-
-
-
-
-
-

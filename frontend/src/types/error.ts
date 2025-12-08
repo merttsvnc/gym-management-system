@@ -12,7 +12,7 @@ export type ApiError = {
  * Converts an Axios error to ApiError format
  */
 export function toApiError(error: unknown): ApiError {
-  if (error && typeof error === 'object' && 'response' in error) {
+  if (error && typeof error === "object" && "response" in error) {
     const axiosError = error as {
       response?: {
         status: number;
@@ -28,8 +28,12 @@ export function toApiError(error: unknown): ApiError {
 
     if (axiosError.response?.data) {
       return {
-        statusCode: axiosError.response.data.statusCode ?? axiosError.response.status,
-        message: axiosError.response.data.message ?? axiosError.message ?? 'An error occurred',
+        statusCode:
+          axiosError.response.data.statusCode ?? axiosError.response.status,
+        message:
+          axiosError.response.data.message ??
+          axiosError.message ??
+          "An error occurred",
         error: axiosError.response.data.error,
         details: axiosError.response.data.details,
       };
@@ -37,7 +41,7 @@ export function toApiError(error: unknown): ApiError {
 
     return {
       statusCode: axiosError.response?.status ?? 500,
-      message: axiosError.message ?? 'An error occurred',
+      message: axiosError.message ?? "An error occurred",
     };
   }
 
@@ -50,12 +54,6 @@ export function toApiError(error: unknown): ApiError {
 
   return {
     statusCode: 500,
-    message: 'An unexpected error occurred',
+    message: "An unexpected error occurred",
   };
 }
-
-
-
-
-
-

@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient } from "@tanstack/react-query";
 
 /**
  * Configured React Query client with sensible defaults
@@ -12,9 +12,3 @@ export const queryClient = new QueryClient({
     },
   },
 });
-
-
-
-
-
-
