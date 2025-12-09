@@ -96,8 +96,8 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### Error Handling
 
-- [ ] T031 [P] Add Turkish error messages to all service exceptions in backend/src/members/members.service.ts
-- [ ] T032 [P] Configure exception filter for Turkish error responses in backend/src/common/filters/http-exception.filter.ts
+- [X] T031 [P] Add Turkish error messages to all service exceptions in backend/src/members/members.service.ts
+- [X] T032 [P] Configure exception filter for Turkish error responses in backend/src/common/filters/http-exception.filter.ts
 
 ---
 

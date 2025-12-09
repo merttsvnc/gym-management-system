@@ -28,7 +28,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
+    let message = 'Sunucu hatası';
     let errors: Array<{ field: string; message: string }> | undefined;
 
     // Handle NestJS HttpException
@@ -67,11 +67,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Handle Prisma validation errors
     else if (exception instanceof Prisma.PrismaClientValidationError) {
       status = HttpStatus.BAD_REQUEST;
-      message = 'Invalid input data';
+      message = 'Geçersiz giriş verisi';
     }
     // Handle unknown errors
     else if (exception instanceof Error) {
-      message = exception.message || 'Internal server error';
+      message = exception.message || 'Sunucu hatası';
     }
 
     const errorResponse = {
@@ -104,7 +104,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   /**
-   * Gets user-friendly error message from Prisma error
+   * Gets user-friendly error message from Prisma error (Turkish)
    */
   private getPrismaErrorMessage(
     error: Prisma.PrismaClientKnownRequestError,
@@ -115,16 +115,24 @@ export class HttpExceptionFilter implements ExceptionFilter {
         const target = error.meta?.target as string[] | undefined;
         if (target && target.length > 0) {
           const field = target[0];
-          return `${field} already exists`;
+          // Map common field names to Turkish
+          const fieldMap: Record<string, string> = {
+            phone: 'Telefon numarası',
+            email: 'E-posta',
+            tenantId: 'Kiracı ID',
+            branchId: 'Şube ID',
+          };
+          const fieldName = fieldMap[field] || field;
+          return `${fieldName} zaten kullanılıyor`;
         }
-        return 'A record with this value already exists';
+        return 'Bu değer zaten kullanılıyor';
       }
       case 'P2003':
-        return 'Invalid reference to related record';
+        return 'İlişkili kayıt referansı geçersiz';
       case 'P2025':
-        return 'Record not found';
+        return 'Kayıt bulunamadı';
       default:
-        return 'Database operation failed';
+        return 'Veritabanı işlemi başarısız';
     }
   }
 }
