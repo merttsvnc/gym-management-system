@@ -29,7 +29,8 @@ export class CreateMemberDto {
   @MinLength(10, { message: 'Telefon numarası en az 10 karakter olmalıdır' })
   @MaxLength(20, { message: 'Telefon numarası en fazla 20 karakter olabilir' })
   @Matches(/^\+?[1-9]\d{1,14}$/, {
-    message: 'Geçerli bir telefon numarası formatı giriniz (uluslararası format desteklenir)',
+    message:
+      'Geçerli bir telefon numarası formatı giriniz (uluslararası format desteklenir)',
   })
   phone: string;
 
@@ -40,7 +41,10 @@ export class CreateMemberDto {
   gender?: MemberGender;
 
   @IsOptional()
-  @IsDateString({}, { message: 'Geçerli bir doğum tarihi formatı giriniz (ISO 8601)' })
+  @IsDateString(
+    {},
+    { message: 'Geçerli bir doğum tarihi formatı giriniz (ISO 8601)' },
+  )
   dateOfBirth?: string;
 
   @IsOptional()
@@ -58,11 +62,24 @@ export class CreateMemberDto {
   membershipType?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'Geçerli bir üyelik başlangıç tarihi formatı giriniz (ISO 8601)' })
+  @IsString({ message: 'Özel üyelik tipi metni geçersiz.' })
+  @MaxLength(50, { message: 'Özel üyelik tipi en fazla 50 karakter olabilir.' })
+  membershipTypeCustom?: string;
+
+  @IsOptional()
+  @IsDateString(
+    {},
+    {
+      message: 'Geçerli bir üyelik başlangıç tarihi formatı giriniz (ISO 8601)',
+    },
+  )
   membershipStartAt?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'Geçerli bir üyelik bitiş tarihi formatı giriniz (ISO 8601)' })
+  @IsDateString(
+    {},
+    { message: 'Geçerli bir üyelik bitiş tarihi formatı giriniz (ISO 8601)' },
+  )
   membershipEndAt?: string;
 
   @IsOptional()
@@ -70,4 +87,3 @@ export class CreateMemberDto {
   @MaxLength(5000, { message: 'Notlar en fazla 5000 karakter olabilir' })
   notes?: string;
 }
-
