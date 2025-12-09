@@ -1,23 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MembershipTypeSelector } from './MembershipTypeSelector';
-import { useBranches } from '@/hooks/useBranches';
-import type { Member, CreateMemberPayload, UpdateMemberPayload, MemberGender } from '@/types/member';
-import type { ApiError } from '@/types/error';
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MembershipTypeSelector } from "./MembershipTypeSelector";
+import { useBranches } from "@/hooks/useBranches";
+import { MemberGender } from "@/types/member";
+import type {
+  Member,
+  CreateMemberPayload,
+  UpdateMemberPayload,
+} from "@/types/member";
+import type { ApiError } from "@/types/error";
 
 interface MemberFormProps {
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   initialData?: Member;
   onSubmit: (data: CreateMemberPayload | UpdateMemberPayload) => Promise<void>;
   onCancel?: () => void;
@@ -41,23 +46,31 @@ export function MemberForm({
   const { data: branchesData } = useBranches(tenantId);
   const branches = branchesData?.data || [];
   // Form state
-  const [branchId, setBranchId] = useState(initialData?.branchId || '');
-  const [firstName, setFirstName] = useState(initialData?.firstName || '');
-  const [lastName, setLastName] = useState(initialData?.lastName || '');
-  const [phone, setPhone] = useState(initialData?.phone || '');
-  const [email, setEmail] = useState(initialData?.email || '');
-  const [gender, setGender] = useState<MemberGender | ''>(initialData?.gender || '');
-  const [dateOfBirth, setDateOfBirth] = useState(
-    initialData?.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : '',
+  const [branchId, setBranchId] = useState(initialData?.branchId || "");
+  const [firstName, setFirstName] = useState(initialData?.firstName || "");
+  const [lastName, setLastName] = useState(initialData?.lastName || "");
+  const [phone, setPhone] = useState(initialData?.phone || "");
+  const [email, setEmail] = useState(initialData?.email || "");
+  const [gender, setGender] = useState<MemberGender | "">(
+    initialData?.gender || ""
   );
-  const [membershipType, setMembershipType] = useState(initialData?.membershipType || '');
+  const [dateOfBirth, setDateOfBirth] = useState(
+    initialData?.dateOfBirth ? initialData.dateOfBirth.split("T")[0] : ""
+  );
+  const [membershipType, setMembershipType] = useState(
+    initialData?.membershipType || ""
+  );
   const [membershipStartAt, setMembershipStartAt] = useState(
-    initialData?.membershipStartAt ? initialData.membershipStartAt.split('T')[0] : '',
+    initialData?.membershipStartAt
+      ? initialData.membershipStartAt.split("T")[0]
+      : ""
   );
   const [membershipEndAt, setMembershipEndAt] = useState(
-    initialData?.membershipEndAt ? initialData.membershipEndAt.split('T')[0] : '',
+    initialData?.membershipEndAt
+      ? initialData.membershipEndAt.split("T")[0]
+      : ""
   );
-  const [notes, setNotes] = useState(initialData?.notes || '');
+  const [notes, setNotes] = useState(initialData?.notes || "");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -69,17 +82,23 @@ export function MemberForm({
       setFirstName(initialData.firstName);
       setLastName(initialData.lastName);
       setPhone(initialData.phone);
-      setEmail(initialData.email || '');
-      setGender(initialData.gender || '');
-      setDateOfBirth(initialData.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : '');
+      setEmail(initialData.email || "");
+      setGender(initialData.gender || "");
+      setDateOfBirth(
+        initialData.dateOfBirth ? initialData.dateOfBirth.split("T")[0] : ""
+      );
       setMembershipType(initialData.membershipType);
       setMembershipStartAt(
-        initialData.membershipStartAt ? initialData.membershipStartAt.split('T')[0] : '',
+        initialData.membershipStartAt
+          ? initialData.membershipStartAt.split("T")[0]
+          : ""
       );
       setMembershipEndAt(
-        initialData.membershipEndAt ? initialData.membershipEndAt.split('T')[0] : '',
+        initialData.membershipEndAt
+          ? initialData.membershipEndAt.split("T")[0]
+          : ""
       );
-      setNotes(initialData.notes || '');
+      setNotes(initialData.notes || "");
     }
   }, [initialData]);
 
@@ -87,33 +106,33 @@ export function MemberForm({
     const newErrors: Record<string, string> = {};
 
     if (!branchId.trim()) {
-      newErrors.branchId = 'Şube seçimi zorunludur';
+      newErrors.branchId = "Şube seçimi zorunludur";
     }
 
     if (!firstName.trim()) {
-      newErrors.firstName = 'Ad zorunludur';
+      newErrors.firstName = "Ad zorunludur";
     } else if (firstName.trim().length > 50) {
-      newErrors.firstName = 'Ad en fazla 50 karakter olabilir';
+      newErrors.firstName = "Ad en fazla 50 karakter olabilir";
     }
 
     if (!lastName.trim()) {
-      newErrors.lastName = 'Soyad zorunludur';
+      newErrors.lastName = "Soyad zorunludur";
     } else if (lastName.trim().length > 50) {
-      newErrors.lastName = 'Soyad en fazla 50 karakter olabilir';
+      newErrors.lastName = "Soyad en fazla 50 karakter olabilir";
     }
 
     if (!phone.trim()) {
-      newErrors.phone = 'Telefon numarası zorunludur';
+      newErrors.phone = "Telefon numarası zorunludur";
     } else if (phone.trim().length < 10) {
-      newErrors.phone = 'Telefon numarası en az 10 haneli olmalıdır';
+      newErrors.phone = "Telefon numarası en az 10 haneli olmalıdır";
     } else if (phone.trim().length > 20) {
-      newErrors.phone = 'Telefon numarası en fazla 20 karakter olabilir';
+      newErrors.phone = "Telefon numarası en fazla 20 karakter olabilir";
     }
 
     if (email && email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
-        newErrors.email = 'Geçerli bir e-posta adresi girin';
+        newErrors.email = "Geçerli bir e-posta adresi girin";
       }
     }
 
@@ -121,12 +140,13 @@ export function MemberForm({
       const startDate = new Date(membershipStartAt);
       const endDate = new Date(membershipEndAt);
       if (endDate <= startDate) {
-        newErrors.membershipEndAt = 'Üyelik bitiş tarihi başlangıç tarihinden sonra olmalıdır';
+        newErrors.membershipEndAt =
+          "Üyelik bitiş tarihi başlangıç tarihinden sonra olmalıdır";
       }
     }
 
     if (notes && notes.length > 5000) {
-      newErrors.notes = 'Notlar en fazla 5000 karakter olabilir';
+      newErrors.notes = "Notlar en fazla 5000 karakter olabilir";
     }
 
     setErrors(newErrors);
@@ -141,8 +161,9 @@ export function MemberForm({
     }
 
     const payload: CreateMemberPayload | UpdateMemberPayload = {
-      ...(mode === 'create' && { branchId: branchId.trim() }),
-      ...(mode === 'edit' && branchId !== initialData?.branchId && { branchId: branchId.trim() }),
+      ...(mode === "create" && { branchId: branchId.trim() }),
+      ...(mode === "edit" &&
+        branchId !== initialData?.branchId && { branchId: branchId.trim() }),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       phone: phone.trim(),
@@ -150,8 +171,12 @@ export function MemberForm({
       ...(gender && { gender: gender as MemberGender }),
       ...(dateOfBirth && { dateOfBirth }),
       ...(membershipType && { membershipType }),
-      ...(membershipStartAt && { membershipStartAt: new Date(membershipStartAt).toISOString() }),
-      ...(membershipEndAt && { membershipEndAt: new Date(membershipEndAt).toISOString() }),
+      ...(membershipStartAt && {
+        membershipStartAt: new Date(membershipStartAt).toISOString(),
+      }),
+      ...(membershipEndAt && {
+        membershipEndAt: new Date(membershipEndAt).toISOString(),
+      }),
       ...(notes.trim() && { notes: notes.trim() }),
     };
 
@@ -159,7 +184,7 @@ export function MemberForm({
       await onSubmit(payload);
     } catch (err) {
       // Error handled by parent component
-      console.error('Form submission error:', err);
+      console.error("Form submission error:", err);
     }
   };
 
@@ -167,7 +192,7 @@ export function MemberForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Branch Selection (only for create mode) */}
-        {mode === 'create' && (
+        {mode === "create" && (
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="branchId">
               Şube <span className="text-destructive">*</span>
@@ -176,11 +201,14 @@ export function MemberForm({
               value={branchId}
               onValueChange={(value) => {
                 setBranchId(value);
-                if (errors.branchId) setErrors({ ...errors, branchId: '' });
+                if (errors.branchId) setErrors({ ...errors, branchId: "" });
               }}
               disabled={isLoading}
             >
-              <SelectTrigger id="branchId" className={errors.branchId ? 'border-destructive' : ''}>
+              <SelectTrigger
+                id="branchId"
+                className={errors.branchId ? "border-destructive" : ""}
+              >
                 <SelectValue placeholder="Şube seçin" />
               </SelectTrigger>
               <SelectContent>
@@ -209,10 +237,10 @@ export function MemberForm({
             value={firstName}
             onChange={(e) => {
               setFirstName(e.target.value);
-              if (errors.firstName) setErrors({ ...errors, firstName: '' });
+              if (errors.firstName) setErrors({ ...errors, firstName: "" });
             }}
             placeholder="Ad"
-            className={errors.firstName ? 'border-destructive' : ''}
+            className={errors.firstName ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.firstName && (
@@ -230,10 +258,10 @@ export function MemberForm({
             value={lastName}
             onChange={(e) => {
               setLastName(e.target.value);
-              if (errors.lastName) setErrors({ ...errors, lastName: '' });
+              if (errors.lastName) setErrors({ ...errors, lastName: "" });
             }}
             placeholder="Soyad"
-            className={errors.lastName ? 'border-destructive' : ''}
+            className={errors.lastName ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.lastName && (
@@ -252,10 +280,10 @@ export function MemberForm({
             value={phone}
             onChange={(e) => {
               setPhone(e.target.value);
-              if (errors.phone) setErrors({ ...errors, phone: '' });
+              if (errors.phone) setErrors({ ...errors, phone: "" });
             }}
             placeholder="+90 555 123 4567"
-            className={errors.phone ? 'border-destructive' : ''}
+            className={errors.phone ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.phone && (
@@ -272,10 +300,10 @@ export function MemberForm({
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
-              if (errors.email) setErrors({ ...errors, email: '' });
+              if (errors.email) setErrors({ ...errors, email: "" });
             }}
             placeholder="ornek@email.com"
-            className={errors.email ? 'border-destructive' : ''}
+            className={errors.email ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.email && (
@@ -289,8 +317,8 @@ export function MemberForm({
           <Select
             value={gender}
             onValueChange={(value) => {
-              setGender(value as MemberGender | '');
-              if (errors.gender) setErrors({ ...errors, gender: '' });
+              setGender(value as MemberGender | "");
+              if (errors.gender) setErrors({ ...errors, gender: "" });
             }}
             disabled={isLoading}
           >
@@ -313,9 +341,9 @@ export function MemberForm({
             value={dateOfBirth}
             onChange={(e) => {
               setDateOfBirth(e.target.value);
-              if (errors.dateOfBirth) setErrors({ ...errors, dateOfBirth: '' });
+              if (errors.dateOfBirth) setErrors({ ...errors, dateOfBirth: "" });
             }}
-            className={errors.dateOfBirth ? 'border-destructive' : ''}
+            className={errors.dateOfBirth ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.dateOfBirth && (
@@ -332,7 +360,8 @@ export function MemberForm({
             value={membershipType}
             onValueChange={(value) => {
               setMembershipType(value);
-              if (errors.membershipType) setErrors({ ...errors, membershipType: '' });
+              if (errors.membershipType)
+                setErrors({ ...errors, membershipType: "" });
             }}
             disabled={isLoading}
           />
@@ -347,13 +376,16 @@ export function MemberForm({
             value={membershipStartAt}
             onChange={(e) => {
               setMembershipStartAt(e.target.value);
-              if (errors.membershipStartAt) setErrors({ ...errors, membershipStartAt: '' });
+              if (errors.membershipStartAt)
+                setErrors({ ...errors, membershipStartAt: "" });
             }}
-            className={errors.membershipStartAt ? 'border-destructive' : ''}
+            className={errors.membershipStartAt ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.membershipStartAt && (
-            <p className="text-sm text-destructive">{errors.membershipStartAt}</p>
+            <p className="text-sm text-destructive">
+              {errors.membershipStartAt}
+            </p>
           )}
         </div>
 
@@ -366,9 +398,10 @@ export function MemberForm({
             value={membershipEndAt}
             onChange={(e) => {
               setMembershipEndAt(e.target.value);
-              if (errors.membershipEndAt) setErrors({ ...errors, membershipEndAt: '' });
+              if (errors.membershipEndAt)
+                setErrors({ ...errors, membershipEndAt: "" });
             }}
-            className={errors.membershipEndAt ? 'border-destructive' : ''}
+            className={errors.membershipEndAt ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.membershipEndAt && (
@@ -384,11 +417,11 @@ export function MemberForm({
             value={notes}
             onChange={(e) => {
               setNotes(e.target.value);
-              if (errors.notes) setErrors({ ...errors, notes: '' });
+              if (errors.notes) setErrors({ ...errors, notes: "" });
             }}
             placeholder="Üye hakkında notlar..."
             rows={4}
-            className={errors.notes ? 'border-destructive' : ''}
+            className={errors.notes ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.notes && (
@@ -400,22 +433,31 @@ export function MemberForm({
       {error && (
         <Alert variant="destructive">
           <AlertDescription>
-            {error.message || 'Form gönderilirken bir hata oluştu. Lütfen tekrar deneyin.'}
+            {error.message ||
+              "Form gönderilirken bir hata oluştu. Lütfen tekrar deneyin."}
           </AlertDescription>
         </Alert>
       )}
 
       <div className="flex justify-end gap-2">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
             İptal
           </Button>
         )}
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Kaydediliyor...' : mode === 'create' ? 'Kaydet' : 'Güncelle'}
+          {isLoading
+            ? "Kaydediliyor..."
+            : mode === "create"
+            ? "Kaydet"
+            : "Güncelle"}
         </Button>
       </div>
     </form>
   );
 }
-
