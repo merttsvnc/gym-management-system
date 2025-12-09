@@ -36,11 +36,14 @@ export class MembersService {
       throw new NotFoundException('Şube bulunamadı');
     }
 
+    // Normalize phone number
+    const phone = dto.phone.trim();
+
     // Check phone uniqueness within tenant
     const existingMember = await this.prisma.member.findFirst({
       where: {
         tenantId,
-        phone: dto.phone,
+        phone,
       },
     });
 
@@ -67,13 +70,13 @@ export class MembersService {
       );
     }
 
-    return this.prisma.member.create({
+    const member = await this.prisma.member.create({
       data: {
         tenantId,
         branchId: dto.branchId,
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
-        phone: dto.phone,
+        phone,
         email: dto.email?.trim(),
         gender: dto.gender,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
@@ -85,6 +88,11 @@ export class MembersService {
         status: 'ACTIVE',
       },
     });
+
+    return {
+      ...member,
+      remainingDays: this.calculateRemainingDays(member),
+    };
   }
 
   /**
@@ -159,8 +167,13 @@ export class MembersService {
       this.prisma.member.count({ where }),
     ]);
 
+    const dataWithRemainingDays = data.map((member) => ({
+      ...member,
+      remainingDays: this.calculateRemainingDays(member),
+    }));
+
     return {
-      data,
+      data: dataWithRemainingDays,
       pagination: {
         page,
         limit,
@@ -188,7 +201,10 @@ export class MembersService {
       throw new NotFoundException('Üye bulunamadı');
     }
 
-    return member;
+    return {
+      ...member,
+      remainingDays: this.calculateRemainingDays(member),
+    };
   }
 
   /**
@@ -218,12 +234,13 @@ export class MembersService {
       }
     }
 
-    // If phone is being updated, check uniqueness within tenant (excluding current member)
+    // If phone is being updated, normalize and check uniqueness within tenant (excluding current member)
     if (dto.phone && dto.phone !== existingMember.phone) {
+      const phone = dto.phone.trim();
       const existingMemberWithPhone = await this.prisma.member.findFirst({
         where: {
           tenantId,
-          phone: dto.phone,
+          phone,
           id: {
             not: id,
           },
@@ -258,7 +275,7 @@ export class MembersService {
     if (dto.firstName !== undefined)
       updateData.firstName = dto.firstName.trim();
     if (dto.lastName !== undefined) updateData.lastName = dto.lastName.trim();
-    if (dto.phone !== undefined) updateData.phone = dto.phone;
+    if (dto.phone !== undefined) updateData.phone = dto.phone.trim();
     if (dto.email !== undefined)
       updateData.email = dto.email ? dto.email.trim() : null;
     if (dto.gender !== undefined) updateData.gender = dto.gender;
@@ -277,10 +294,15 @@ export class MembersService {
     if (dto.notes !== undefined)
       updateData.notes = dto.notes ? dto.notes.trim() : null;
 
-    return this.prisma.member.update({
+    const updatedMember = await this.prisma.member.update({
       where: { id },
       data: updateData,
     });
+
+    return {
+      ...updatedMember,
+      remainingDays: this.calculateRemainingDays(updatedMember),
+    };
   }
 
   /**
@@ -293,11 +315,7 @@ export class MembersService {
    * - When status changes from PAUSED to ACTIVE: sets resumedAt = NOW(), keeps pausedAt for calculation
    * - When status changes from PAUSED to INACTIVE: clears pausedAt and resumedAt
    */
-  async changeStatus(
-    tenantId: string,
-    id: string,
-    dto: ChangeMemberStatusDto,
-  ) {
+  async changeStatus(tenantId: string, id: string, dto: ChangeMemberStatusDto) {
     const member = await this.findOne(tenantId, id);
 
     // Cannot transition from ARCHIVED (terminal status)
@@ -310,7 +328,7 @@ export class MembersService {
     // Cannot set ARCHIVED via this endpoint (use archive() instead)
     if (dto.status === 'ARCHIVED') {
       throw new BadRequestException(
-        'Üyeyi arşivlemek için arşivleme endpoint\'ini kullanın',
+        "Üyeyi arşivlemek için arşivleme endpoint'ini kullanın",
       );
     }
 
@@ -355,10 +373,15 @@ export class MembersService {
     // For other transitions, don't modify pausedAt/resumedAt
     // (they remain as historical data)
 
-    return this.prisma.member.update({
+    const updatedMember = await this.prisma.member.update({
       where: { id },
       data: updateData,
     });
+
+    return {
+      ...updatedMember,
+      remainingDays: this.calculateRemainingDays(updatedMember),
+    };
   }
 
   /**
@@ -373,10 +396,13 @@ export class MembersService {
 
     // If already archived, return as-is
     if (member.status === 'ARCHIVED') {
-      return member;
+      return {
+        ...member,
+        remainingDays: this.calculateRemainingDays(member),
+      };
     }
 
-    return this.prisma.member.update({
+    const archivedMember = await this.prisma.member.update({
       where: { id },
       data: {
         status: 'ARCHIVED',
@@ -384,6 +410,11 @@ export class MembersService {
         resumedAt: null,
       },
     });
+
+    return {
+      ...archivedMember,
+      remainingDays: this.calculateRemainingDays(archivedMember),
+    };
   }
 
   /**
@@ -394,7 +425,7 @@ export class MembersService {
    * - Days while PAUSED don't count against remaining time
    * - Uses pausedAt and resumedAt timestamps to track pause periods
    * - If membershipEndAt is in the past, remaining days may be negative
-   * 
+   *
    * Note: This implementation keeps pausedAt even after resuming to enable accurate
    * remaining days calculation. The pause period is calculated as (resumedAt - pausedAt).
    */
@@ -405,6 +436,11 @@ export class MembersService {
     pausedAt: Date | null;
     resumedAt: Date | null;
   }): number {
+    // Safety check: invalid dates
+    if (member.membershipEndAt <= member.membershipStartAt) {
+      return 0;
+    }
+
     const now = new Date();
     const totalDays =
       (member.membershipEndAt.getTime() - member.membershipStartAt.getTime()) /
@@ -433,14 +469,14 @@ export class MembersService {
       const activeDaysBeforePause =
         (member.pausedAt.getTime() - member.membershipStartAt.getTime()) /
         (1000 * 60 * 60 * 24);
-      
+
       // Only count active days after resume if calculationEndDate is after resumedAt
       const activeDaysAfterResume =
         calculationEndDate > member.resumedAt
           ? (calculationEndDate.getTime() - member.resumedAt.getTime()) /
             (1000 * 60 * 60 * 24)
           : 0;
-      
+
       activeDaysElapsed = activeDaysBeforePause + activeDaysAfterResume;
     }
     // For other cases (no pause history, or INACTIVE/ARCHIVED)
@@ -458,4 +494,3 @@ export class MembersService {
     return Math.round(remainingDays);
   }
 }
-

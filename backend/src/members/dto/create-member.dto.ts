@@ -62,11 +62,6 @@ export class CreateMemberDto {
   membershipType?: string;
 
   @IsOptional()
-  @IsString({ message: 'Özel üyelik tipi metni geçersiz.' })
-  @MaxLength(50, { message: 'Özel üyelik tipi en fazla 50 karakter olabilir.' })
-  membershipTypeCustom?: string;
-
-  @IsOptional()
   @IsDateString(
     {},
     {

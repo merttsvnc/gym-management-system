@@ -42,10 +42,7 @@ export class MembersController {
    * Returns 404 if member doesn't belong to tenant
    */
   @Get(':id')
-  findOne(
-    @CurrentUser('tenantId') tenantId: string,
-    @Param('id') id: string,
-  ) {
+  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.membersService.findOne(tenantId, id);
   }
 
@@ -105,11 +102,7 @@ export class MembersController {
    */
   @Post(':id/archive')
   @HttpCode(HttpStatus.OK)
-  archive(
-    @CurrentUser('tenantId') tenantId: string,
-    @Param('id') id: string,
-  ) {
+  archive(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.membersService.archive(tenantId, id);
   }
 }
-
