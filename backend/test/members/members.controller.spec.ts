@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersController } from '../../src/members/members.controller';
 import { MembersService } from '../../src/members/members.service';

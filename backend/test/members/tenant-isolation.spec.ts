@@ -407,9 +407,19 @@ describe('MembersService - Tenant Isolation', () => {
         id: 'branch-1-tenant1',
         tenantId: tenant1Id,
       };
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 1);
 
       mockPrismaService.branch.findUnique.mockResolvedValue(branchFromTenant1);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
+      mockPrismaService.member.create.mockResolvedValue({
+        id: 'member-1',
+        phone,
+        membershipStartAt: startDate,
+        membershipEndAt: endDate,
+        status: 'ACTIVE',
+      } as any);
 
       const createDto = {
         branchId: 'branch-1-tenant1',

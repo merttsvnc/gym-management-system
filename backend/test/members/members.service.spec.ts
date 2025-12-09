@@ -69,6 +69,9 @@ describe('MembersService', () => {
 
     it('should create a member successfully with valid data', async () => {
       const mockBranch = { id: branchId, tenantId, name: 'Main Branch' };
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 1);
       const mockCreatedMember = {
         id: 'member-1',
         tenantId,
@@ -81,15 +84,16 @@ describe('MembersService', () => {
         dateOfBirth: new Date('1990-01-01'),
         photoUrl: null,
         membershipType: 'Premium',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartAt: startDate,
+        membershipEndAt: endDate,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
         notes: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+        remainingDays: 365,
+      } as any;
 
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
@@ -156,12 +160,18 @@ describe('MembersService', () => {
         ...createDto,
         phone: '  +1234567890  ',
       };
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 1);
 
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         phone: '+1234567890',
+        membershipStartAt: startDate,
+        membershipEndAt: endDate,
+        status: 'ACTIVE',
       } as any);
 
       await service.create(tenantId, createDtoWithSpaces);
@@ -175,12 +185,18 @@ describe('MembersService', () => {
       const mockBranch = { id: branchId, tenantId };
       const dtoWithoutType = { ...createDto };
       delete (dtoWithoutType as any).membershipType;
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 1);
 
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         membershipType: 'Basic',
+        membershipStartAt: startDate,
+        membershipEndAt: endDate,
+        status: 'ACTIVE',
       } as any);
 
       await service.create(tenantId, dtoWithoutType);
@@ -208,7 +224,12 @@ describe('MembersService', () => {
         const diffInDays =
           (endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60 * 24);
         expect(diffInDays).toBeCloseTo(365, 0);
-        return Promise.resolve({ id: 'member-1' } as any);
+        return Promise.resolve({
+          id: 'member-1',
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: 'ACTIVE',
+        } as any);
       });
 
       await service.create(tenantId, dtoWithoutDates);
@@ -243,10 +264,17 @@ describe('MembersService', () => {
         notes: '  Test notes  ',
       };
 
+      const trimTestStartDate = new Date();
+      const trimTestEndDate = new Date(trimTestStartDate);
+      trimTestEndDate.setFullYear(trimTestEndDate.getFullYear() + 1);
+
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
+        membershipStartAt: trimTestStartDate,
+        membershipEndAt: trimTestEndDate,
+        status: 'ACTIVE',
       } as any);
 
       await service.create(tenantId, dtoWithSpaces);

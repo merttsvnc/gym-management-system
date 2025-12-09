@@ -446,13 +446,13 @@ export class MembersService {
       (member.membershipEndAt.getTime() - member.membershipStartAt.getTime()) /
       (1000 * 60 * 60 * 24);
 
+    // If membership hasn't started yet, return full duration
+    if (now < member.membershipStartAt) {
+      return Math.round(totalDays);
+    }
+
     // Calculate days elapsed while ACTIVE (excluding paused periods)
     let activeDaysElapsed = 0;
-
-    // Determine the effective end date for calculation
-    // Use membershipEndAt if it's in the past, otherwise use current time
-    const calculationEndDate =
-      member.membershipEndAt < now ? member.membershipEndAt : now;
 
     // If currently PAUSED, calculate up to pausedAt (when pause started)
     if (member.status === 'PAUSED' && member.pausedAt) {
@@ -465,25 +465,24 @@ export class MembersService {
     else if (member.pausedAt && member.resumedAt) {
       // Calculate active days in two parts:
       // 1. Active days before pause: pausedAt - start
-      // 2. Active days after resume: calculationEndDate - resumedAt
+      // 2. Active days after resume: now - resumedAt
       const activeDaysBeforePause =
         (member.pausedAt.getTime() - member.membershipStartAt.getTime()) /
         (1000 * 60 * 60 * 24);
 
-      // Only count active days after resume if calculationEndDate is after resumedAt
+      // Only count active days after resume if now is after resumedAt
       const activeDaysAfterResume =
-        calculationEndDate > member.resumedAt
-          ? (calculationEndDate.getTime() - member.resumedAt.getTime()) /
-            (1000 * 60 * 60 * 24)
+        now > member.resumedAt
+          ? (now.getTime() - member.resumedAt.getTime()) / (1000 * 60 * 60 * 24)
           : 0;
 
       activeDaysElapsed = activeDaysBeforePause + activeDaysAfterResume;
     }
     // For other cases (no pause history, or INACTIVE/ARCHIVED)
     else {
-      // No pause period, so active days = total elapsed from start to calculation end
+      // No pause period, so active days = total elapsed from start to now
       activeDaysElapsed =
-        (calculationEndDate.getTime() - member.membershipStartAt.getTime()) /
+        (now.getTime() - member.membershipStartAt.getTime()) /
         (1000 * 60 * 60 * 24);
     }
 

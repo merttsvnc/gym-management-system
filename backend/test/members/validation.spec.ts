@@ -165,12 +165,13 @@ describe('MembersService - Validation', () => {
 
     it('should exclude current member when checking phone uniqueness on update', async () => {
       const memberId = 'member-1';
-      const phone = '+1234567890';
+      const oldPhone = '+1111111111';
+      const newPhone = '+1234567890';
       const existingMember = {
         id: memberId,
         tenantId,
         branchId,
-        phone,
+        phone: oldPhone,
         firstName: 'John',
         lastName: 'Doe',
         membershipStartAt: new Date(),
@@ -182,15 +183,18 @@ describe('MembersService - Validation', () => {
 
       mockPrismaService.member.findUnique.mockResolvedValue(existingMember);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
-      mockPrismaService.member.update.mockResolvedValue(existingMember);
+      mockPrismaService.member.update.mockResolvedValue({
+        ...existingMember,
+        phone: newPhone,
+      });
 
-      // Updating to same phone should not throw error
-      await service.update(tenantId, memberId, { phone });
+      // Updating to a different phone should check uniqueness excluding current member
+      await service.update(tenantId, memberId, { phone: newPhone });
 
       expect(mockPrismaService.member.findFirst).toHaveBeenCalledWith({
         where: {
           tenantId,
-          phone,
+          phone: newPhone,
           id: { not: memberId },
         },
       });
