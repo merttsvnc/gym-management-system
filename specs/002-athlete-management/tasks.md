@@ -69,7 +69,7 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### DTOs and Validation
 
-- [ ] T013 Create CreateMemberDto with validation decorators in backend/src/members/dto/create-member.dto.ts
+- [X] T013 Create CreateMemberDto with validation decorators in backend/src/members/dto/create-member.dto.ts
 - [ ] T014 [P] Create UpdateMemberDto with validation decorators in backend/src/members/dto/update-member.dto.ts
 - [ ] T015 [P] Create ChangeMemberStatusDto with validation decorators in backend/src/members/dto/change-member-status.dto.ts
 - [ ] T016 [P] Create MemberListQueryDto with pagination and filter validation in backend/src/members/dto/member-list-query.dto.ts
