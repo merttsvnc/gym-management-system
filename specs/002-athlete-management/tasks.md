@@ -113,37 +113,37 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### API Client and Hooks
 
-- [ ] T033 Create members API client methods in frontend/src/api/members.ts
-- [ ] T034 [P] Create useMembers React Query hook with pagination and filters in frontend/src/hooks/useMembers.ts
-- [ ] T035 [P] Create useMember hook for single member in frontend/src/hooks/useMembers.ts
-- [ ] T036 [P] Create useCreateMember mutation hook in frontend/src/hooks/useMembers.ts
-- [ ] T037 [P] Create useUpdateMember mutation hook in frontend/src/hooks/useMembers.ts
-- [ ] T038 [P] Create useChangeMemberStatus mutation hook in frontend/src/hooks/useMembers.ts
-- [ ] T039 [P] Create useArchiveMember mutation hook in frontend/src/hooks/useMembers.ts
+- [X] T033 Create members API client methods in frontend/src/api/members.ts
+- [X] T034 [P] Create useMembers React Query hook with pagination and filters in frontend/src/hooks/useMembers.ts
+- [X] T035 [P] Create useMember hook for single member in frontend/src/hooks/useMembers.ts
+- [X] T036 [P] Create useCreateMember mutation hook in frontend/src/hooks/useMembers.ts
+- [X] T037 [P] Create useUpdateMember mutation hook in frontend/src/hooks/useMembers.ts
+- [X] T038 [P] Create useChangeMemberStatus mutation hook in frontend/src/hooks/useMembers.ts
+- [X] T039 [P] Create useArchiveMember mutation hook in frontend/src/hooks/useMembers.ts
 
 ### Components
 
-- [ ] T040 Create MemberList component with table, filters, and search in frontend/src/components/members/MemberList.tsx
-- [ ] T041 [P] Create MemberStatusBadge component with color coding in frontend/src/components/members/MemberStatusBadge.tsx
-- [ ] T042 [P] Create MemberForm component for create/edit in frontend/src/components/members/MemberForm.tsx
-- [ ] T043 [P] Create MembershipTypeSelector component with Basic/Standard/Premium/Custom options in frontend/src/components/members/MembershipTypeSelector.tsx
-- [ ] T044 [P] Create StatusChangeDialog component in frontend/src/components/members/StatusChangeDialog.tsx
-- [ ] T045 [P] Create ArchiveConfirmDialog component in frontend/src/components/members/ArchiveConfirmDialog.tsx
+- [X] T040 Create MemberList component with table, filters, and search in frontend/src/components/members/MemberList.tsx
+- [X] T041 [P] Create MemberStatusBadge component with color coding in frontend/src/components/members/MemberStatusBadge.tsx
+- [X] T042 [P] Create MemberForm component for create/edit in frontend/src/components/members/MemberForm.tsx
+- [X] T043 [P] Create MembershipTypeSelector component with Basic/Standard/Premium/Custom options in frontend/src/components/members/MembershipTypeSelector.tsx
+- [X] T044 [P] Create StatusChangeDialog component in frontend/src/components/members/StatusChangeDialog.tsx
+- [X] T045 [P] Create ArchiveConfirmDialog component in frontend/src/components/members/ArchiveConfirmDialog.tsx
 
 ### Pages
 
-- [ ] T046 Create Member List page (/members) in frontend/src/pages/MembersPage.tsx
-- [ ] T047 Create Create Member page (/members/new) in frontend/src/pages/CreateMemberPage.tsx
-- [ ] T048 Create Member Detail page (/members/:id) in frontend/src/pages/MemberDetailPage.tsx
-- [ ] T049 Create Edit Member page (/members/:id/edit) in frontend/src/pages/EditMemberPage.tsx
+- [X] T046 Create Member List page (/members) in frontend/src/pages/MembersPage.tsx
+- [X] T047 Create Create Member page (/members/new) in frontend/src/pages/CreateMemberPage.tsx
+- [X] T048 Create Member Detail page (/members/:id) in frontend/src/pages/MemberDetailPage.tsx
+- [X] T049 Create Edit Member page (/members/:id/edit) in frontend/src/pages/EditMemberPage.tsx
 
 ### Routing and Polish
 
-- [ ] T050 [P] Add member routes to router configuration in frontend/src/App.tsx or router config
-- [ ] T051 [P] Add loading states (skeletons) to MemberList component
-- [ ] T052 [P] Add error states with Turkish error messages
-- [ ] T053 [P] Add success toast notifications for all mutations
-- [ ] T054 [P] Implement search debouncing (300ms) in MemberList component
+- [X] T050 [P] Add member routes to router configuration in frontend/src/App.tsx or router config
+- [X] T051 [P] Add loading states (skeletons) to MemberList component
+- [X] T052 [P] Add error states with Turkish error messages
+- [X] T053 [P] Add success toast notifications for all mutations
+- [X] T054 [P] Implement search debouncing (300ms) in MemberList component
 
 ---
 
