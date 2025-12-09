@@ -41,18 +41,18 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### Tasks
 
-- [ ] T001 Create Member model in backend/prisma/schema.prisma with core profile fields (firstName, lastName, phone, email, gender, dateOfBirth)
-- [ ] T002 [P] Add MemberStatus enum (ACTIVE, PAUSED, INACTIVE, ARCHIVED) to backend/prisma/schema.prisma
-- [ ] T003 [P] Add MemberGender enum (MALE, FEMALE) to backend/prisma/schema.prisma
-- [ ] T004 Add membership fields (membershipType, membershipStartAt, membershipEndAt) to Member model in backend/prisma/schema.prisma
-- [ ] T005 Add status fields (status, pausedAt, resumedAt) to Member model in backend/prisma/schema.prisma
-- [ ] T006 Add notes field and timestamps (createdAt, updatedAt) to Member model in backend/prisma/schema.prisma
-- [ ] T007 Add tenantId and branchId foreign key relations to Member model in backend/prisma/schema.prisma
-- [ ] T008 Add database indexes (@@index([tenantId, branchId]) and @@index([tenantId, phone])) to Member model in backend/prisma/schema.prisma
-- [ ] T009 Generate Prisma migration for Member model in backend/prisma/migrations/
-- [ ] T010 Review migration SQL for safety and correctness
-- [ ] T011 Apply migration to development database
-- [ ] T012 Generate Prisma Client types
+- [X] T001 Create Member model in backend/prisma/schema.prisma with core profile fields (firstName, lastName, phone, email, gender, dateOfBirth)
+- [X] T002 [P] Add MemberStatus enum (ACTIVE, PAUSED, INACTIVE, ARCHIVED) to backend/prisma/schema.prisma
+- [X] T003 [P] Add MemberGender enum (MALE, FEMALE) to backend/prisma/schema.prisma
+- [X] T004 Add membership fields (membershipType, membershipStartAt, membershipEndAt) to Member model in backend/prisma/schema.prisma
+- [X] T005 Add status fields (status, pausedAt, resumedAt) to Member model in backend/prisma/schema.prisma
+- [X] T006 Add notes field and timestamps (createdAt, updatedAt) to Member model in backend/prisma/schema.prisma
+- [X] T007 Add tenantId and branchId foreign key relations to Member model in backend/prisma/schema.prisma
+- [X] T008 Add database indexes (@@index([tenantId, branchId]) and @@index([tenantId, phone])) to Member model in backend/prisma/schema.prisma
+- [X] T009 Generate Prisma migration for Member model in backend/prisma/migrations/
+- [X] T010 Review migration SQL for safety and correctness
+- [X] T011 Apply migration to development database
+- [X] T012 Generate Prisma Client types
 
 ---
 
