@@ -97,7 +97,7 @@ interface Member {
   dateOfBirth?: Date; // Optional: Date of birth
   phone: string; // Required: Phone number
   email?: string; // Optional: Email address
-  photoUrl?: string; // Optional: Profile picture URL
+  photoUrl?: string; // Optional: Profile picture URL (simple string reference in MVP; actual file upload pipeline will be implemented in a future module)
   
   // Membership information
   membershipType: string; // Membership type: "Basic", "Standard", "Premium", or custom text (if Custom option selected)
@@ -392,7 +392,7 @@ interface CreateMemberRequest {
   gender?: MemberGender; // Optional: MALE or FEMALE
   dateOfBirth?: string; // Optional: ISO 8601 date string
   email?: string; // Optional: Email address
-  photoUrl?: string; // Optional: Profile picture URL
+  photoUrl?: string; // Optional: Profile picture URL (simple string reference in MVP; actual file upload pipeline will be implemented in a future module)
   membershipType?: string; // Optional: Default "Basic" if not provided
   membershipStartAt?: string; // Optional: ISO 8601 datetime, defaults to current date
   membershipEndAt?: string; // Optional: ISO 8601 datetime, defaults to 1 year from start
@@ -802,12 +802,16 @@ enum MemberGender {
 
 **New Reusable Components:**
 
+**MVP Implementation (4 essential components):**
 - `MemberList` - Table component for member listing with filters
 - `MemberForm` - Form component for create/edit member
+- `MemberDetail` - Detail view component with actions
+- `StatusChangeDialog` - Modal/dialog for changing member status
+
+**Future Enhancements (optional for MVP):**
 - `MemberStatusBadge` - Badge component showing member status with color coding
 - `MemberPhoto` - Photo display component with placeholder fallback
 - `RemainingDaysDisplay` - Component showing remaining days with visual indicator (e.g., progress bar)
-- `StatusChangeDialog` - Modal/dialog for changing member status
 - `ArchiveConfirmDialog` - Confirmation dialog for archiving members
 - `MembershipTypeSelector` - Dropdown with Basic/Standard/Premium/Custom options, with conditional text input for Custom
 
@@ -954,12 +958,15 @@ enum MemberGender {
 
 Critical domain logic that MUST have unit tests:
 
+**MVP Scope:**
 - [ ] Member status transition validation (valid and invalid transitions)
 - [ ] Remaining days calculation (normal progression)
 - [ ] Remaining days calculation with PAUSED status (freeze logic using pausedAt/resumedAt timestamps)
 - [ ] Remaining days calculation when reactivating from PAUSED (resumedAt timestamp handling)
 - [ ] PausedAt timestamp set when status changes to PAUSED
 - [ ] ResumedAt timestamp set when status changes from PAUSED to ACTIVE
+
+**Future Scope – MVP includes only critical domain unit tests (freeze logic + core service methods):**
 - [ ] Phone number validation (format and uniqueness within tenant)
 - [ ] Email validation
 - [ ] Gender validation (must be MALE or FEMALE if provided)
@@ -969,16 +976,22 @@ Critical domain logic that MUST have unit tests:
 
 ### Integration Tests
 
-API endpoints and flows that MUST have integration tests:
+**MVP Scope:**
+- [ ] `GET /api/v1/members` - List members with pagination (smoke test)
+- [ ] `GET /api/v1/members/:id` - Get member details (smoke test)
+- [ ] `POST /api/v1/members/:id/status` - Change status to PAUSED (freeze logic test)
+- [ ] `POST /api/v1/members/:id/status` - Change status to ACTIVE (freeze logic test)
+- [ ] Tenant isolation verification (members from Tenant A cannot be accessed by Tenant B user)
 
-- [ ] `GET /api/v1/members` - List members with pagination
+**Full integration suite deferred; MVP includes only smoke, status, freeze logic, and tenant isolation tests.**
+
+**Future Scope (Full Integration Test Suite):**
 - [ ] `GET /api/v1/members` - Filter by branch
 - [ ] `GET /api/v1/members` - Filter by status
 - [ ] `GET /api/v1/members` - Search by name (substring match, case-insensitive)
 - [ ] `GET /api/v1/members` - Search by phone (substring match)
 - [ ] `GET /api/v1/members` - Search matches across firstName OR lastName OR phone
 - [ ] `GET /api/v1/members` - Include archived members
-- [ ] `GET /api/v1/members/:id` - Get member details
 - [ ] `GET /api/v1/members/:id` - 403 when accessing member from different tenant
 - [ ] `POST /api/v1/members` - Create member with required fields
 - [ ] `POST /api/v1/members` - Create member with all fields
@@ -990,12 +1003,9 @@ API endpoints and flows that MUST have integration tests:
 - [ ] `POST /api/v1/members` - 403 when branch belongs to different tenant
 - [ ] `PATCH /api/v1/members/:id` - Update member fields
 - [ ] `PATCH /api/v1/members/:id` - 403 when member belongs to different tenant
-- [ ] `POST /api/v1/members/:id/status` - Change status to PAUSED
-- [ ] `POST /api/v1/members/:id/status` - Change status to ACTIVE
 - [ ] `POST /api/v1/members/:id/status` - Invalid status transition (400 error)
 - [ ] `POST /api/v1/members/:id/archive` - Archive member
 - [ ] `POST /api/v1/members/:id/archive` - 403 when member belongs to different tenant
-- [ ] Tenant isolation verification (members from Tenant A cannot be accessed by Tenant B user)
 
 ### Edge Cases
 
@@ -1043,7 +1053,7 @@ Known edge cases to test:
 
 ### Database Indexes
 
-Required indexes for performance:
+**Full specification (future optimization):**
 
 - [ ] `@@index([tenantId])` - Tenant isolation queries
 - [ ] `@@index([branchId])` - Branch filtering
@@ -1051,6 +1061,14 @@ Required indexes for performance:
 - [ ] `@@index([tenantId, status])` - Status filtering within tenant
 - [ ] `@@index([tenantId, firstName, lastName])` - Name search within tenant
 - [ ] `@@index([tenantId, phone])` - Phone search within tenant
+
+**MVP Implementation:**
+
+The MVP implementation uses only 2 essential indexes:
+- `@@index([tenantId, branchId])` - Branch-scoped queries within tenant
+- `@@index([tenantId, phone])` - Phone search and uniqueness checks within tenant
+
+The remaining indexes are deferred to a future performance optimization phase.
 
 **Index Strategy:**
 
@@ -1061,6 +1079,8 @@ Required indexes for performance:
 ### Query Optimization
 
 **N+1 Query Concerns:**
+
+**MVP must include branch relation loading in findAll() to avoid N+1 queries:**
 
 - Member list queries should include branch relation if branch name is needed:
   ```typescript
@@ -1107,15 +1127,19 @@ Required indexes for performance:
 - [ ] UI components implemented (`MemberList`, `MemberForm`, `MemberStatusBadge`, etc.)
 - [ ] State management implemented (React Query or similar)
 - [ ] Loading/error states handled (skeletons, error messages in Turkish)
-- [ ] Responsive design verified (mobile, tablet, desktop)
-- [ ] Accessibility checked (keyboard navigation, ARIA labels, focus states)
 - [ ] Turkish translations added (all user-facing strings)
+
+**Future Enhancements:**
+- Responsive layout and accessibility compliance will be handled in a later UI polishing phase, not in MVP.
 
 ### Documentation
 
-- [ ] API documentation updated (OpenAPI/Swagger spec)
 - [ ] README updated (if user-facing feature)
 - [ ] Inline code comments for complex logic (remaining days calculation, status transitions)
+
+**API Documentation:**
+
+Swagger/OpenAPI update is recommended but not required in MVP; will be added after core API stabilizes.
 
 ---
 
