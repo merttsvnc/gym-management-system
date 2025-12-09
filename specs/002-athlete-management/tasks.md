@@ -87,12 +87,12 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### Controllers
 
-- [ ] T025 Implement GET /api/v1/members controller with query params in backend/src/members/members.controller.ts
-- [ ] T026 Implement GET /api/v1/members/:id controller in backend/src/members/members.controller.ts
-- [ ] T027 Implement POST /api/v1/members controller in backend/src/members/members.controller.ts
-- [ ] T028 Implement PATCH /api/v1/members/:id controller in backend/src/members/members.controller.ts
-- [ ] T029 Implement POST /api/v1/members/:id/status controller in backend/src/members/members.controller.ts
-- [ ] T030 Implement POST /api/v1/members/:id/archive controller in backend/src/members/members.controller.ts
+- [X] T025 Implement GET /api/v1/members controller with query params in backend/src/members/members.controller.ts
+- [X] T026 Implement GET /api/v1/members/:id controller in backend/src/members/members.controller.ts
+- [X] T027 Implement POST /api/v1/members controller in backend/src/members/members.controller.ts
+- [X] T028 Implement PATCH /api/v1/members/:id controller in backend/src/members/members.controller.ts
+- [X] T029 Implement POST /api/v1/members/:id/status controller in backend/src/members/members.controller.ts
+- [X] T030 Implement POST /api/v1/members/:id/archive controller in backend/src/members/members.controller.ts
 
 ### Error Handling
 
