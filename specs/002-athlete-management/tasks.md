@@ -76,7 +76,7 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### Service Layer
 
-- [ ] T017 Create Members module structure in backend/src/members/
+- [X] T017 Create Members module structure in backend/src/members/
 - [ ] T018 Implement MembersService.create() with phone uniqueness check in backend/src/members/members.service.ts
 - [ ] T019 Implement MembersService.findAll() with filters, pagination, and search in backend/src/members/members.service.ts
 - [ ] T020 Implement MembersService.findOne() with tenant isolation in backend/src/members/members.service.ts
