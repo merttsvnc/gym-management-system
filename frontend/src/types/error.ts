@@ -64,3 +64,4 @@ export function toApiError(error: unknown): ApiError {
     message: "An unexpected error occurred",
   };
 }
+
