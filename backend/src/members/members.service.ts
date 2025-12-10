@@ -311,8 +311,9 @@ export class MembersService {
    * - Validates status transition is allowed
    * - Cannot transition from ARCHIVED (terminal status)
    * - Cannot set ARCHIVED via this endpoint (use archive() instead)
-   * - When status changes to PAUSED: sets pausedAt = NOW(), resumedAt = null
-   * - When status changes from PAUSED to ACTIVE: sets resumedAt = NOW(), keeps pausedAt for calculation
+   * - T055: When status changes ACTIVE → PAUSED: sets pausedAt = NOW(), don't modify membershipEndAt
+   * - T056: When status changes PAUSED → ACTIVE: requires pausedAt, extends membershipEndAt by pause duration,
+   *   sets resumedAt = NOW(), clears pausedAt (set null)
    * - When status changes from PAUSED to INACTIVE: clears pausedAt and resumedAt
    */
   async changeStatus(tenantId: string, id: string, dto: ChangeMemberStatusDto) {
@@ -353,17 +354,37 @@ export class MembersService {
       status: dto.status,
     };
 
-    // Handle PAUSED status: set pausedAt, clear resumedAt
-    if (dto.status === 'PAUSED') {
+    // T055: Handle ACTIVE → PAUSED transition
+    // Set pausedAt = new Date(), don't modify membershipEndAt, clear resumedAt
+    if (member.status === 'ACTIVE' && dto.status === 'PAUSED') {
       updateData.pausedAt = now;
-      updateData.resumedAt = null;
+      updateData.resumedAt = null; // Clear resumedAt for clean state
+      // Don't modify membershipEndAt
     }
-    // Handle transition from PAUSED to ACTIVE: set resumedAt, keep pausedAt for historical tracking
+    // T056: Handle PAUSED → ACTIVE transition
+    // Require pausedAt, calculate pause duration, extend membershipEndAt, set resumedAt, clear pausedAt
     else if (member.status === 'PAUSED' && dto.status === 'ACTIVE') {
+      // Require pausedAt; otherwise throw BadRequestException in Turkish
+      if (!member.pausedAt) {
+        throw new BadRequestException(
+          'Üye durumu PAUSED ancak pausedAt değeri bulunamadı. Geçersiz durum.',
+        );
+      }
+
+      // Calculate pause duration in milliseconds
+      const pauseDurationMs = now.getTime() - member.pausedAt.getTime();
+
+      // Extend membershipEndAt by pause duration
+      const currentMembershipEndAt = new Date(member.membershipEndAt);
+      updateData.membershipEndAt = new Date(
+        currentMembershipEndAt.getTime() + pauseDurationMs,
+      );
+
+      // Set resumedAt = now
       updateData.resumedAt = now;
-      // Keep pausedAt to track pause duration for remaining days calculation
-      // Note: Spec clarification says to clear pausedAt, but we need it for calculation
-      // This is a known limitation - we keep pausedAt for calculation purposes
+
+      // Clear pausedAt (set null) for clean state management
+      updateData.pausedAt = null;
     }
     // Handle transition from PAUSED to INACTIVE: clear both timestamps
     else if (member.status === 'PAUSED' && dto.status === 'INACTIVE') {
@@ -426,8 +447,8 @@ export class MembersService {
    * - Uses pausedAt and resumedAt timestamps to track pause periods
    * - If membershipEndAt is in the past, remaining days may be negative
    *
-   * Note: This implementation keeps pausedAt even after resuming to enable accurate
-   * remaining days calculation. The pause period is calculated as (resumedAt - pausedAt).
+   * T057: If status === PAUSED and pausedAt exists, remaining days stay constant during freeze.
+   * After resume, the extended membershipEndAt makes normal remaining-day logic work.
    */
   calculateRemainingDays(member: {
     membershipStartAt: Date;
@@ -454,14 +475,17 @@ export class MembersService {
     // Calculate days elapsed while ACTIVE (excluding paused periods)
     let activeDaysElapsed = 0;
 
-    // If currently PAUSED, calculate up to pausedAt (when pause started)
+    // T057: If currently PAUSED and pausedAt exists, remaining days stay constant
+    // Calculate active days only up to pausedAt (freeze duration doesn't count)
     if (member.status === 'PAUSED' && member.pausedAt) {
       // Active days elapsed = time from start to when paused
+      // Remaining days stay constant during freeze (don't decrease)
       activeDaysElapsed =
         (member.pausedAt.getTime() - member.membershipStartAt.getTime()) /
         (1000 * 60 * 60 * 24);
     }
-    // If was previously paused and resumed (both timestamps exist)
+    // If was previously paused and resumed (both timestamps exist - historical data)
+    // This case handles members who were paused/resumed before the new logic
     else if (member.pausedAt && member.resumedAt) {
       // Calculate active days in two parts:
       // 1. Active days before pause: pausedAt - start
@@ -477,6 +501,15 @@ export class MembersService {
           : 0;
 
       activeDaysElapsed = activeDaysBeforePause + activeDaysAfterResume;
+    }
+    // After resume (pausedAt cleared, resumedAt exists, membershipEndAt extended)
+    // Since membershipEndAt was extended by pause duration, calculate normally
+    // The extension compensates for the pause period
+    else if (!member.pausedAt && member.resumedAt) {
+      // Normal calculation: membershipEndAt was already extended, so just calculate elapsed time
+      activeDaysElapsed =
+        (now.getTime() - member.membershipStartAt.getTime()) /
+        (1000 * 60 * 60 * 24);
     }
     // For other cases (no pause history, or INACTIVE/ARCHIVED)
     else {
