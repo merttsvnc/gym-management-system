@@ -13,14 +13,12 @@ import {
   createTestBranch,
   cleanupTestData,
   loginUser,
-  createAdminUser,
 } from './test-helpers';
 
 describe('BranchesController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let tenantId: string;
-  let userId: string;
   let authToken: string;
   let defaultBranchId: string;
 
@@ -48,7 +46,6 @@ describe('BranchesController (e2e)', () => {
       userEmail: `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
     });
     tenantId = tenant.id;
-    userId = user.id;
 
     // Login to get real token
     const { accessToken } = await loginUser(app, user.email, 'Pass123!');
@@ -185,12 +182,11 @@ describe('BranchesController (e2e)', () => {
 
     it('should set first branch as default', async () => {
       // Create a new tenant with no branches
-      const { tenant: newTenant, user: newUser } =
-        await createTestTenantAndUser(prisma, {
-          tenantName: 'New Tenant',
-          tenantSlug: `new-tenant-${Date.now()}`,
-          userEmail: `newuser-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
-        });
+      const { user: newUser } = await createTestTenantAndUser(prisma, {
+        tenantName: 'New Tenant',
+        tenantSlug: `new-tenant-${Date.now()}`,
+        userEmail: `newuser-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
+      });
 
       // Login to get real token
       const { accessToken: newToken } = await loginUser(

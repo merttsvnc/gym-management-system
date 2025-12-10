@@ -8,6 +8,7 @@ import { BranchesModule } from './branches/branches.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PlanModule } from './plan/plan.module';
+import { MembersModule } from './members/members.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PlanModule } from './plan/plan.module';
     UsersModule,
     AuthModule,
     PlanModule,
+    MembersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

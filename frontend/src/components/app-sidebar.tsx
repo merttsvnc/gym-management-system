@@ -4,6 +4,7 @@ import {
   IconBuilding,
   IconHelp,
   IconLayoutDashboard,
+  IconUsers,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -28,6 +29,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Panel",
       url: "/panel",
       icon: IconLayoutDashboard,
+    },
+    {
+      title: "Üyeler",
+      url: "/members",
+      icon: IconUsers,
     },
     {
       title: "Salon Ayarları",

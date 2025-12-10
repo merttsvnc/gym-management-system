@@ -1,0 +1,296 @@
+import React, { useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCurrentTenant } from "@/hooks/useTenant";
+import { useMember } from "@/hooks/useMembers";
+import { MemberStatusBadge } from "@/components/members/MemberStatusBadge";
+import { StatusChangeDialog } from "@/components/members/StatusChangeDialog";
+import { ArchiveConfirmDialog } from "@/components/members/ArchiveConfirmDialog";
+import { MemberStatus } from "@/types/member";
+import type { ApiError } from "@/types/error";
+
+/**
+ * Member Detail Page
+ * Displays detailed information about a member with actions
+ */
+export function MemberDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
+  const {
+    data: member,
+    isLoading: memberLoading,
+    error: memberError,
+  } = useMember(tenant?.id || "", id || "");
+
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("tr-TR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const formatDateTime = (dateString: string | null): string => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleString("tr-TR");
+  };
+
+  if (tenantLoading || memberLoading) {
+    return (
+      <div className="space-y-6">
+        <Card className="w-full">
+          <CardHeader>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!tenant) {
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive">
+          <AlertDescription>Salon bilgisi bulunamadı</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (memberError) {
+    const apiError = memberError as ApiError;
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive">
+          <AlertDescription>
+            {apiError.message || "Üye bilgisi yüklenirken bir hata oluştu"}
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => navigate("/members")}>Üye Listesine Dön</Button>
+      </div>
+    );
+  }
+
+  if (!member) {
+    return (
+      <div className="space-y-6">
+        <Alert>
+          <AlertDescription>Üye bulunamadı</AlertDescription>
+        </Alert>
+        <Button onClick={() => navigate("/members")}>Üye Listesine Dön</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {member.firstName} {member.lastName}
+          </h1>
+          <p className="text-sm text-muted-foreground">Üye Detayları</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to={`/members/${member.id}/edit`}>Düzenle</Link>
+          </Button>
+          {member.status !== MemberStatus.ARCHIVED && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setStatusDialogOpen(true)}
+              >
+                Durumu Değiştir
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setArchiveDialogOpen(true)}
+              >
+                Arşivle
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Personal Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Kişisel Bilgiler</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Ad Soyad</p>
+              <p className="font-medium">
+                {member.firstName} {member.lastName}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Telefon</p>
+              <p className="font-medium">{member.phone}</p>
+            </div>
+            {member.email && (
+              <div>
+                <p className="text-sm text-muted-foreground">E-posta</p>
+                <p className="font-medium">{member.email}</p>
+              </div>
+            )}
+            {member.gender && (
+              <div>
+                <p className="text-sm text-muted-foreground">Cinsiyet</p>
+                <p className="font-medium">
+                  {member.gender === "MALE" ? "Erkek" : "Kadın"}
+                </p>
+              </div>
+            )}
+            {member.dateOfBirth && (
+              <div>
+                <p className="text-sm text-muted-foreground">Doğum Tarihi</p>
+                <p className="font-medium">{formatDate(member.dateOfBirth)}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Membership Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Üyelik Bilgileri</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Üyelik Tipi</p>
+              <p className="font-medium">{member.membershipType}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Durum</p>
+              <div className="mt-1">
+                <MemberStatusBadge status={member.status} />
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Başlangıç Tarihi</p>
+              <p className="font-medium">
+                {formatDate(member.membershipStartAt)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Bitiş Tarihi</p>
+              <p className="font-medium">
+                {formatDate(member.membershipEndAt)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Kalan Gün</p>
+              <p
+                className={`font-medium ${
+                  member.remainingDays >= 0
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                {member.remainingDays >= 0
+                  ? `${member.remainingDays} gün`
+                  : "Süresi dolmuş"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notes */}
+        {member.notes && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Notlar</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap">{member.notes}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Timestamps */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Kayıt Bilgileri</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Oluşturulma</p>
+              <p className="font-medium">{formatDateTime(member.createdAt)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Son Güncelleme</p>
+              <p className="font-medium">{formatDateTime(member.updatedAt)}</p>
+            </div>
+            {member.pausedAt && (
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Dondurulma Tarihi
+                </p>
+                <p className="font-medium">{formatDateTime(member.pausedAt)}</p>
+              </div>
+            )}
+            {member.resumedAt && (
+              <div>
+                <p className="text-sm text-muted-foreground">Devam Tarihi</p>
+                <p className="font-medium">
+                  {formatDateTime(member.resumedAt)}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Status Change Dialog */}
+      <StatusChangeDialog
+        member={{
+          id: member.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+          status: member.status,
+        }}
+        open={statusDialogOpen}
+        onOpenChange={setStatusDialogOpen}
+        tenantId={tenant.id}
+        onSuccess={() => {
+          // Query will be invalidated automatically
+        }}
+      />
+
+      {/* Archive Confirm Dialog */}
+      <ArchiveConfirmDialog
+        member={{
+          id: member.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+        }}
+        open={archiveDialogOpen}
+        onOpenChange={setArchiveDialogOpen}
+        tenantId={tenant.id}
+        onSuccess={() => {
+          navigate("/members");
+        }}
+      />
+    </div>
+  );
+}

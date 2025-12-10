@@ -24,6 +24,20 @@ enum PlanKey {
   SINGLE
 }
 
+// Member status enum
+enum MemberStatus {
+  ACTIVE
+  PAUSED
+  INACTIVE
+  ARCHIVED
+}
+
+// Member gender enum
+enum MemberGender {
+  MALE
+  FEMALE
+}
+
 // Tenant model
 model Tenant {
   id              String   @id @default(cuid())
@@ -37,6 +51,7 @@ model Tenant {
   // Relations
   branches        Branch[]
   users           User[]
+  members         Member[]
 
   @@index([slug])
 }
@@ -55,6 +70,7 @@ model Branch {
 
   // Relations
   tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members    Member[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -80,4 +96,44 @@ model User {
 
   @@index([tenantId])
   @@index([email])
+}
+
+// Member model
+model Member {
+  id                String         @id @default(cuid())
+  tenantId          String
+  branchId          String
+  
+  // Core profile fields
+  firstName         String
+  lastName          String
+  gender            MemberGender?
+  dateOfBirth       DateTime?
+  phone             String
+  email             String?
+  photoUrl          String?
+  
+  // Membership information
+  membershipType    String
+  membershipStartAt DateTime
+  membershipEndAt   DateTime
+  
+  // Status
+  status            MemberStatus   @default(ACTIVE)
+  pausedAt          DateTime?
+  resumedAt         DateTime?
+  
+  // Notes
+  notes             String?
+  
+  // Timestamps
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  // Relations
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch            Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  
+  @@index([tenantId, branchId])
+  @@index([tenantId, phone])
 }
