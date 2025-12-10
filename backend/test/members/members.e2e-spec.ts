@@ -2,9 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import {
@@ -118,6 +119,400 @@ describe('Members E2E Tests', () => {
         .get('/api/v1/members')
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
+    });
+  });
+
+  // =====================================================================
+  // API SMOKE & VALIDATION TESTS (T062-T066)
+  // =====================================================================
+
+  describe('Members - API Smoke & Validation (E2E)', () => {
+    // T062: Smoke tests for all endpoints
+    describe('T062 - Smoke Tests for All Endpoints', () => {
+      it('should create a valid member with minimal required fields', async () => {
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Ahmet',
+          lastName: 'Yılmaz',
+          phone: '+905551234567',
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        expect(response.body).toHaveProperty('id');
+        expect(response.body.firstName).toBe('Ahmet');
+        expect(response.body.lastName).toBe('Yılmaz');
+        expect(response.body.phone).toBe('+905551234567');
+        expect(response.body.status).toBe(MemberStatus.ACTIVE);
+        expect(response.body).toHaveProperty('remainingDays');
+        expect(typeof response.body.remainingDays).toBe('number');
+      });
+
+      it('should get a member by id', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Mehmet',
+          lastName: 'Demir',
+        });
+
+        const response = await request(app.getHttpServer())
+          .get(`/api/v1/members/${member.id}`)
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        expect(response.body.id).toBe(member.id);
+        expect(response.body.firstName).toBe('Mehmet');
+        expect(response.body.lastName).toBe('Demir');
+        expect(response.body).toHaveProperty('remainingDays');
+      });
+
+      it('should update member basic fields', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Ayşe',
+          phone: '+905559876543',
+        });
+
+        const updateDto = {
+          firstName: 'Ayşe Updated',
+          phone: '+905551111111',
+          notes: 'Test notu',
+        };
+
+        const response = await request(app.getHttpServer())
+          .patch(`/api/v1/members/${member.id}`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send(updateDto)
+          .expect(200);
+
+        expect(response.body.firstName).toBe('Ayşe Updated');
+        expect(response.body.phone).toBe('+905551111111');
+        expect(response.body.notes).toBe('Test notu');
+        expect(response.body).toHaveProperty('remainingDays');
+      });
+
+      it('should change status from ACTIVE to INACTIVE', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          status: MemberStatus.ACTIVE,
+        });
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: MemberStatus.INACTIVE })
+          .expect(200);
+
+        expect(response.body.status).toBe(MemberStatus.INACTIVE);
+        expect(response.body).toHaveProperty('remainingDays');
+      });
+
+      it('should archive a member', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          status: MemberStatus.ACTIVE,
+        });
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/archive`)
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        expect(response.body.status).toBe(MemberStatus.ARCHIVED);
+        expect(response.body).toHaveProperty('remainingDays');
+      });
+    });
+
+    // T063: Tenant isolation tests
+    describe('T063 - Tenant Isolation Tests', () => {
+      it('should not allow accessing member from another tenant (returns 404)', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Tenant1 Member',
+        });
+
+        const response = await request(app.getHttpServer())
+          .get(`/api/v1/members/${member.id}`)
+          .set('Authorization', `Bearer ${token2}`)
+          .expect(404);
+
+        expect(response.body.message).toContain('Üye bulunamadı');
+      });
+
+      it('should only return members from current tenant in list', async () => {
+        await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Tenant1 Member 1',
+        });
+        await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Tenant1 Member 2',
+        });
+        await createTestMember(prisma, tenant2.id, branch2.id, {
+          firstName: 'Tenant2 Member',
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        expect(response.body.data).toHaveLength(2);
+        expect(
+          response.body.data.every((m: any) =>
+            m.firstName.startsWith('Tenant1'),
+          ),
+        ).toBe(true);
+      });
+
+      it('should prevent updating member from another tenant', async () => {
+        const member = await createTestMember(prisma, tenant2.id, branch2.id);
+
+        await request(app.getHttpServer())
+          .patch(`/api/v1/members/${member.id}`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ firstName: 'Hacked' })
+          .expect(404);
+      });
+
+      it('should prevent status change for member from another tenant', async () => {
+        const member = await createTestMember(prisma, tenant2.id, branch2.id);
+
+        await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: MemberStatus.PAUSED })
+          .expect(404);
+      });
+    });
+
+    // T064: Status change transition tests
+    describe('T064 - Status Change Transition Tests', () => {
+      it('should allow ACTIVE → INACTIVE transition', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          status: MemberStatus.ACTIVE,
+        });
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: MemberStatus.INACTIVE })
+          .expect(200);
+
+        expect(response.body.status).toBe(MemberStatus.INACTIVE);
+      });
+
+      it('should allow INACTIVE → ACTIVE transition', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          status: MemberStatus.INACTIVE,
+        });
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: MemberStatus.ACTIVE })
+          .expect(200);
+
+        expect(response.body.status).toBe(MemberStatus.ACTIVE);
+      });
+
+      it('should reject ARCHIVED → ACTIVE transition with Turkish error', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          status: MemberStatus.ARCHIVED,
+        });
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: MemberStatus.ACTIVE })
+          .expect(400);
+
+        expect(response.body.message).toContain('Arşivlenmiş');
+        expect(response.body.message).toContain('değiştirilemez');
+      });
+
+      it('should reject ARCHIVED → PAUSED transition', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          status: MemberStatus.ARCHIVED,
+        });
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: MemberStatus.PAUSED })
+          .expect(400);
+
+        expect(response.body.message).toContain('Arşivlenmiş');
+      });
+
+      it('should reject invalid status string', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id);
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: 'INVALID_STATUS' })
+          .expect(400);
+
+        expect(response.body.message).toBeDefined();
+      });
+
+      it('should reject INACTIVE → PAUSED transition', async () => {
+        const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+          status: MemberStatus.INACTIVE,
+        });
+
+        const response = await request(app.getHttpServer())
+          .post(`/api/v1/members/${member.id}/status`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ status: MemberStatus.PAUSED })
+          .expect(400);
+
+        expect(response.body.message).toContain('Geçersiz durum geçişi');
+      });
+    });
+
+    // T065: Phone uniqueness validation tests
+    describe('T065 - Phone Uniqueness Validation Tests', () => {
+      it('should reject duplicate phone within same tenant', async () => {
+        const phone = '+905551234567';
+        await createTestMember(prisma, tenant1.id, branch1.id, { phone });
+
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Duplicate',
+          lastName: 'Phone',
+          phone,
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(409);
+
+        expect(response.body.message).toContain('telefon numarası');
+        expect(response.body.message).toContain('zaten kullanılıyor');
+      });
+
+      it('should allow same phone across different tenants', async () => {
+        const phone = '+905551234567';
+        await createTestMember(prisma, tenant1.id, branch1.id, { phone });
+
+        const createDto = {
+          branchId: branch2.id,
+          firstName: 'Same Phone',
+          lastName: 'Different Tenant',
+          phone,
+        };
+
+        await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token2}`)
+          .send(createDto)
+          .expect(201);
+      });
+
+      it('should reject duplicate phone on update within same tenant', async () => {
+        const phone1 = '+905551111111';
+        const phone2 = '+905552222222';
+
+        const member1 = await createTestMember(prisma, tenant1.id, branch1.id, {
+          phone: phone1,
+        });
+        await createTestMember(prisma, tenant1.id, branch1.id, {
+          phone: phone2,
+        });
+
+        const response = await request(app.getHttpServer())
+          .patch(`/api/v1/members/${member1.id}`)
+          .set('Authorization', `Bearer ${token1}`)
+          .send({ phone: phone2 })
+          .expect(409);
+
+        expect(response.body.message).toContain('telefon numarası');
+        expect(response.body.message).toContain('zaten kullanılıyor');
+      });
+    });
+
+    // T066: Search functionality tests
+    describe('T066 - Search Functionality Tests', () => {
+      beforeEach(async () => {
+        // Create test members with Turkish names
+        await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Ahmet',
+          lastName: 'Yılmaz',
+          phone: '+905551111111',
+        });
+        await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Mehmet',
+          lastName: 'Yıldız',
+          phone: '+905552222222',
+        });
+        await createTestMember(prisma, tenant1.id, branch1.id, {
+          firstName: 'Ayşe',
+          lastName: 'Demir',
+          phone: '+905553333333',
+        });
+      });
+
+      it('should search by firstName substring (case-insensitive)', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/members?search=meh')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        expect(response.body.data).toHaveLength(1);
+        expect(response.body.data[0].firstName).toBe('Mehmet');
+      });
+
+      it('should search by lastName substring', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/members?search=Yıl')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+        expect(
+          response.body.data.some((m: any) => m.lastName.includes('Yıl')),
+        ).toBe(true);
+      });
+
+      it('should search by phone substring', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/members?search=1111')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        expect(response.body.data).toHaveLength(1);
+        expect(response.body.data[0].phone).toBe('+905551111111');
+      });
+
+      it('should be case-insensitive when searching', async () => {
+        // Search with lowercase
+        const responseLower = await request(app.getHttpServer())
+          .get('/api/v1/members?search=ahmet')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        // Search with uppercase
+        const responseUpper = await request(app.getHttpServer())
+          .get('/api/v1/members?search=AHMET')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        // Both should return same results
+        expect(responseLower.body.data.length).toBe(
+          responseUpper.body.data.length,
+        );
+        expect(responseLower.body.data.length).toBeGreaterThan(0);
+      });
+
+      it('should return empty results for non-matching search', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/members?search=NonExistentName')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        expect(response.body.data).toHaveLength(0);
+      });
     });
   });
 

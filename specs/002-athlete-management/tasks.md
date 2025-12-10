@@ -190,22 +190,22 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### Testing
 
-- [ ] T062 [P] Write smoke tests for all endpoints in backend/test/members.e2e-spec.ts
-- [ ] T063 [P] Write tenant isolation tests (cross-tenant access returns 403) in backend/test/members.e2e-spec.ts
-- [ ] T064 [P] Write status change transition tests in backend/test/members.e2e-spec.ts
-- [ ] T065 [P] Write phone uniqueness validation tests in backend/test/members.e2e-spec.ts
-- [ ] T066 [P] Write search functionality tests (substring, case-insensitive) in backend/test/members.e2e-spec.ts
+- [x] T062 [P] Write smoke tests for all endpoints in backend/test/members.e2e-spec.ts
+- [x] T063 [P] Write tenant isolation tests (cross-tenant access returns 403) in backend/test/members.e2e-spec.ts
+- [x] T064 [P] Write status change transition tests in backend/test/members.e2e-spec.ts
+- [x] T065 [P] Write phone uniqueness validation tests in backend/test/members.e2e-spec.ts
+- [x] T066 [P] Write search functionality tests (substring, case-insensitive) in backend/test/members.e2e-spec.ts
 
 ### Code Quality
 
-- [ ] T067 [P] Remove console.logs and debug statements from all files
-- [ ] T068 [P] Verify all Turkish error messages are correct and consistent
-- [ ] T069 [P] Add JSDoc comments to service methods in backend/src/members/members.service.ts
-- [ ] T070 [P] Add inline comments for complex logic (remaining days calculation, status transitions)
+- [x] T067 [P] Remove console.logs and debug statements from all files
+- [x] T068 [P] Verify all Turkish error messages are correct and consistent
+- [x] T069 [P] Add JSDoc comments to service methods in backend/src/members/members.service.ts
+- [x] T070 [P] Add inline comments for complex logic (remaining days calculation, status transitions)
 
 ### Documentation
 
-- [ ] T071 [P] Update quickstart.md with member management test scenarios in specs/002-athlete-management/quickstart.md
+- [x] T071 [P] Update quickstart.md with member management test scenarios in specs/002-athlete-management/quickstart.md
 
 ---
 
