@@ -875,6 +875,464 @@ describe('MembersService', () => {
   });
 
   // =====================================================================
+  // FREEZE/RESUME LOGIC TESTS (T058, T059, T060)
+  // =====================================================================
+
+  describe('MembersService - Freeze/Resume Logic', () => {
+    const tenantId = 'tenant-1';
+    const memberId = 'member-1';
+
+    beforeEach(() => {
+      // Use fake timers for deterministic tests
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    // T058: Active → Paused → Active transition
+    describe('T058 - Active → Paused → Active transition', () => {
+      it('should set pausedAt when transitioning ACTIVE → PAUSED', async () => {
+        const now = new Date('2024-01-15T10:00:00Z');
+        jest.setSystemTime(now);
+
+        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const membershipEndAt = new Date('2025-01-01T00:00:00Z');
+
+        const mockMember = {
+          id: memberId,
+          tenantId,
+          status: MemberStatus.ACTIVE,
+          membershipStartAt,
+          membershipEndAt,
+          pausedAt: null,
+          resumedAt: null,
+        };
+
+        mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+        mockPrismaService.member.update.mockImplementation(({ data }) => {
+          return Promise.resolve({
+            ...mockMember,
+            ...data,
+          });
+        });
+
+        const result = await service.changeStatus(tenantId, memberId, {
+          status: MemberStatus.PAUSED,
+        });
+
+        expect(result.status).toBe(MemberStatus.PAUSED);
+        expect(result.pausedAt).toBeDefined();
+        expect(result.pausedAt?.getTime()).toBe(now.getTime());
+        expect(result.resumedAt).toBeNull();
+        expect(result.membershipEndAt.getTime()).toBe(membershipEndAt.getTime());
+
+        expect(mockPrismaService.member.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: MemberStatus.PAUSED,
+              pausedAt: expect.any(Date),
+              resumedAt: null,
+            }),
+          }),
+        );
+      });
+
+      it('should throw if trying to resume without pausedAt', async () => {
+        const now = new Date('2024-01-15T10:00:00Z');
+        jest.setSystemTime(now);
+
+        const mockMember = {
+          id: memberId,
+          tenantId,
+          status: MemberStatus.PAUSED,
+          membershipStartAt: new Date('2024-01-01T00:00:00Z'),
+          membershipEndAt: new Date('2025-01-01T00:00:00Z'),
+          pausedAt: null, // Invalid: PAUSED but no pausedAt
+          resumedAt: null,
+        };
+
+        mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+
+        await expect(
+          service.changeStatus(tenantId, memberId, {
+            status: MemberStatus.ACTIVE,
+          }),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          service.changeStatus(tenantId, memberId, {
+            status: MemberStatus.ACTIVE,
+          }),
+        ).rejects.toThrow('pausedAt değeri bulunamadı');
+      });
+
+      it('should extend membershipEndAt and clear pausedAt on PAUSED → ACTIVE', async () => {
+        const now = new Date('2024-01-25T10:00:00Z');
+        jest.setSystemTime(now);
+
+        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
+        const pausedAt = new Date('2024-01-15T10:00:00Z'); // Paused 10 days ago
+
+        const pauseDurationMs = now.getTime() - pausedAt.getTime(); // 10 days
+        const expectedNewEndAt = new Date(
+          originalMembershipEndAt.getTime() + pauseDurationMs,
+        );
+
+        const mockMember = {
+          id: memberId,
+          tenantId,
+          status: MemberStatus.PAUSED,
+          membershipStartAt,
+          membershipEndAt: originalMembershipEndAt,
+          pausedAt,
+          resumedAt: null,
+        };
+
+        mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+        mockPrismaService.member.update.mockImplementation(({ data }) => {
+          return Promise.resolve({
+            ...mockMember,
+            ...data,
+          });
+        });
+
+        const result = await service.changeStatus(tenantId, memberId, {
+          status: MemberStatus.ACTIVE,
+        });
+
+        expect(result.status).toBe(MemberStatus.ACTIVE);
+        expect(result.resumedAt).toBeDefined();
+        expect(result.resumedAt?.getTime()).toBe(now.getTime());
+        expect(result.pausedAt).toBeNull();
+        expect(result.membershipEndAt.getTime()).toBe(expectedNewEndAt.getTime());
+
+        expect(mockPrismaService.member.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: MemberStatus.ACTIVE,
+              pausedAt: null,
+              resumedAt: expect.any(Date),
+              membershipEndAt: expect.any(Date),
+            }),
+          }),
+        );
+
+        // Verify membershipEndAt was extended by pause duration
+        const updateCall = mockPrismaService.member.update.mock.calls[0][0];
+        const extendedEndAt = updateCall.data.membershipEndAt;
+        expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
+      });
+    });
+
+    // T059: Pause duration & extension accuracy
+    describe('T059 - Pause duration & extension accuracy', () => {
+      it('should extend membershipEndAt by exactly 1 day for 1-day pause', async () => {
+        const now = new Date('2024-01-16T10:00:00Z');
+        jest.setSystemTime(now);
+
+        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
+        const pausedAt = new Date('2024-01-15T10:00:00Z'); // 1 day ago
+
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        const expectedNewEndAt = new Date(
+          originalMembershipEndAt.getTime() + oneDayMs,
+        );
+
+        const mockMember = {
+          id: memberId,
+          tenantId,
+          status: MemberStatus.PAUSED,
+          membershipStartAt,
+          membershipEndAt: originalMembershipEndAt,
+          pausedAt,
+          resumedAt: null,
+        };
+
+        mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+        mockPrismaService.member.update.mockImplementation(({ data }) => {
+          return Promise.resolve({
+            ...mockMember,
+            ...data,
+          });
+        });
+
+        await service.changeStatus(tenantId, memberId, {
+          status: MemberStatus.ACTIVE,
+        });
+
+        const updateCall = mockPrismaService.member.update.mock.calls[0][0];
+        const extendedEndAt = updateCall.data.membershipEndAt;
+        expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
+      });
+
+      it('should extend membershipEndAt by exactly 7 days for 7-day pause', async () => {
+        const now = new Date('2024-01-22T10:00:00Z');
+        jest.setSystemTime(now);
+
+        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
+        const pausedAt = new Date('2024-01-15T10:00:00Z'); // 7 days ago
+
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+        const expectedNewEndAt = new Date(
+          originalMembershipEndAt.getTime() + sevenDaysMs,
+        );
+
+        const mockMember = {
+          id: memberId,
+          tenantId,
+          status: MemberStatus.PAUSED,
+          membershipStartAt,
+          membershipEndAt: originalMembershipEndAt,
+          pausedAt,
+          resumedAt: null,
+        };
+
+        mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+        mockPrismaService.member.update.mockImplementation(({ data }) => {
+          return Promise.resolve({
+            ...mockMember,
+            ...data,
+          });
+        });
+
+        await service.changeStatus(tenantId, memberId, {
+          status: MemberStatus.ACTIVE,
+        });
+
+        const updateCall = mockPrismaService.member.update.mock.calls[0][0];
+        const extendedEndAt = updateCall.data.membershipEndAt;
+        expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
+      });
+
+      it('should extend membershipEndAt by exactly 30 days for 30-day pause', async () => {
+        const now = new Date('2024-02-14T10:00:00Z');
+        jest.setSystemTime(now);
+
+        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
+        const pausedAt = new Date('2024-01-15T10:00:00Z'); // 30 days ago
+
+        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        const expectedNewEndAt = new Date(
+          originalMembershipEndAt.getTime() + thirtyDaysMs,
+        );
+
+        const mockMember = {
+          id: memberId,
+          tenantId,
+          status: MemberStatus.PAUSED,
+          membershipStartAt,
+          membershipEndAt: originalMembershipEndAt,
+          pausedAt,
+          resumedAt: null,
+        };
+
+        mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+        mockPrismaService.member.update.mockImplementation(({ data }) => {
+          return Promise.resolve({
+            ...mockMember,
+            ...data,
+          });
+        });
+
+        await service.changeStatus(tenantId, memberId, {
+          status: MemberStatus.ACTIVE,
+        });
+
+        const updateCall = mockPrismaService.member.update.mock.calls[0][0];
+        const extendedEndAt = updateCall.data.membershipEndAt;
+        expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
+      });
+
+      it('should assert Turkish error message if pausedAt is missing during resume', async () => {
+        const now = new Date('2024-01-15T10:00:00Z');
+        jest.setSystemTime(now);
+
+        const mockMember = {
+          id: memberId,
+          tenantId,
+          status: MemberStatus.PAUSED,
+          membershipStartAt: new Date('2024-01-01T00:00:00Z'),
+          membershipEndAt: new Date('2025-01-01T00:00:00Z'),
+          pausedAt: null,
+          resumedAt: null,
+        };
+
+        mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+
+        await expect(
+          service.changeStatus(tenantId, memberId, {
+            status: MemberStatus.ACTIVE,
+          }),
+        ).rejects.toThrow(BadRequestException);
+
+        try {
+          await service.changeStatus(tenantId, memberId, {
+            status: MemberStatus.ACTIVE,
+          });
+        } catch (error: any) {
+          expect(error.message).toContain('pausedAt');
+          expect(error.message).toContain('bulunamadı');
+        }
+      });
+    });
+
+    // T060: calculateRemainingDays correctness
+    describe('T060 - calculateRemainingDays correctness', () => {
+      it('should decrease remaining days normally for ACTIVE member as time moves', () => {
+        const startAt = new Date('2024-01-01T00:00:00Z');
+        const endAt = new Date('2025-01-01T00:00:00Z'); // 365 days total
+
+        // Day 0: Start of membership
+        jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+        const memberDay0 = {
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: MemberStatus.ACTIVE,
+          pausedAt: null,
+          resumedAt: null,
+        };
+        const remainingDay0 = service.calculateRemainingDays(memberDay0);
+        expect(remainingDay0).toBeGreaterThanOrEqual(364);
+        expect(remainingDay0).toBeLessThanOrEqual(366);
+
+        // Day 30: 30 days elapsed
+        jest.setSystemTime(new Date('2024-01-31T00:00:00Z'));
+        const memberDay30 = {
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: MemberStatus.ACTIVE,
+          pausedAt: null,
+          resumedAt: null,
+        };
+        const remainingDay30 = service.calculateRemainingDays(memberDay30);
+        expect(remainingDay30).toBeLessThan(remainingDay0);
+        expect(remainingDay30).toBeGreaterThanOrEqual(334);
+        expect(remainingDay30).toBeLessThanOrEqual(336);
+      });
+
+      it('should keep remaining days constant while PAUSED', () => {
+        const startAt = new Date('2024-01-01T00:00:00Z');
+        const endAt = new Date('2025-01-01T00:00:00Z');
+        const pausedAt = new Date('2024-01-15T10:00:00Z'); // Paused on day 15
+
+        // Day 15: Just paused
+        jest.setSystemTime(new Date('2024-01-15T10:00:00Z'));
+        const memberDay15 = {
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: MemberStatus.PAUSED,
+          pausedAt,
+          resumedAt: null,
+        };
+        const remainingDay15 = service.calculateRemainingDays(memberDay15);
+
+        // Day 20: Still paused (5 days later)
+        jest.setSystemTime(new Date('2024-01-20T10:00:00Z'));
+        const memberDay20 = {
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: MemberStatus.PAUSED,
+          pausedAt,
+          resumedAt: null,
+        };
+        const remainingDay20 = service.calculateRemainingDays(memberDay20);
+
+        // Day 30: Still paused (15 days later)
+        jest.setSystemTime(new Date('2024-01-30T10:00:00Z'));
+        const memberDay30 = {
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: MemberStatus.PAUSED,
+          pausedAt,
+          resumedAt: null,
+        };
+        const remainingDay30 = service.calculateRemainingDays(memberDay30);
+
+        // Remaining days should stay constant while paused
+        expect(remainingDay15).toBe(remainingDay20);
+        expect(remainingDay20).toBe(remainingDay30);
+        // 365 days total - 14 days elapsed before pause = 351 days remaining
+        expect(remainingDay15).toBeGreaterThanOrEqual(350);
+        expect(remainingDay15).toBeLessThanOrEqual(352);
+      });
+
+      it('should use extended membershipEndAt after resume', () => {
+        const startAt = new Date('2024-01-01T00:00:00Z');
+        const originalEndAt = new Date('2025-01-01T00:00:00Z');
+        const pausedAt = new Date('2024-01-15T10:00:00Z');
+        const resumedAt = new Date('2024-01-25T10:00:00Z'); // 10-day pause
+        const pauseDurationMs = resumedAt.getTime() - pausedAt.getTime();
+        const extendedEndAt = new Date(
+          originalEndAt.getTime() + pauseDurationMs,
+        );
+
+        // After resume: membershipEndAt was extended
+        jest.setSystemTime(new Date('2024-01-26T10:00:00Z'));
+        const memberAfterResume = {
+          membershipStartAt: startAt,
+          membershipEndAt: extendedEndAt, // Extended by pause duration
+          status: MemberStatus.ACTIVE,
+          pausedAt: null, // Cleared after resume
+          resumedAt,
+        };
+        const remainingAfterResume =
+          service.calculateRemainingDays(memberAfterResume);
+
+        // Should calculate based on extended end date
+        // Extended end: 2025-01-11 (375 days total)
+        // Resumed at: 2024-01-25 (24 days elapsed)
+        // Remaining: 375 - 24 = 351 days
+        expect(remainingAfterResume).toBeGreaterThanOrEqual(350);
+        expect(remainingAfterResume).toBeLessThanOrEqual(352);
+      });
+
+      it('should return 0 for membershipEndAt in the past', () => {
+        const startAt = new Date('2023-01-01T00:00:00Z');
+        const endAt = new Date('2023-12-31T00:00:00Z'); // In the past
+
+        jest.setSystemTime(new Date('2024-01-15T10:00:00Z'));
+        const member = {
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: MemberStatus.ACTIVE,
+          pausedAt: null,
+          resumedAt: null,
+        };
+        const remaining = service.calculateRemainingDays(member);
+
+        // Should return 0 or negative (expired)
+        expect(remaining).toBeLessThanOrEqual(0);
+      });
+
+      it('should handle long pause durations correctly', () => {
+        const startAt = new Date('2024-01-01T00:00:00Z');
+        const endAt = new Date('2025-01-01T00:00:00Z');
+        const pausedAt = new Date('2024-01-15T10:00:00Z');
+
+        // 90 days paused
+        jest.setSystemTime(new Date('2024-04-15T10:00:00Z'));
+        const member = {
+          membershipStartAt: startAt,
+          membershipEndAt: endAt,
+          status: MemberStatus.PAUSED,
+          pausedAt,
+          resumedAt: null,
+        };
+        const remaining = service.calculateRemainingDays(member);
+
+        // Should still be constant (only 14 days elapsed before pause)
+        expect(remaining).toBeGreaterThanOrEqual(350);
+        expect(remaining).toBeLessThanOrEqual(352);
+      });
+    });
+  });
+
+  // =====================================================================
   // ARCHIVE MEMBER TESTS
   // =====================================================================
 

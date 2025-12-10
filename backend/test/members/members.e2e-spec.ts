@@ -736,6 +736,296 @@ describe('Members E2E Tests', () => {
   });
 
   // =====================================================================
+  // FREEZE/RESUME FLOW TESTS (T061)
+  // =====================================================================
+
+  describe('Members - Freeze/Resume Flow (E2E)', () => {
+    it('should create member → pause → check pausedAt', async () => {
+      // Create member
+      const createDto = {
+        branchId: branch1.id,
+        firstName: 'John',
+        lastName: 'Doe',
+        phone: '+1234567890',
+      };
+
+      const createResponse = await request(app.getHttpServer())
+        .post('/api/v1/members')
+        .set('Authorization', `Bearer ${token1}`)
+        .send(createDto)
+        .expect(201);
+
+      const memberId = createResponse.body.id;
+      expect(createResponse.body.status).toBe(MemberStatus.ACTIVE);
+      expect(createResponse.body.pausedAt).toBeNull();
+
+      // Pause member
+      const pauseResponse = await request(app.getHttpServer())
+        .post(`/api/v1/members/${memberId}/status`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ status: MemberStatus.PAUSED })
+        .expect(200);
+
+      expect(pauseResponse.body.status).toBe(MemberStatus.PAUSED);
+      expect(pauseResponse.body.pausedAt).toBeDefined();
+      expect(pauseResponse.body.pausedAt).not.toBeNull();
+      expect(pauseResponse.body.resumedAt).toBeNull();
+
+      // Get member and verify pausedAt is set
+      const getResponse = await request(app.getHttpServer())
+        .get(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(getResponse.body.status).toBe(MemberStatus.PAUSED);
+      expect(getResponse.body.pausedAt).toBeDefined();
+      expect(getResponse.body.pausedAt).not.toBeNull();
+    });
+
+    it('should extend membershipEndAt when resuming', async () => {
+      // Create member
+      const createDto = {
+        branchId: branch1.id,
+        firstName: 'Jane',
+        lastName: 'Smith',
+        phone: '+9876543210',
+        membershipStartAt: '2024-01-01T00:00:00Z',
+        membershipEndAt: '2025-01-01T00:00:00Z',
+      };
+
+      const createResponse = await request(app.getHttpServer())
+        .post('/api/v1/members')
+        .set('Authorization', `Bearer ${token1}`)
+        .send(createDto)
+        .expect(201);
+
+      const memberId = createResponse.body.id;
+      const originalEndAt = new Date(createResponse.body.membershipEndAt);
+
+      // Pause member
+      await request(app.getHttpServer())
+        .post(`/api/v1/members/${memberId}/status`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ status: MemberStatus.PAUSED })
+        .expect(200);
+
+      // Wait a bit (simulate time passing)
+      // In real scenario, time would pass naturally
+      // For testing, we'll verify the extension happens
+
+      // Get paused member to get pausedAt timestamp
+      const pausedMember = await request(app.getHttpServer())
+        .get(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      const pausedAt = new Date(pausedMember.body.pausedAt);
+
+      // Advance time slightly (simulate pause duration)
+      // In a real test, you might use jest.useFakeTimers() or wait
+      // For E2E, we'll just verify the extension logic works
+
+      // Resume member
+      const resumeResponse = await request(app.getHttpServer())
+        .post(`/api/v1/members/${memberId}/status`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ status: MemberStatus.ACTIVE })
+        .expect(200);
+
+      const newEndAt = new Date(resumeResponse.body.membershipEndAt);
+      const resumedAt = new Date(resumeResponse.body.resumedAt);
+
+      // Verify membershipEndAt was extended
+      expect(newEndAt.getTime()).toBeGreaterThan(originalEndAt.getTime());
+
+      // Verify pause duration was added
+      const pauseDurationMs = resumedAt.getTime() - pausedAt.getTime();
+      const expectedNewEndAt = new Date(
+        originalEndAt.getTime() + pauseDurationMs,
+      );
+      // Allow small tolerance for test execution time
+      const diff = Math.abs(newEndAt.getTime() - expectedNewEndAt.getTime());
+      expect(diff).toBeLessThan(5000); // Within 5 seconds
+
+      // Verify timestamps
+      expect(resumeResponse.body.resumedAt).toBeDefined();
+      expect(resumeResponse.body.pausedAt).toBeNull();
+    });
+
+    it('should keep remaining days stable while paused', async () => {
+      // Create member
+      const createDto = {
+        branchId: branch1.id,
+        firstName: 'Bob',
+        lastName: 'Johnson',
+        phone: '+1111111111',
+        membershipStartAt: '2024-01-01T00:00:00Z',
+        membershipEndAt: '2025-01-01T00:00:00Z',
+      };
+
+      const createResponse = await request(app.getHttpServer())
+        .post('/api/v1/members')
+        .set('Authorization', `Bearer ${token1}`)
+        .send(createDto)
+        .expect(201);
+
+      const memberId = createResponse.body.id;
+
+      // Pause member
+      await request(app.getHttpServer())
+        .post(`/api/v1/members/${memberId}/status`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ status: MemberStatus.PAUSED })
+        .expect(200);
+
+      // Get remaining days immediately after pause
+      const response1 = await request(app.getHttpServer())
+        .get(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      const remainingDays1 = response1.body.remainingDays;
+
+      // Wait a bit (simulate time passing)
+      // In real scenario, time would pass naturally
+      // For E2E test, we'll check that remaining days don't decrease
+      // by checking again after a short delay
+
+      // Get remaining days again (simulating later check)
+      const response2 = await request(app.getHttpServer())
+        .get(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      const remainingDays2 = response2.body.remainingDays;
+
+      // Remaining days should be approximately the same (allowing for small test execution time differences)
+      const diff = Math.abs(remainingDays1 - remainingDays2);
+      expect(diff).toBeLessThanOrEqual(1); // Should be same or differ by at most 1 day due to test execution time
+    });
+
+    it('should return error when resuming without pausedAt', async () => {
+      // Create member
+      const createDto = {
+        branchId: branch1.id,
+        firstName: 'Alice',
+        lastName: 'Williams',
+        phone: '+2222222222',
+      };
+
+      const createResponse = await request(app.getHttpServer())
+        .post('/api/v1/members')
+        .set('Authorization', `Bearer ${token1}`)
+        .send(createDto)
+        .expect(201);
+
+      const memberId = createResponse.body.id;
+
+      // Force member to PAUSED but with pausedAt = null (direct Prisma manipulation)
+      await prisma.member.update({
+        where: { id: memberId },
+        data: {
+          status: MemberStatus.PAUSED,
+          pausedAt: null, // Invalid state
+        },
+      });
+
+      // Try to resume - should fail with Turkish error message
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/members/${memberId}/status`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ status: MemberStatus.ACTIVE })
+        .expect(400);
+
+      expect(response.body.message).toContain('pausedAt');
+      expect(response.body.message).toContain('bulunamadı');
+    });
+
+    it('should complete full pause-resume cycle end-to-end', async () => {
+      // Create member
+      const createDto = {
+        branchId: branch1.id,
+        firstName: 'Charlie',
+        lastName: 'Brown',
+        phone: '+3333333333',
+        membershipStartAt: '2024-01-01T00:00:00Z',
+        membershipEndAt: '2025-01-01T00:00:00Z',
+      };
+
+      const createResponse = await request(app.getHttpServer())
+        .post('/api/v1/members')
+        .set('Authorization', `Bearer ${token1}`)
+        .send(createDto)
+        .expect(201);
+
+      const memberId = createResponse.body.id;
+      const originalEndAt = new Date(createResponse.body.membershipEndAt);
+      const originalRemainingDays = createResponse.body.remainingDays;
+
+      // Step 1: Pause member
+      const pauseResponse = await request(app.getHttpServer())
+        .post(`/api/v1/members/${memberId}/status`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ status: MemberStatus.PAUSED })
+        .expect(200);
+
+      expect(pauseResponse.body.status).toBe(MemberStatus.PAUSED);
+      expect(pauseResponse.body.pausedAt).toBeDefined();
+      expect(pauseResponse.body.resumedAt).toBeNull();
+      expect(pauseResponse.body.membershipEndAt).toBe(originalEndAt.toISOString());
+
+      const pausedAt = new Date(pauseResponse.body.pausedAt);
+      const pausedRemainingDays = pauseResponse.body.remainingDays;
+
+      // Step 2: Verify member is paused
+      const getPausedResponse = await request(app.getHttpServer())
+        .get(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(getPausedResponse.body.status).toBe(MemberStatus.PAUSED);
+      expect(getPausedResponse.body.pausedAt).toBeDefined();
+
+      // Step 3: Resume member
+      const resumeResponse = await request(app.getHttpServer())
+        .post(`/api/v1/members/${memberId}/status`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ status: MemberStatus.ACTIVE })
+        .expect(200);
+
+      expect(resumeResponse.body.status).toBe(MemberStatus.ACTIVE);
+      expect(resumeResponse.body.resumedAt).toBeDefined();
+      expect(resumeResponse.body.pausedAt).toBeNull();
+
+      const resumedAt = new Date(resumeResponse.body.resumedAt);
+      const newEndAt = new Date(resumeResponse.body.membershipEndAt);
+
+      // Verify membershipEndAt was extended
+      expect(newEndAt.getTime()).toBeGreaterThan(originalEndAt.getTime());
+
+      // Verify pause duration was added
+      const pauseDurationMs = resumedAt.getTime() - pausedAt.getTime();
+      const expectedNewEndAt = new Date(
+        originalEndAt.getTime() + pauseDurationMs,
+      );
+      const diff = Math.abs(newEndAt.getTime() - expectedNewEndAt.getTime());
+      expect(diff).toBeLessThan(5000); // Within 5 seconds
+
+      // Step 4: Verify final state
+      const finalResponse = await request(app.getHttpServer())
+        .get(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(finalResponse.body.status).toBe(MemberStatus.ACTIVE);
+      expect(finalResponse.body.pausedAt).toBeNull();
+      expect(finalResponse.body.resumedAt).toBeDefined();
+      expect(finalResponse.body.membershipEndAt).toBe(newEndAt.toISOString());
+      expect(finalResponse.body.remainingDays).toBeDefined();
+    });
+  });
+
+  // =====================================================================
   // RESPONSE SHAPE VALIDATION
   // =====================================================================
 

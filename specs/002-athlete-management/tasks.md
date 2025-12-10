@@ -171,10 +171,10 @@ This document provides an actionable, dependency-ordered task list for implement
 
 ### Testing
 
-- [ ] T058 [P] Write unit test for Active → Paused → Active transition in backend/src/members/members.service.spec.ts
-- [ ] T059 [P] Write unit test for pause duration calculation and membershipEndAt extension in backend/src/members/members.service.spec.ts
-- [ ] T060 [P] Write unit test for remaining days calculation with paused periods in backend/src/members/members.service.spec.ts
-- [ ] T061 [P] Write integration test for pause/resume flow in backend/test/members.e2e-spec.ts
+- [x] T058 [P] Write unit test for Active → Paused → Active transition in backend/test/members/members.service.spec.ts
+- [x] T059 [P] Write unit test for pause duration calculation and membershipEndAt extension in backend/test/members/members.service.spec.ts
+- [x] T060 [P] Write unit test for remaining days calculation with paused periods in backend/test/members/members.service.spec.ts
+- [x] T061 [P] Write integration test for pause/resume flow in backend/test/members/members.e2e-spec.ts
 
 ---
 
