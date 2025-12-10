@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from '../../src/members/members.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -10,7 +14,6 @@ import { MemberStatus, MemberGender } from '@prisma/client';
 
 describe('MembersService', () => {
   let service: MembersService;
-  let prisma: PrismaService;
 
   // Mock PrismaService
   const mockPrismaService = {
@@ -926,7 +929,9 @@ describe('MembersService', () => {
         expect(result.pausedAt).toBeDefined();
         expect(result.pausedAt?.getTime()).toBe(now.getTime());
         expect(result.resumedAt).toBeNull();
-        expect(result.membershipEndAt.getTime()).toBe(membershipEndAt.getTime());
+        expect(result.membershipEndAt.getTime()).toBe(
+          membershipEndAt.getTime(),
+        );
 
         expect(mockPrismaService.member.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1006,7 +1011,9 @@ describe('MembersService', () => {
         expect(result.resumedAt).toBeDefined();
         expect(result.resumedAt?.getTime()).toBe(now.getTime());
         expect(result.pausedAt).toBeNull();
-        expect(result.membershipEndAt.getTime()).toBe(expectedNewEndAt.getTime());
+        expect(result.membershipEndAt.getTime()).toBe(
+          expectedNewEndAt.getTime(),
+        );
 
         expect(mockPrismaService.member.update).toHaveBeenCalledWith(
           expect.objectContaining({

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listMembers,
   getMemberById,
@@ -6,7 +6,7 @@ import {
   updateMember,
   changeMemberStatus,
   archiveMember,
-} from '@/api/members';
+} from "@/api/members";
 import type {
   Member,
   MemberListQuery,
@@ -14,28 +14,25 @@ import type {
   CreateMemberPayload,
   UpdateMemberPayload,
   ChangeMemberStatusPayload,
-} from '@/types/member';
-import type { ApiError } from '@/types/error';
-import { toast } from 'sonner';
+} from "@/types/member";
+import type { ApiError } from "@/types/error";
+import { toast } from "sonner";
 
 /**
  * Query keys for member-related queries
  */
 const memberKeys = {
   list: (tenantId: string, query?: Partial<MemberListQuery>) =>
-    ['members', tenantId, query] as const,
+    ["members", tenantId, query] as const,
   detail: (tenantId: string, memberId: string) =>
-    ['members', tenantId, memberId] as const,
+    ["members", tenantId, memberId] as const,
 };
 
 /**
  * Hook to fetch members for a tenant
  * Automatically disabled if tenantId is not provided
  */
-export function useMembers(
-  tenantId: string,
-  query?: Partial<MemberListQuery>,
-) {
+export function useMembers(tenantId: string, query?: Partial<MemberListQuery>) {
   return useQuery<MemberListResponse, ApiError>({
     queryKey: memberKeys.list(tenantId, query),
     queryFn: () => listMembers({ tenantId, ...query }),
@@ -64,12 +61,12 @@ export function useCreateMember(tenantId: string) {
 
   return useMutation<Member, ApiError, CreateMemberPayload>({
     mutationFn: (payload) => createMember(payload, tenantId),
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate member list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['members', tenantId],
+        queryKey: ["members", tenantId],
       });
-      toast.success('Üye başarıyla oluşturuldu');
+      toast.success("Üye başarıyla oluşturuldu");
     },
     onError: (error) => {
       // Global interceptor shows toast, but we can add specific handling here if needed
@@ -95,11 +92,11 @@ export function useUpdateMember(tenantId: string) {
     onSuccess: (data) => {
       // Invalidate member list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['members', tenantId],
+        queryKey: ["members", tenantId],
       });
       // Update the detail query cache
       queryClient.setQueryData(memberKeys.detail(tenantId, data.id), data);
-      toast.success('Üye başarıyla güncellendi');
+      toast.success("Üye başarıyla güncellendi");
     },
     onError: (error) => {
       return error;
@@ -124,11 +121,11 @@ export function useChangeMemberStatus(tenantId: string) {
     onSuccess: (data) => {
       // Invalidate member list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['members', tenantId],
+        queryKey: ["members", tenantId],
       });
       // Update the detail query cache
       queryClient.setQueryData(memberKeys.detail(tenantId, data.id), data);
-      toast.success('Üye durumu güncellendi');
+      toast.success("Üye durumu güncellendi");
     },
     onError: (error) => {
       return error;
@@ -148,15 +145,14 @@ export function useArchiveMember(tenantId: string) {
     onSuccess: (data) => {
       // Invalidate member list queries for this tenant
       queryClient.invalidateQueries({
-        queryKey: ['members', tenantId],
+        queryKey: ["members", tenantId],
       });
       // Update the detail query cache
       queryClient.setQueryData(memberKeys.detail(tenantId, data.id), data);
-      toast.success('Üye arşivlendi');
+      toast.success("Üye arşivlendi");
     },
     onError: (error) => {
       return error;
     },
   });
 }
-

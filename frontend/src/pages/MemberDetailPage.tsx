@@ -1,22 +1,16 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useCurrentTenant } from '@/hooks/useTenant';
-import { useMember } from '@/hooks/useMembers';
-import { MemberStatusBadge } from '@/components/members/MemberStatusBadge';
-import { StatusChangeDialog } from '@/components/members/StatusChangeDialog';
-import { ArchiveConfirmDialog } from '@/components/members/ArchiveConfirmDialog';
-import { MemberStatus } from '@/types/member';
-import type { ApiError } from '@/types/error';
+import React, { useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCurrentTenant } from "@/hooks/useTenant";
+import { useMember } from "@/hooks/useMembers";
+import { MemberStatusBadge } from "@/components/members/MemberStatusBadge";
+import { StatusChangeDialog } from "@/components/members/StatusChangeDialog";
+import { ArchiveConfirmDialog } from "@/components/members/ArchiveConfirmDialog";
+import { MemberStatus } from "@/types/member";
+import type { ApiError } from "@/types/error";
 
 /**
  * Member Detail Page
@@ -30,23 +24,23 @@ export function MemberDetailPage() {
     data: member,
     isLoading: memberLoading,
     error: memberError,
-  } = useMember(tenant?.id || '', id || '');
+  } = useMember(tenant?.id || "", id || "");
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
 
   const formatDate = (dateString: string | null): string => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("tr-TR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   const formatDateTime = (dateString: string | null): string => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('tr-TR');
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleString("tr-TR");
   };
 
   if (tenantLoading || memberLoading) {
@@ -85,10 +79,10 @@ export function MemberDetailPage() {
       <div className="space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
-            {apiError.message || 'Üye bilgisi yüklenirken bir hata oluştu'}
+            {apiError.message || "Üye bilgisi yüklenirken bir hata oluştu"}
           </AlertDescription>
         </Alert>
-        <Button onClick={() => navigate('/members')}>Üye Listesine Dön</Button>
+        <Button onClick={() => navigate("/members")}>Üye Listesine Dön</Button>
       </div>
     );
   }
@@ -99,7 +93,7 @@ export function MemberDetailPage() {
         <Alert>
           <AlertDescription>Üye bulunamadı</AlertDescription>
         </Alert>
-        <Button onClick={() => navigate('/members')}>Üye Listesine Dön</Button>
+        <Button onClick={() => navigate("/members")}>Üye Listesine Dön</Button>
       </div>
     );
   }
@@ -163,7 +157,7 @@ export function MemberDetailPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Cinsiyet</p>
                 <p className="font-medium">
-                  {member.gender === 'MALE' ? 'Erkek' : 'Kadın'}
+                  {member.gender === "MALE" ? "Erkek" : "Kadın"}
                 </p>
               </div>
             )}
@@ -194,24 +188,28 @@ export function MemberDetailPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Başlangıç Tarihi</p>
-              <p className="font-medium">{formatDate(member.membershipStartAt)}</p>
+              <p className="font-medium">
+                {formatDate(member.membershipStartAt)}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bitiş Tarihi</p>
-              <p className="font-medium">{formatDate(member.membershipEndAt)}</p>
+              <p className="font-medium">
+                {formatDate(member.membershipEndAt)}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Kalan Gün</p>
               <p
                 className={`font-medium ${
                   member.remainingDays >= 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
                 }`}
               >
                 {member.remainingDays >= 0
                   ? `${member.remainingDays} gün`
-                  : 'Süresi dolmuş'}
+                  : "Süresi dolmuş"}
               </p>
             </div>
           </CardContent>
@@ -245,14 +243,18 @@ export function MemberDetailPage() {
             </div>
             {member.pausedAt && (
               <div>
-                <p className="text-sm text-muted-foreground">Dondurulma Tarihi</p>
+                <p className="text-sm text-muted-foreground">
+                  Dondurulma Tarihi
+                </p>
                 <p className="font-medium">{formatDateTime(member.pausedAt)}</p>
               </div>
             )}
             {member.resumedAt && (
               <div>
                 <p className="text-sm text-muted-foreground">Devam Tarihi</p>
-                <p className="font-medium">{formatDateTime(member.resumedAt)}</p>
+                <p className="font-medium">
+                  {formatDateTime(member.resumedAt)}
+                </p>
               </div>
             )}
           </CardContent>
@@ -286,10 +288,9 @@ export function MemberDetailPage() {
         onOpenChange={setArchiveDialogOpen}
         tenantId={tenant.id}
         onSuccess={() => {
-          navigate('/members');
+          navigate("/members");
         }}
       />
     </div>
   );
 }
-

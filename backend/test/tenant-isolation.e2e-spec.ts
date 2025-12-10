@@ -20,13 +20,11 @@ describe('Tenant Isolation (e2e)', () => {
 
   // Tenant A data
   let tenantAId: string;
-  let userAId: string;
   let tokenA: string;
   let branchAId: string;
 
   // Tenant B data
   let tenantBId: string;
-  let userBId: string;
   let tokenB: string;
   let branchBId: string;
 
@@ -59,7 +57,6 @@ describe('Tenant Isolation (e2e)', () => {
       },
     );
     tenantAId = tenantA.id;
-    userAId = userA.id;
 
     // Login to get real token for Tenant A
     const { accessToken: accessTokenA } = await loginUser(
@@ -86,7 +83,6 @@ describe('Tenant Isolation (e2e)', () => {
       },
     );
     tenantBId = tenantB.id;
-    userBId = userB.id;
 
     // Login to get real token for Tenant B
     const { accessToken: accessTokenB } = await loginUser(

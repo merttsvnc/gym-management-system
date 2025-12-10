@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { useCurrentTenant } from '@/hooks/useTenant';
-import { useMembers } from '@/hooks/useMembers';
-import { MemberList } from '@/components/members/MemberList';
-import { MemberStatus } from '@/types/member';
+} from "@/components/ui/card";
+import { useCurrentTenant } from "@/hooks/useTenant";
+import { useMembers } from "@/hooks/useMembers";
+import { MemberList } from "@/components/members/MemberList";
+import { MemberStatus } from "@/types/member";
 
 /**
  * Member List Page
@@ -23,20 +22,24 @@ export function MembersPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<MemberStatus | 'ALL'>('ALL');
-  const [membershipTypeFilter, setMembershipTypeFilter] = useState<string | 'ALL'>('ALL');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<MemberStatus | "ALL">("ALL");
+  const [membershipTypeFilter, setMembershipTypeFilter] = useState<
+    string | "ALL"
+  >("ALL");
 
   const {
     data: membersData,
     isLoading: membersLoading,
     error: membersError,
-  } = useMembers(tenant?.id || '', {
+  } = useMembers(tenant?.id || "", {
     page,
     limit,
     ...(search && { search }),
-    ...(statusFilter !== 'ALL' && { status: statusFilter }),
-    ...(membershipTypeFilter !== 'ALL' && { membershipType: membershipTypeFilter }),
+    ...(statusFilter !== "ALL" && { status: statusFilter }),
+    ...(membershipTypeFilter !== "ALL" && {
+      membershipType: membershipTypeFilter,
+    }),
     includeArchived: statusFilter === MemberStatus.ARCHIVED,
   });
 
@@ -78,7 +81,7 @@ export function MembersPage() {
             Üyelerinizi görüntüleyin ve yönetin.
           </p>
         </div>
-        <Button onClick={() => navigate('/members/new')}>Yeni Üye</Button>
+        <Button onClick={() => navigate("/members/new")}>Yeni Üye</Button>
       </div>
 
       <Card className="w-full">
@@ -105,7 +108,7 @@ export function MembersPage() {
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
-                Toplam {pagination.total} üye, Sayfa {pagination.page} /{' '}
+                Toplam {pagination.total} üye, Sayfa {pagination.page} /{" "}
                 {pagination.totalPages}
               </div>
               <div className="flex gap-2">
@@ -135,4 +138,3 @@ export function MembersPage() {
     </div>
   );
 }
-

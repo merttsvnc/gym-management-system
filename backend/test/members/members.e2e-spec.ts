@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
@@ -960,7 +964,6 @@ describe('Members E2E Tests', () => {
 
       const memberId = createResponse.body.id;
       const originalEndAt = new Date(createResponse.body.membershipEndAt);
-      const originalRemainingDays = createResponse.body.remainingDays;
 
       // Step 1: Pause member
       const pauseResponse = await request(app.getHttpServer())
@@ -972,10 +975,11 @@ describe('Members E2E Tests', () => {
       expect(pauseResponse.body.status).toBe(MemberStatus.PAUSED);
       expect(pauseResponse.body.pausedAt).toBeDefined();
       expect(pauseResponse.body.resumedAt).toBeNull();
-      expect(pauseResponse.body.membershipEndAt).toBe(originalEndAt.toISOString());
+      expect(pauseResponse.body.membershipEndAt).toBe(
+        originalEndAt.toISOString(),
+      );
 
       const pausedAt = new Date(pauseResponse.body.pausedAt);
-      const pausedRemainingDays = pauseResponse.body.remainingDays;
 
       // Step 2: Verify member is paused
       const getPausedResponse = await request(app.getHttpServer())

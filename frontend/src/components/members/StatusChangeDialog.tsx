@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,21 +6,21 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useChangeMemberStatus } from '@/hooks/useMembers';
-import { MemberStatus } from '@/types/member';
-import { MemberStatusBadge } from './MemberStatusBadge';
-import type { ApiError } from '@/types/error';
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useChangeMemberStatus } from "@/hooks/useMembers";
+import { MemberStatus } from "@/types/member";
+import { MemberStatusBadge } from "./MemberStatusBadge";
+import type { ApiError } from "@/types/error";
 
 interface StatusChangeDialogProps {
   member: {
@@ -39,9 +39,9 @@ interface StatusChangeDialogProps {
  * Available status options (excluding ARCHIVED - use archive endpoint for that)
  */
 const AVAILABLE_STATUSES = [
-  { value: MemberStatus.ACTIVE, label: 'Aktif' },
-  { value: MemberStatus.PAUSED, label: 'Dondurulmuş' },
-  { value: MemberStatus.INACTIVE, label: 'Pasif' },
+  { value: MemberStatus.ACTIVE, label: "Aktif" },
+  { value: MemberStatus.PAUSED, label: "Dondurulmuş" },
+  { value: MemberStatus.INACTIVE, label: "Pasif" },
 ] as const;
 
 /**
@@ -54,13 +54,18 @@ export function StatusChangeDialog({
   tenantId,
   onSuccess,
 }: StatusChangeDialogProps) {
-  const [selectedStatus, setSelectedStatus] = useState<MemberStatus>(member.status);
+  const [selectedStatus, setSelectedStatus] = useState<MemberStatus>(
+    member.status
+  );
   const changeStatus = useChangeMemberStatus(tenantId);
 
   // Reset selected status when member changes
   useEffect(() => {
     if (open) {
-      setSelectedStatus(member.status);
+      const resetStatus = () => {
+        setSelectedStatus(member.status);
+      };
+      resetStatus();
     }
   }, [member.status, open]);
 
@@ -81,7 +86,7 @@ export function StatusChangeDialog({
       onSuccess?.();
     } catch (error) {
       // Error handled by mutation and global interceptor
-      console.error('Status change error:', error);
+      console.error("Status change error:", error);
     }
   };
 
@@ -112,7 +117,9 @@ export function StatusChangeDialog({
               </Label>
               <Select
                 value={selectedStatus}
-                onValueChange={(value) => setSelectedStatus(value as MemberStatus)}
+                onValueChange={(value) =>
+                  setSelectedStatus(value as MemberStatus)
+                }
                 disabled={isPending}
               >
                 <SelectTrigger id="new-status">
@@ -132,7 +139,7 @@ export function StatusChangeDialog({
               <Alert variant="destructive">
                 <AlertDescription>
                   {(error as ApiError).message ||
-                    'Durum değiştirilirken bir hata oluştu. Lütfen tekrar deneyin.'}
+                    "Durum değiştirilirken bir hata oluştu. Lütfen tekrar deneyin."}
                 </AlertDescription>
               </Alert>
             )}
@@ -146,8 +153,11 @@ export function StatusChangeDialog({
             >
               İptal
             </Button>
-            <Button type="submit" disabled={isPending || selectedStatus === member.status}>
-              {isPending ? 'Kaydediliyor...' : 'Kaydet'}
+            <Button
+              type="submit"
+              disabled={isPending || selectedStatus === member.status}
+            >
+              {isPending ? "Kaydediliyor..." : "Kaydet"}
             </Button>
           </DialogFooter>
         </form>
@@ -155,4 +165,3 @@ export function StatusChangeDialog({
     </Dialog>
   );
 }
-

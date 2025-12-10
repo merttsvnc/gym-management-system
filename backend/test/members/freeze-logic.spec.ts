@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { MembersService } from '../../src/members/members.service';
 import { MemberStatus } from '@prisma/client';
 

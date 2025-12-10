@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
   NotFoundException,
@@ -103,6 +105,7 @@ export class MembersService {
    * - Supports search across firstName, lastName, and phone (substring, case-insensitive)
    * - Excludes archived members by default unless includeArchived is true
    */
+
   async findAll(tenantId: string, query: MemberListQueryDto) {
     const {
       page = 1,
@@ -114,6 +117,7 @@ export class MembersService {
     } = query;
 
     // Build where clause
+
     const where: any = {
       tenantId,
     };
@@ -128,6 +132,7 @@ export class MembersService {
       where.status = status;
     } else if (!includeArchived) {
       // Exclude archived members by default
+
       where.status = {
         not: 'ARCHIVED',
       };
@@ -215,6 +220,7 @@ export class MembersService {
    * - Enforces phone uniqueness within tenant (excluding current member)
    * - Validates membershipEndAt is after membershipStartAt if dates are being updated
    */
+
   async update(tenantId: string, id: string, dto: UpdateMemberDto) {
     // Get existing member and validate tenant isolation
     const existingMember = await this.findOne(tenantId, id);
@@ -269,28 +275,40 @@ export class MembersService {
     }
 
     // Build update data
+
     const updateData: any = {};
 
     if (dto.branchId !== undefined) updateData.branchId = dto.branchId;
+
     if (dto.firstName !== undefined)
       updateData.firstName = dto.firstName.trim();
+
     if (dto.lastName !== undefined) updateData.lastName = dto.lastName.trim();
+
     if (dto.phone !== undefined) updateData.phone = dto.phone.trim();
+
     if (dto.email !== undefined)
       updateData.email = dto.email ? dto.email.trim() : null;
+
     if (dto.gender !== undefined) updateData.gender = dto.gender;
+
     if (dto.dateOfBirth !== undefined)
       updateData.dateOfBirth = dto.dateOfBirth
         ? new Date(dto.dateOfBirth)
         : null;
+
     if (dto.photoUrl !== undefined)
       updateData.photoUrl = dto.photoUrl ? dto.photoUrl : null;
+
     if (dto.membershipType !== undefined)
       updateData.membershipType = dto.membershipType;
+
     if (dto.membershipStartAt !== undefined)
       updateData.membershipStartAt = membershipStartAt;
+
     if (dto.membershipEndAt !== undefined)
       updateData.membershipEndAt = membershipEndAt;
+
     if (dto.notes !== undefined)
       updateData.notes = dto.notes ? dto.notes.trim() : null;
 
@@ -316,6 +334,7 @@ export class MembersService {
    *   sets resumedAt = NOW(), clears pausedAt (set null)
    * - When status changes from PAUSED to INACTIVE: clears pausedAt and resumedAt
    */
+
   async changeStatus(tenantId: string, id: string, dto: ChangeMemberStatusDto) {
     const member = await this.findOne(tenantId, id);
 
@@ -350,6 +369,7 @@ export class MembersService {
 
     // Build update data with timestamp handling
     const now = new Date();
+
     const updateData: any = {
       status: dto.status,
     };
@@ -358,6 +378,7 @@ export class MembersService {
     // Set pausedAt = new Date(), don't modify membershipEndAt, clear resumedAt
     if (member.status === 'ACTIVE' && dto.status === 'PAUSED') {
       updateData.pausedAt = now;
+
       updateData.resumedAt = null; // Clear resumedAt for clean state
       // Don't modify membershipEndAt
     }
@@ -376,19 +397,23 @@ export class MembersService {
 
       // Extend membershipEndAt by pause duration
       const currentMembershipEndAt = new Date(member.membershipEndAt);
+
       updateData.membershipEndAt = new Date(
         currentMembershipEndAt.getTime() + pauseDurationMs,
       );
 
       // Set resumedAt = now
+
       updateData.resumedAt = now;
 
       // Clear pausedAt (set null) for clean state management
+
       updateData.pausedAt = null;
     }
     // Handle transition from PAUSED to INACTIVE: clear both timestamps
     else if (member.status === 'PAUSED' && dto.status === 'INACTIVE') {
       updateData.pausedAt = null;
+
       updateData.resumedAt = null;
     }
     // For other transitions, don't modify pausedAt/resumedAt

@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from '../../src/members/members.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { BadRequestException, ConflictException } from '@nestjs/common';
-import { MemberGender } from '@prisma/client';
 
 /**
  * Tests for input validation and data sanitization
@@ -10,7 +13,6 @@ import { MemberGender } from '@prisma/client';
  */
 describe('MembersService - Validation', () => {
   let service: MembersService;
-  let prisma: PrismaService;
 
   const mockPrismaService = {
     member: {

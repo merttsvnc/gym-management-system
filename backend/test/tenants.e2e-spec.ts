@@ -16,7 +16,6 @@ describe('TenantsController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let tenantId: string;
-  let userId: string;
   let authToken: string;
 
   beforeAll(async () => {
@@ -44,7 +43,6 @@ describe('TenantsController (e2e)', () => {
       userEmail: `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
     });
     tenantId = tenant.id;
-    userId = user.id;
 
     // Login to get real token
     const { accessToken } = await loginUser(app, user.email, 'Pass123!');

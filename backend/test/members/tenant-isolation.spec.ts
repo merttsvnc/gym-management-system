@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from '../../src/members/members.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -10,7 +14,6 @@ import { MemberStatus } from '@prisma/client';
  */
 describe('MembersService - Tenant Isolation', () => {
   let service: MembersService;
-  let prisma: PrismaService;
 
   const tenant1Id = 'tenant-1';
   const tenant2Id = 'tenant-2';

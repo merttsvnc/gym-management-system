@@ -78,27 +78,30 @@ export function MemberForm({
   // Reset form when initialData changes
   useEffect(() => {
     if (initialData) {
-      setBranchId(initialData.branchId);
-      setFirstName(initialData.firstName);
-      setLastName(initialData.lastName);
-      setPhone(initialData.phone);
-      setEmail(initialData.email || "");
-      setGender(initialData.gender || "");
-      setDateOfBirth(
-        initialData.dateOfBirth ? initialData.dateOfBirth.split("T")[0] : ""
-      );
-      setMembershipType(initialData.membershipType);
-      setMembershipStartAt(
-        initialData.membershipStartAt
-          ? initialData.membershipStartAt.split("T")[0]
-          : ""
-      );
-      setMembershipEndAt(
-        initialData.membershipEndAt
-          ? initialData.membershipEndAt.split("T")[0]
-          : ""
-      );
-      setNotes(initialData.notes || "");
+      const updateFormData = () => {
+        setBranchId(initialData.branchId);
+        setFirstName(initialData.firstName);
+        setLastName(initialData.lastName);
+        setPhone(initialData.phone);
+        setEmail(initialData.email || "");
+        setGender(initialData.gender || "");
+        setDateOfBirth(
+          initialData.dateOfBirth ? initialData.dateOfBirth.split("T")[0] : ""
+        );
+        setMembershipType(initialData.membershipType);
+        setMembershipStartAt(
+          initialData.membershipStartAt
+            ? initialData.membershipStartAt.split("T")[0]
+            : ""
+        );
+        setMembershipEndAt(
+          initialData.membershipEndAt
+            ? initialData.membershipEndAt.split("T")[0]
+            : ""
+        );
+        setNotes(initialData.notes || "");
+      };
+      updateFormData();
     }
   }, [initialData]);
 
