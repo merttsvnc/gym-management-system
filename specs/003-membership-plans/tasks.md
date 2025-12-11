@@ -286,15 +286,15 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### Unit Tests
 
-- [ ] T115 Write unit tests for duration calculation DAYS in backend/src/membership-plans/utils/duration-calculator.spec.ts
-- [ ] T116 Write unit tests for duration calculation MONTHS month-end clamping in backend/src/membership-plans/utils/duration-calculator.spec.ts
-- [ ] T117 Write unit tests for duration calculation edge cases (leap years, year boundaries) in backend/src/membership-plans/utils/duration-calculator.spec.ts
-- [ ] T118 Write unit tests for MembershipPlansService CRUD operations in backend/src/membership-plans/membership-plans.service.spec.ts
-- [ ] T119 Write unit tests for MembershipPlansService tenant isolation in backend/src/membership-plans/membership-plans.service.spec.ts
-- [ ] T120 Write unit tests for MembershipPlansService plan name uniqueness validation in backend/src/membership-plans/membership-plans.service.spec.ts
-- [ ] T121 Write unit tests for MembershipPlansService duration value validation in backend/src/membership-plans/membership-plans.service.spec.ts
-- [ ] T122 Write unit tests for MembershipPlansService currency validation in backend/src/membership-plans/membership-plans.service.spec.ts
-- [ ] T123 Write unit tests for MembershipPlansService archival protection logic in backend/src/membership-plans/membership-plans.service.spec.ts
+- [x] T115 Write unit tests for duration calculation DAYS in backend/src/membership-plans/utils/duration-calculator.spec.ts
+- [x] T116 Write unit tests for duration calculation MONTHS month-end clamping in backend/src/membership-plans/utils/duration-calculator.spec.ts
+- [x] T117 Write unit tests for duration calculation edge cases (leap years, year boundaries) in backend/src/membership-plans/utils/duration-calculator.spec.ts
+- [x] T118 Write unit tests for MembershipPlansService CRUD operations in backend/src/membership-plans/membership-plans.service.spec.ts
+- [x] T119 Write unit tests for MembershipPlansService tenant isolation in backend/src/membership-plans/membership-plans.service.spec.ts
+- [x] T120 Write unit tests for MembershipPlansService plan name uniqueness validation in backend/src/membership-plans/membership-plans.service.spec.ts
+- [x] T121 Write unit tests for MembershipPlansService duration value validation in backend/src/membership-plans/membership-plans.service.spec.ts
+- [x] T122 Write unit tests for MembershipPlansService currency validation in backend/src/membership-plans/membership-plans.service.spec.ts
+- [x] T123 Write unit tests for MembershipPlansService archival protection logic in backend/src/membership-plans/membership-plans.service.spec.ts
 
 ### Integration Tests
 
