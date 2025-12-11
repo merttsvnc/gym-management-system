@@ -38,6 +38,18 @@ enum MemberGender {
   FEMALE
 }
 
+// Duration type enum for membership plans
+enum DurationType {
+  DAYS
+  MONTHS
+}
+
+// Plan status enum
+enum PlanStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 // Tenant model
 model Tenant {
   id              String   @id @default(cuid())
@@ -52,6 +64,7 @@ model Tenant {
   branches        Branch[]
   users           User[]
   members         Member[]
+  membershipPlans MembershipPlan[]
 
   @@index([slug])
 }
@@ -69,8 +82,8 @@ model Branch {
   archivedAt DateTime?
 
   // Relations
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  members    Member[]
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members Member[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -92,48 +105,78 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([email])
 }
 
+// MembershipPlan model
+model MembershipPlan {
+  id            String       @id @default(cuid())
+  tenantId      String
+  name          String
+  description   String?
+  durationType  DurationType
+  durationValue Int
+  price         Decimal      @db.Decimal(10, 2)
+  currency      String
+  maxFreezeDays Int?
+  autoRenew     Boolean      @default(false)
+  status        PlanStatus
+  sortOrder     Int?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members Member[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, sortOrder])
+}
+
 // Member model
 model Member {
-  id                String         @id @default(cuid())
-  tenantId          String
-  branchId          String
-  
+  id       String @id @default(cuid())
+  tenantId String
+  branchId String
+
   // Core profile fields
-  firstName         String
-  lastName          String
-  gender            MemberGender?
-  dateOfBirth       DateTime?
-  phone             String
-  email             String?
-  photoUrl          String?
-  
+  firstName   String
+  lastName    String
+  gender      MemberGender?
+  dateOfBirth DateTime?
+  phone       String
+  email       String?
+  photoUrl    String?
+
   // Membership information
-  membershipType    String
-  membershipStartAt DateTime
-  membershipEndAt   DateTime
-  
+  membershipPlanId          String
+  membershipStartDate       DateTime
+  membershipEndDate         DateTime
+  membershipPriceAtPurchase Decimal? @db.Decimal(10, 2)
+
   // Status
-  status            MemberStatus   @default(ACTIVE)
-  pausedAt          DateTime?
-  resumedAt         DateTime?
-  
+  status    MemberStatus @default(ACTIVE)
+  pausedAt  DateTime?
+  resumedAt DateTime?
+
   // Notes
-  notes             String?
-  
+  notes String?
+
   // Timestamps
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch            Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch         Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id])
+
   @@index([tenantId, branchId])
   @@index([tenantId, phone])
+  @@index([membershipPlanId])
+  @@index([tenantId, membershipPlanId])
 }

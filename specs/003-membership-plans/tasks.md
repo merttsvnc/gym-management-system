@@ -19,9 +19,11 @@ This document contains actionable, dependency-ordered implementation tasks for t
 ## Implementation Strategy
 
 ### MVP Scope
+
 The MVP includes Phase 1-3 (Database, Backend Domain, Backend API), enabling plan management via API. Frontend UI (Phase 4-5) can be implemented incrementally.
 
 ### Incremental Delivery
+
 - **Phase 1-2:** Core domain model and business logic (testable via unit tests)
 - **Phase 3:** API endpoints (testable via integration tests)
 - **Phase 4:** Frontend API integration (testable via manual API calls)
@@ -29,7 +31,9 @@ The MVP includes Phase 1-3 (Database, Backend Domain, Backend API), enabling pla
 - **Phase 6:** Comprehensive testing and documentation
 
 ### Parallel Execution Opportunities
+
 Tasks marked with `[P]` can be executed in parallel if they:
+
 - Modify different files
 - Have no dependencies on incomplete tasks
 - Are independent components
@@ -40,7 +44,8 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 **Goal:** Create MembershipPlan model and migrate existing Member data
 
-**Independent Test Criteria:** 
+**Independent Test Criteria:**
+
 - Prisma schema validates without errors
 - Migrations run successfully on development database
 - Data migration script creates plans and assigns members correctly
@@ -48,29 +53,29 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### Setup Tasks
 
-- [ ] T001 Install date-fns package for duration calculations in backend/package.json
-- [ ] T002 Update Prisma schema with MembershipPlan model in backend/prisma/schema.prisma
-- [ ] T003 Add DurationType and PlanStatus enums to Prisma schema in backend/prisma/schema.prisma
-- [ ] T004 Add membershipPlanId field (nullable) to Member model in backend/prisma/schema.prisma
-- [ ] T005 Add membershipPriceAtPurchase field (nullable) to Member model in backend/prisma/schema.prisma
-- [ ] T006 Keep membershipType field temporarily (nullable) for migration in backend/prisma/schema.prisma
-- [ ] T007 Add MembershipPlan-Tenant relation with CASCADE delete in backend/prisma/schema.prisma
-- [ ] T008 Add MembershipPlan-Member relation in backend/prisma/schema.prisma
-- [ ] T009 Add unique constraint on [tenantId, name] for MembershipPlan in backend/prisma/schema.prisma
-- [ ] T010 Add index on [tenantId] for MembershipPlan in backend/prisma/schema.prisma
-- [ ] T011 Add index on [tenantId, status] for MembershipPlan in backend/prisma/schema.prisma
-- [ ] T012 Add index on [tenantId, sortOrder] for MembershipPlan in backend/prisma/schema.prisma
-- [ ] T013 Add index on [membershipPlanId] for Member in backend/prisma/schema.prisma
-- [ ] T014 Add index on [tenantId, membershipPlanId] for Member in backend/prisma/schema.prisma
+- [x] T001 Install date-fns package for duration calculations in backend/package.json
+- [x] T002 Update Prisma schema with MembershipPlan model in backend/prisma/schema.prisma
+- [x] T003 Add DurationType and PlanStatus enums to Prisma schema in backend/prisma/schema.prisma
+- [x] T004 Add membershipPlanId field (nullable) to Member model in backend/prisma/schema.prisma
+- [x] T005 Add membershipPriceAtPurchase field (nullable) to Member model in backend/prisma/schema.prisma
+- [x] T006 Keep membershipType field temporarily (nullable) for migration in backend/prisma/schema.prisma
+- [x] T007 Add MembershipPlan-Tenant relation with CASCADE delete in backend/prisma/schema.prisma
+- [x] T008 Add MembershipPlan-Member relation in backend/prisma/schema.prisma
+- [x] T009 Add unique constraint on [tenantId, name] for MembershipPlan in backend/prisma/schema.prisma
+- [x] T010 Add index on [tenantId] for MembershipPlan in backend/prisma/schema.prisma
+- [x] T011 Add index on [tenantId, status] for MembershipPlan in backend/prisma/schema.prisma
+- [x] T012 Add index on [tenantId, sortOrder] for MembershipPlan in backend/prisma/schema.prisma
+- [x] T013 Add index on [membershipPlanId] for Member in backend/prisma/schema.prisma
+- [x] T014 Add index on [tenantId, membershipPlanId] for Member in backend/prisma/schema.prisma
 
 ### Migration Tasks
 
-- [ ] T015 [P] Create migration for MembershipPlan table creation in backend/prisma/migrations/
-- [ ] T016 Create migration for Member model changes (add nullable fields) in backend/prisma/migrations/
-- [ ] T017 Create data migration script to create plans from membershipType values in backend/prisma/migrations/
-- [ ] T018 Create data migration script to assign members to plans in backend/prisma/migrations/
-- [ ] T019 Create final migration to remove membershipType column in backend/prisma/migrations/
-- [ ] T020 Create final migration to make membershipPlanId NOT NULL in backend/prisma/migrations/
+- [x] T015 [P] Create migration for MembershipPlan table creation in backend/prisma/migrations/
+- [x] T016 Create migration for Member model changes (add nullable fields) in backend/prisma/migrations/
+- [x] T017 Create data migration script to create plans from membershipType values in backend/prisma/migrations/
+- [x] T018 Create data migration script to assign members to plans in backend/prisma/migrations/
+- [x] T019 Create final migration to remove membershipType column in backend/prisma/migrations/
+- [x] T020 Create final migration to make membershipPlanId NOT NULL in backend/prisma/migrations/
 
 ---
 
@@ -79,6 +84,7 @@ Tasks marked with `[P]` can be executed in parallel if they:
 **Goal:** Implement business logic for plan management and member-plan integration
 
 **Independent Test Criteria:**
+
 - Duration calculator handles DAYS and MONTHS correctly with edge cases
 - MembershipPlansService enforces tenant isolation and validation rules
 - MembersService integrates with plans and calculates end dates correctly
@@ -131,6 +137,7 @@ Tasks marked with `[P]` can be executed in parallel if they:
 **Goal:** Implement HTTP endpoints for plan management
 
 **Independent Test Criteria:**
+
 - All plan endpoints return correct responses with proper status codes
 - Tenant isolation enforced (cross-tenant access returns 403)
 - Validation errors return 400 with clear messages
@@ -177,6 +184,7 @@ Tasks marked with `[P]` can be executed in parallel if they:
 **Goal:** Create frontend API integration for plan management
 
 **Independent Test Criteria:**
+
 - API client methods match backend contracts
 - React Query hooks handle loading, error, and success states
 - TypeScript types match backend DTOs
@@ -231,6 +239,7 @@ Tasks marked with `[P]` can be executed in parallel if they:
 **Goal:** Build plan management UI and update member forms
 
 **Independent Test Criteria:**
+
 - Plan list page displays plans with filters and pagination
 - Plan creation form validates all fields correctly
 - Plan edit page shows active member warnings
@@ -268,6 +277,7 @@ Tasks marked with `[P]` can be executed in parallel if they:
 **Goal:** Complete test coverage and update documentation
 
 **Independent Test Criteria:**
+
 - All unit tests pass with >80% coverage
 - All integration tests pass
 - API documentation is complete and accurate
@@ -322,56 +332,69 @@ Tasks marked with `[P]` can be executed in parallel if they:
 ### Task Dependencies
 
 **Phase 1 → Phase 2:**
+
 - Phase 2 requires Phase 1 migrations complete (T015-T020 must complete before T021)
 
 **Phase 2 → Phase 3:**
+
 - Phase 3 requires Phase 2 services complete (T027-T048 must complete before T052)
 
 **Phase 3 → Phase 4:**
+
 - Phase 4 requires Phase 3 API endpoints complete (T052-T069 must complete before T070)
 
 **Phase 4 → Phase 5:**
+
 - Phase 5 requires Phase 4 API client complete (T070-T099 must complete before T100)
 
 **Phase 2-5 → Phase 6:**
+
 - Phase 6 testing requires implementation complete (T021-T114 must complete before T115)
 
 ### Story Dependencies
 
 **User Story 1: Plan Management (US1)**
+
 - Tasks: T027-T038, T049-T066 (Plan service and API)
 - Can be implemented independently after Phase 1
 
 **User Story 2: Member-Plan Integration (US2)**
+
 - Tasks: T039-T048, T067-T069 (Member service updates)
 - Depends on: US1 (plan service must exist)
 
 **User Story 3: Frontend Plan Management (US3)**
+
 - Tasks: T070-T108 (Frontend API and UI)
 - Depends on: US1, US2 (backend must be complete)
 
 **User Story 4: Frontend Member Integration (US4)**
+
 - Tasks: T109-T114 (Member form updates)
 - Depends on: US2, US3 (plan UI and member service must exist)
 
 ### Parallel Execution Examples
 
 **Example 1: Duration Calculator (T021-T026)**
+
 - All duration calculator tasks can run in parallel
 - They modify the same file but different functions
 - Tests can be written alongside implementation
 
 **Example 2: Plan Service Methods (T028-T038)**
+
 - CRUD methods can be implemented in parallel
 - Each method is independent
 - Tests can be written per method
 
 **Example 3: Frontend Components (T100-T104)**
+
 - All plan components can be created in parallel
 - They are independent UI components
 - Can be developed by different developers
 
 **Example 4: API Client Methods (T071-T078)**
+
 - All API client methods can be implemented in parallel
 - Each method is independent
 - Can be developed concurrently
@@ -381,14 +404,17 @@ Tasks marked with `[P]` can be executed in parallel if they:
 ## Implementation Notes
 
 ### Critical Path
+
 1. Phase 1 (Database) → Phase 2 (Services) → Phase 3 (API) → Phase 4 (Frontend API) → Phase 5 (Frontend UI) → Phase 6 (Testing)
 
 ### Risk Mitigation
+
 - Test migrations on development database before production
 - Verify tenant isolation with integration tests before deployment
 - Test data migration script with sample data before full migration
 
 ### Code Review Checklist
+
 - [ ] Tenant isolation enforced in all queries
 - [ ] Duration calculation handles all edge cases
 - [ ] Validation rules match spec requirements
@@ -414,24 +440,29 @@ Tasks marked with `[P]` can be executed in parallel if they:
 ### Parallel Opportunities
 
 **Phase 2:**
+
 - Duration calculator tasks (T021-T026): 6 parallel tasks
 - Plan service methods (T028-T038): 11 parallel tasks
 - Member DTOs (T044-T048): 5 parallel tasks
 
 **Phase 3:**
+
 - Plan DTOs (T049-T051): 3 parallel tasks
 - Plan controller endpoints (T052-T060): 9 parallel tasks
 
 **Phase 4:**
+
 - API client methods (T071-T078): 8 parallel tasks
 - React Query hooks (T080-T087): 8 parallel tasks
 - TypeScript types (T088-T095): 8 parallel tasks
 
 **Phase 5:**
+
 - Plan components (T100-T104): 5 parallel tasks
 - Plan pages (T105-T107): 3 parallel tasks
 
 **Phase 6:**
+
 - Unit tests (T115-T123): 9 parallel tasks
 - Integration tests (T124-T136): 13 parallel tasks
 
@@ -440,18 +471,21 @@ Tasks marked with `[P]` can be executed in parallel if they:
 ### Independent Test Criteria by Phase
 
 **Phase 1:**
+
 - Prisma schema validates without errors
 - Migrations run successfully on development database
 - Data migration script creates plans and assigns members correctly
 - All members have valid `membershipPlanId` after migration
 
 **Phase 2:**
+
 - Duration calculator handles DAYS and MONTHS correctly with edge cases
 - MembershipPlansService enforces tenant isolation and validation rules
 - MembersService integrates with plans and calculates end dates correctly
 - All business rules are testable via unit tests
 
 **Phase 3:**
+
 - All plan endpoints return correct responses with proper status codes
 - Tenant isolation enforced (cross-tenant access returns 403)
 - Validation errors return 400 with clear messages
@@ -459,12 +493,14 @@ Tasks marked with `[P]` can be executed in parallel if they:
 - Member creation endpoint accepts membershipPlanId and calculates end date
 
 **Phase 4:**
+
 - API client methods match backend contracts
 - React Query hooks handle loading, error, and success states
 - TypeScript types match backend DTOs
 - Member API client updated to use new request structure
 
 **Phase 5:**
+
 - Plan list page displays plans with filters and pagination
 - Plan creation form validates all fields correctly
 - Plan edit page shows active member warnings
@@ -472,6 +508,7 @@ Tasks marked with `[P]` can be executed in parallel if they:
 - All components follow shadcn/ui design system
 
 **Phase 6:**
+
 - All unit tests pass with >80% coverage
 - All integration tests pass
 - API documentation is complete and accurate
@@ -481,11 +518,13 @@ Tasks marked with `[P]` can be executed in parallel if they:
 ### Suggested MVP Scope
 
 **MVP (Minimum Viable Product):**
+
 - Phase 1: Database Schema & Migration (T001-T020)
 - Phase 2: Backend Domain & Service Layer (T021-T048)
 - Phase 3: Backend API Controllers (T049-T069)
 
 **MVP Deliverables:**
+
 - Complete plan management API (CRUD operations)
 - Member creation with plan selection via API
 - Automatic membership end date calculation
@@ -493,6 +532,7 @@ Tasks marked with `[P]` can be executed in parallel if they:
 - Basic unit and integration tests
 
 **Post-MVP (Incremental):**
+
 - Phase 4: Frontend API Client & Hooks (T070-T099)
 - Phase 5: Frontend UI Components (T100-T114)
 - Phase 6: Comprehensive Testing & Documentation (T115-T146)
@@ -510,4 +550,3 @@ Tasks marked with `[P]` can be executed in parallel if they:
 ---
 
 **End of Tasks**
-
