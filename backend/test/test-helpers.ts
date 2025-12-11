@@ -5,10 +5,11 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { INestApplication } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import request from 'supertest';
+import * as jwt from 'jsonwebtoken';
 
 /**
- * Test helper to create a mock JWT token for testing
- * Encodes user info as base64 JSON (for our test JwtAuthGuard)
+ * Test helper to create a JWT token for E2E testing
+ * Creates a real JWT token using the same secret as the app
  */
 export function createMockToken(user: {
   userId: string;
@@ -17,12 +18,16 @@ export function createMockToken(user: {
   role?: string;
 }): string {
   const payload = {
-    userId: user.userId,
+    sub: user.userId, // JWT standard uses 'sub' for subject (userId)
     tenantId: user.tenantId,
     email: user.email || 'test@example.com',
     role: user.role || 'ADMIN',
   };
-  return Buffer.from(JSON.stringify(payload)).toString('base64');
+
+  // Use the same secret as in .env or default
+  const secret = process.env.JWT_ACCESS_SECRET || 'your_access_secret_here';
+
+  return jwt.sign(payload, secret, { expiresIn: '1h' });
 }
 
 /**

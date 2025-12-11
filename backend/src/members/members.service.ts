@@ -314,12 +314,16 @@ export class MembersService {
 
     // Validate membership dates if being updated
     // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
-    const membershipStartDate = dto.membershipStartAt
-      ? new Date(dto.membershipStartAt)
-      : existingMember.membershipStartDate;
-    const membershipEndDate = dto.membershipEndAt
-      ? new Date(dto.membershipEndAt)
-      : existingMember.membershipEndDate;
+    const membershipStartDate =
+      dto.membershipStartDate || dto.membershipStartAt
+        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          new Date(dto.membershipStartDate || dto.membershipStartAt)
+        : existingMember.membershipStartDate;
+    const membershipEndDate =
+      dto.membershipEndDate || dto.membershipEndAt
+        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          new Date(dto.membershipEndDate || dto.membershipEndAt)
+        : existingMember.membershipEndDate;
 
     if (membershipEndDate <= membershipStartDate) {
       throw new BadRequestException(
@@ -356,10 +360,16 @@ export class MembersService {
     // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
     // membershipType is deprecated and will be removed in Phase 3
 
-    if (dto.membershipStartAt !== undefined)
+    if (
+      dto.membershipStartDate !== undefined ||
+      dto.membershipStartAt !== undefined
+    )
       updateData.membershipStartDate = membershipStartDate;
 
-    if (dto.membershipEndAt !== undefined)
+    if (
+      dto.membershipEndDate !== undefined ||
+      dto.membershipEndAt !== undefined
+    )
       updateData.membershipEndDate = membershipEndDate;
 
     if (dto.notes !== undefined)

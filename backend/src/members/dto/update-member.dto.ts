@@ -71,9 +71,25 @@ export class UpdateMemberDto {
   @IsOptional()
   @IsDateString(
     {},
+    {
+      message: 'Geçerli bir üyelik başlangıç tarihi formatı giriniz (ISO 8601)',
+    },
+  )
+  membershipStartDate?: string;
+
+  @IsOptional()
+  @IsDateString(
+    {},
     { message: 'Geçerli bir üyelik bitiş tarihi formatı giriniz (ISO 8601)' },
   )
   membershipEndAt?: string;
+
+  @IsOptional()
+  @IsDateString(
+    {},
+    { message: 'Geçerli bir üyelik bitiş tarihi formatı giriniz (ISO 8601)' },
+  )
+  membershipEndDate?: string;
 
   @IsOptional()
   @IsString({ message: 'Notlar metin olmalıdır' })

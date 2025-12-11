@@ -410,6 +410,7 @@ describe('MembersService - Tenant Isolation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
+        membershipPlanId: 'plan-1',
       };
 
       await expect(service.create(tenant1Id, createDto)).rejects.toThrow(
@@ -445,6 +446,7 @@ describe('MembersService - Tenant Isolation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone,
+        membershipPlanId: 'plan-1',
       };
 
       await service.create(tenant1Id, createDto);
@@ -485,6 +487,7 @@ describe('MembersService - Tenant Isolation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
+        membershipPlanId: 'plan-1',
       };
 
       await service.create(tenant1Id, createDto);
