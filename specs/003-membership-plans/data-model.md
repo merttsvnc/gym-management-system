@@ -111,8 +111,8 @@ This document defines the data model for the Membership Plan Management feature,
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `membershipStartAt` | DateTime | Yes | Start date of membership |
-| `membershipEndAt` | DateTime | Yes | End date of membership (calculated from plan duration) |
+| `membershipStartDate` | DateTime | Yes | Start date of membership |
+| `membershipEndDate` | DateTime | Yes | End date of membership (calculated from plan duration) |
 
 **Validation Rules:**
 
@@ -353,8 +353,8 @@ model Member {
   membershipPlan   MembershipPlan @relation(fields: [membershipPlanId], references: [id])
   
   // KEPT: Existing date fields
-  membershipStartAt DateTime // Start date
-  membershipEndAt    DateTime // End date (calculated from plan)
+  membershipStartDate DateTime // Start date
+  membershipEndDate    DateTime // End date (calculated from plan)
   
   // OPTIONAL: Purchase-time price
   membershipPriceAtPurchase Decimal? @db.Decimal(10, 2) // Price at purchase time

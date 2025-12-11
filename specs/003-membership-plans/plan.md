@@ -50,7 +50,7 @@ The Membership Plan Management module introduces a first-class `MembershipPlan` 
 
 **Database:**
 - PostgreSQL via Prisma
-- Existing Member model has `membershipType`, `membershipStartAt`, `membershipEndAt` fields
+- Existing Member model has `membershipType`, `membershipStartDate`, `membershipEndDate` fields
 - Tenant model exists with `defaultCurrency` field
 
 ### Technology Stack
@@ -334,7 +334,7 @@ Before proceeding, verify alignment with core constitutional principles:
 
 5. [ ] Update Member DTOs
    - Update `CreateMemberDto`: replace `membershipType` with `membershipPlanId` (required)
-   - Update `CreateMemberDto`: remove `membershipEndAt` (calculated automatically)
+   - Update `CreateMemberDto`: remove `membershipEndDate` (calculated automatically)
    - Update `CreateMemberDto`: add optional `membershipPriceAtPurchase`
    - Update `UpdateMemberDto`: disallow `membershipPlanId` changes (v1 restriction)
    - Estimated effort: 2 hours
@@ -738,7 +738,7 @@ enum PlanStatus {
 - **REMOVED:** `membershipType: String`
 - **ADDED:** `membershipPlanId: String` (required, foreign key)
 - **ADDED:** `membershipPriceAtPurchase: Decimal?` (optional)
-- **KEPT:** `membershipStartAt: DateTime`, `membershipEndAt: DateTime` (unchanged)
+- **KEPT:** `membershipStartDate: DateTime`, `membershipEndDate: DateTime` (unchanged)
 
 ### Migrations
 
@@ -788,7 +788,7 @@ enum PlanStatus {
 ### Modified Endpoints
 
 **Member Management:**
-- `POST /api/v1/members` - Updated request: `membershipPlanId` (required) instead of `membershipType` (optional), `membershipEndAt` removed (calculated automatically)
+- `POST /api/v1/members` - Updated request: `membershipPlanId` (required) instead of `membershipType` (optional), `membershipEndDate` removed (calculated automatically)
 - `PATCH /api/v1/members/:id` - Updated: `membershipPlanId` not accepted (v1 restriction)
 - `GET /api/v1/members/:id` - Updated response: includes `membershipPlanId`, optional `membershipPlan` object (if `includePlan` query param)
 
@@ -801,7 +801,7 @@ enum PlanStatus {
 - `CreatePlanDto`, `UpdatePlanDto`, `PlanListQueryDto`
 
 **Modified Types:**
-- `CreateMemberDto`: `membershipPlanId: string` (required), removed `membershipType`, removed `membershipEndAt`
+- `CreateMemberDto`: `membershipPlanId: string` (required), removed `membershipType`, removed `membershipEndDate`
 - `Member` interface: `membershipPlanId: string`, `membershipPriceAtPurchase?: number`, removed `membershipType`
 
 ---

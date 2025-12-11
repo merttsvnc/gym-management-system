@@ -310,7 +310,7 @@ export class MembershipPlansService {
   }
 
   private async checkActiveMembers(planId: string): Promise<number> {
-    // Count active members (status=ACTIVE AND membershipEndAt>=today)
+    // Count active members (status=ACTIVE AND membershipEndDate>=today)
   }
 }
 ```
@@ -334,7 +334,7 @@ Modify `backend/src/members/members.service.ts`:
 async create(tenantId: string, dto: CreateMemberDto) {
   // Validate plan exists and is ACTIVE
   // Validate plan belongs to tenant
-  // Calculate membershipEndAt using duration calculator
+  // Calculate membershipEndDate using duration calculator
   // Set membershipPriceAtPurchase
   // Create member
 }
@@ -680,7 +680,7 @@ Before considering the feature complete:
 2. **Tenant Isolation:** Always filter by `tenantId` in service layer
 3. **Migration Order:** Run data migration before removing `membershipType` column
 4. **Plan Name Uniqueness:** Case-insensitive comparison required
-5. **Active Member Definition:** Only `status=ACTIVE AND membershipEndAt>=today` counts
+5. **Active Member Definition:** Only `status=ACTIVE AND membershipEndDate>=today` counts
 
 ---
 
