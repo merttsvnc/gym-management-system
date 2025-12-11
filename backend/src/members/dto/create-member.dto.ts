@@ -8,7 +8,9 @@ import {
   MinLength,
   MaxLength,
   Matches,
+  IsNumber,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { MemberGender } from '@prisma/client';
 
 export class CreateMemberDto {
@@ -55,11 +57,8 @@ export class CreateMemberDto {
   @IsUrl({}, { message: 'Geçerli bir URL giriniz' })
   photoUrl?: string;
 
-  @IsOptional()
-  @IsString({ message: 'Üyelik tipi metin olmalıdır' })
-  @MinLength(1, { message: 'Üyelik tipi en az 1 karakter olmalıdır' })
-  @MaxLength(50, { message: 'Üyelik tipi en fazla 50 karakter olabilir' })
-  membershipType?: string;
+  @IsString({ message: 'Üyelik planı ID gereklidir' })
+  membershipPlanId: string;
 
   @IsOptional()
   @IsDateString(
@@ -68,14 +67,12 @@ export class CreateMemberDto {
       message: 'Geçerli bir üyelik başlangıç tarihi formatı giriniz (ISO 8601)',
     },
   )
-  membershipStartAt?: string;
+  membershipStartDate?: string;
 
   @IsOptional()
-  @IsDateString(
-    {},
-    { message: 'Geçerli bir üyelik bitiş tarihi formatı giriniz (ISO 8601)' },
-  )
-  membershipEndAt?: string;
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Üyelik satın alma fiyatı sayı olmalıdır' })
+  membershipPriceAtPurchase?: number;
 
   @IsOptional()
   @IsString({ message: 'Notlar metin olmalıdır' })

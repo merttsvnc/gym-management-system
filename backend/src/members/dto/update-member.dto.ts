@@ -60,12 +60,6 @@ export class UpdateMemberDto {
   photoUrl?: string;
 
   @IsOptional()
-  @IsString({ message: 'Üyelik tipi metin olmalıdır' })
-  @MinLength(1, { message: 'Üyelik tipi en az 1 karakter olmalıdır' })
-  @MaxLength(50, { message: 'Üyelik tipi en fazla 50 karakter olabilir' })
-  membershipType?: string;
-
-  @IsOptional()
   @IsDateString(
     {},
     {

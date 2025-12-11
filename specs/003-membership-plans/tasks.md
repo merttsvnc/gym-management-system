@@ -124,11 +124,11 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### Member DTOs
 
-- [ ] T044 [P] Update CreateMemberDto to replace membershipType with membershipPlanId (required) in backend/src/members/dto/create-member.dto.ts
-- [ ] T045 [P] Remove membershipEndDate from CreateMemberDto in backend/src/members/dto/create-member.dto.ts
-- [ ] T046 [P] Add optional membershipPriceAtPurchase to CreateMemberDto in backend/src/members/dto/create-member.dto.ts
-- [ ] T047 [P] Add optional membershipStartDate to CreateMemberDto in backend/src/members/dto/create-member.dto.ts
-- [ ] T048 [P] Update UpdateMemberDto to disallow membershipPlanId changes in backend/src/members/dto/update-member.dto.ts
+- [x] T044 [P] Update CreateMemberDto to replace membershipType with membershipPlanId (required) in backend/src/members/dto/create-member.dto.ts
+- [x] T045 [P] Remove membershipEndDate from CreateMemberDto in backend/src/members/dto/create-member.dto.ts
+- [x] T046 [P] Add optional membershipPriceAtPurchase to CreateMemberDto in backend/src/members/dto/create-member.dto.ts
+- [x] T047 [P] Add optional membershipStartDate to CreateMemberDto in backend/src/members/dto/create-member.dto.ts
+- [x] T048 [P] Update UpdateMemberDto to disallow membershipPlanId changes in backend/src/members/dto/update-member.dto.ts
 
 ---
 
