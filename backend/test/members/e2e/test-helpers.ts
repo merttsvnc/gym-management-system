@@ -16,8 +16,10 @@ export async function createTestMember(
     gender: MemberGender;
     dateOfBirth: Date;
     membershipType: string;
-    membershipStartAt: Date;
-    membershipEndAt: Date;
+    membershipPlanId: string;
+    membershipStartDate: Date;
+    membershipEndDate: Date;
+    membershipPriceAtPurchase: number;
     status: MemberStatus;
     pausedAt: Date;
     resumedAt: Date;
@@ -25,10 +27,15 @@ export async function createTestMember(
   }>,
 ) {
   const now = new Date();
-  const defaultStartAt = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-  const defaultEndAt = new Date(
-    defaultStartAt.getTime() + 365 * 24 * 60 * 60 * 1000,
+  const defaultStartDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+  const defaultEndDate = new Date(
+    defaultStartDate.getTime() + 365 * 24 * 60 * 60 * 1000,
   ); // 1 year from start
+
+  // Get a default plan for the tenant
+  const defaultPlan = await prisma.membershipPlan.findFirst({
+    where: { tenantId, status: 'ACTIVE' },
+  });
 
   const phone =
     overrides?.phone ||
@@ -45,8 +52,10 @@ export async function createTestMember(
       gender: overrides?.gender,
       dateOfBirth: overrides?.dateOfBirth,
       membershipType: overrides?.membershipType || 'Basic',
-      membershipStartAt: overrides?.membershipStartAt || defaultStartAt,
-      membershipEndAt: overrides?.membershipEndAt || defaultEndAt,
+      membershipPlanId: overrides?.membershipPlanId || defaultPlan?.id,
+      membershipStartDate: overrides?.membershipStartDate || defaultStartDate,
+      membershipEndDate: overrides?.membershipEndDate || defaultEndDate,
+      membershipPriceAtPurchase: overrides?.membershipPriceAtPurchase || 100,
       status: overrides?.status || MemberStatus.ACTIVE,
       pausedAt: overrides?.pausedAt,
       resumedAt: overrides?.resumedAt,

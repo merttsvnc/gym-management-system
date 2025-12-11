@@ -47,7 +47,7 @@ describe('MembersService', () => {
               name: 'Basic Plan',
               durationType: 'MONTHS',
               durationValue: 1,
-              price: 100,
+              price: { toNumber: () => 100 },
               currency: 'USD',
               status: 'ACTIVE',
               tenantId: 'tenant-1',
@@ -84,6 +84,7 @@ describe('MembersService', () => {
       gender: MemberGender.MALE,
       dateOfBirth: '1990-01-01',
       membershipType: 'Premium',
+      membershipPlanId: 'plan-1',
     };
 
     it('should create a member successfully with valid data', async () => {
@@ -103,8 +104,9 @@ describe('MembersService', () => {
         dateOfBirth: new Date('1990-01-01'),
         photoUrl: null,
         membershipType: 'Premium',
-        membershipStartAt: startDate,
-        membershipEndAt: endDate,
+        membershipPlanId: 'plan-1',
+        membershipStartDate: startDate,
+        membershipEndDate: endDate,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -188,8 +190,8 @@ describe('MembersService', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         phone: '+1234567890',
-        membershipStartAt: startDate,
-        membershipEndAt: endDate,
+        membershipStartDate: startDate,
+        membershipEndDate: endDate,
         status: 'ACTIVE',
       } as any);
 
@@ -213,8 +215,8 @@ describe('MembersService', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         membershipType: 'Basic',
-        membershipStartAt: startDate,
-        membershipEndAt: endDate,
+        membershipStartDate: startDate,
+        membershipEndDate: endDate,
         status: 'ACTIVE',
       } as any);
 
@@ -232,21 +234,21 @@ describe('MembersService', () => {
     it('should set default 1-year membership duration if dates not provided', async () => {
       const mockBranch = { id: branchId, tenantId };
       const dtoWithoutDates = { ...createDto };
-      delete (dtoWithoutDates as any).membershipStartAt;
-      delete (dtoWithoutDates as any).membershipEndAt;
+      delete (dtoWithoutDates as any).membershipStartDate;
+      delete (dtoWithoutDates as any).membershipEndDate;
 
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
       mockPrismaService.member.create.mockImplementation(({ data }) => {
-        const startAt = data.membershipStartAt;
-        const endAt = data.membershipEndAt;
+        const startAt = data.membershipStartDate;
+        const endAt = data.membershipEndDate;
         const diffInDays =
           (endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60 * 24);
         expect(diffInDays).toBeCloseTo(365, 0);
         return Promise.resolve({
           id: 'member-1',
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: 'ACTIVE',
         } as any);
       });
@@ -258,8 +260,8 @@ describe('MembersService', () => {
       const mockBranch = { id: branchId, tenantId };
       const invalidDto = {
         ...createDto,
-        membershipStartAt: '2024-12-31',
-        membershipEndAt: '2024-01-01',
+        membershipStartDate: '2024-12-31',
+        membershipEndDate: '2024-01-01',
       };
 
       mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
@@ -291,8 +293,8 @@ describe('MembersService', () => {
       mockPrismaService.member.findFirst.mockResolvedValue(null);
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
-        membershipStartAt: trimTestStartDate,
-        membershipEndAt: trimTestEndDate,
+        membershipStartDate: trimTestStartDate,
+        membershipEndDate: trimTestEndDate,
         status: 'ACTIVE',
       } as any);
 
@@ -324,8 +326,8 @@ describe('MembersService', () => {
           id: 'member-1',
           tenantId,
           firstName: 'John',
-          membershipStartAt: new Date(),
-          membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          membershipStartDate: new Date(),
+          membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           status: MemberStatus.ACTIVE,
           pausedAt: null,
           resumedAt: null,
@@ -334,8 +336,8 @@ describe('MembersService', () => {
           id: 'member-2',
           tenantId,
           firstName: 'Jane',
-          membershipStartAt: new Date(),
-          membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          membershipStartDate: new Date(),
+          membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           status: MemberStatus.ACTIVE,
           pausedAt: null,
           resumedAt: null,
@@ -486,8 +488,8 @@ describe('MembersService', () => {
         tenantId,
         firstName: 'John',
         lastName: 'Doe',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -546,8 +548,8 @@ describe('MembersService', () => {
       lastName: 'Doe',
       phone: '+1234567890',
       email: 'john@example.com',
-      membershipStartAt: new Date('2024-01-01'),
-      membershipEndAt: new Date('2025-01-01'),
+      membershipStartDate: new Date('2024-01-01'),
+      membershipEndDate: new Date('2025-01-01'),
       status: MemberStatus.ACTIVE,
       pausedAt: null,
       resumedAt: null,
@@ -625,8 +627,8 @@ describe('MembersService', () => {
 
     it('should throw BadRequestException if membershipEndAt is before membershipStartAt', async () => {
       const updateDto = {
-        membershipStartAt: '2024-12-31',
-        membershipEndAt: '2024-01-01',
+        membershipStartDate: '2024-12-31',
+        membershipEndDate: '2024-01-01',
       };
 
       await expect(
@@ -671,8 +673,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.ACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         pausedAt: null,
         resumedAt: null,
       };
@@ -705,8 +707,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.PAUSED,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         pausedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
         resumedAt: null,
       };
@@ -738,8 +740,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.ARCHIVED,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: null,
         resumedAt: null,
       };
@@ -763,8 +765,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.ACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: null,
         resumedAt: null,
       };
@@ -790,8 +792,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.INACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: null,
         resumedAt: null,
       };
@@ -815,8 +817,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.ACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: null,
         resumedAt: null,
       };
@@ -839,8 +841,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.PAUSED,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: new Date(),
         resumedAt: null,
       };
@@ -873,8 +875,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.INACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: null,
         resumedAt: null,
       };
@@ -916,15 +918,15 @@ describe('MembersService', () => {
         const now = new Date('2024-01-15T10:00:00Z');
         jest.setSystemTime(now);
 
-        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
-        const membershipEndAt = new Date('2025-01-01T00:00:00Z');
+        const membershipStartDate = new Date('2024-01-01T00:00:00Z');
+        const membershipEndDate = new Date('2025-01-01T00:00:00Z');
 
         const mockMember = {
           id: memberId,
           tenantId,
           status: MemberStatus.ACTIVE,
-          membershipStartAt,
-          membershipEndAt,
+          membershipStartDate,
+          membershipEndDate,
           pausedAt: null,
           resumedAt: null,
         };
@@ -945,8 +947,8 @@ describe('MembersService', () => {
         expect(result.pausedAt).toBeDefined();
         expect(result.pausedAt?.getTime()).toBe(now.getTime());
         expect(result.resumedAt).toBeNull();
-        expect(result.membershipEndAt.getTime()).toBe(
-          membershipEndAt.getTime(),
+        expect(result.membershipEndDate.getTime()).toBe(
+          membershipEndDate.getTime(),
         );
 
         expect(mockPrismaService.member.update).toHaveBeenCalledWith(
@@ -968,8 +970,8 @@ describe('MembersService', () => {
           id: memberId,
           tenantId,
           status: MemberStatus.PAUSED,
-          membershipStartAt: new Date('2024-01-01T00:00:00Z'),
-          membershipEndAt: new Date('2025-01-01T00:00:00Z'),
+          membershipStartDate: new Date('2024-01-01T00:00:00Z'),
+          membershipEndDate: new Date('2025-01-01T00:00:00Z'),
           pausedAt: null, // Invalid: PAUSED but no pausedAt
           resumedAt: null,
         };
@@ -992,7 +994,7 @@ describe('MembersService', () => {
         const now = new Date('2024-01-25T10:00:00Z');
         jest.setSystemTime(now);
 
-        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const membershipStartDate = new Date('2024-01-01T00:00:00Z');
         const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
         const pausedAt = new Date('2024-01-15T10:00:00Z'); // Paused 10 days ago
 
@@ -1005,8 +1007,8 @@ describe('MembersService', () => {
           id: memberId,
           tenantId,
           status: MemberStatus.PAUSED,
-          membershipStartAt,
-          membershipEndAt: originalMembershipEndAt,
+          membershipStartDate,
+          membershipEndDate: originalMembershipEndAt,
           pausedAt,
           resumedAt: null,
         };
@@ -1027,7 +1029,7 @@ describe('MembersService', () => {
         expect(result.resumedAt).toBeDefined();
         expect(result.resumedAt?.getTime()).toBe(now.getTime());
         expect(result.pausedAt).toBeNull();
-        expect(result.membershipEndAt.getTime()).toBe(
+        expect(result.membershipEndDate.getTime()).toBe(
           expectedNewEndAt.getTime(),
         );
 
@@ -1037,14 +1039,14 @@ describe('MembersService', () => {
               status: MemberStatus.ACTIVE,
               pausedAt: null,
               resumedAt: expect.any(Date),
-              membershipEndAt: expect.any(Date),
+              membershipEndDate: expect.any(Date),
             }),
           }),
         );
 
         // Verify membershipEndAt was extended by pause duration
         const updateCall = mockPrismaService.member.update.mock.calls[0][0];
-        const extendedEndAt = updateCall.data.membershipEndAt;
+        const extendedEndAt = updateCall.data.membershipEndDate;
         expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
       });
     });
@@ -1055,7 +1057,7 @@ describe('MembersService', () => {
         const now = new Date('2024-01-16T10:00:00Z');
         jest.setSystemTime(now);
 
-        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const membershipStartDate = new Date('2024-01-01T00:00:00Z');
         const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
         const pausedAt = new Date('2024-01-15T10:00:00Z'); // 1 day ago
 
@@ -1068,8 +1070,8 @@ describe('MembersService', () => {
           id: memberId,
           tenantId,
           status: MemberStatus.PAUSED,
-          membershipStartAt,
-          membershipEndAt: originalMembershipEndAt,
+          membershipStartDate,
+          membershipEndDate: originalMembershipEndAt,
           pausedAt,
           resumedAt: null,
         };
@@ -1087,7 +1089,7 @@ describe('MembersService', () => {
         });
 
         const updateCall = mockPrismaService.member.update.mock.calls[0][0];
-        const extendedEndAt = updateCall.data.membershipEndAt;
+        const extendedEndAt = updateCall.data.membershipEndDate;
         expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
       });
 
@@ -1095,7 +1097,7 @@ describe('MembersService', () => {
         const now = new Date('2024-01-22T10:00:00Z');
         jest.setSystemTime(now);
 
-        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const membershipStartDate = new Date('2024-01-01T00:00:00Z');
         const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
         const pausedAt = new Date('2024-01-15T10:00:00Z'); // 7 days ago
 
@@ -1108,8 +1110,8 @@ describe('MembersService', () => {
           id: memberId,
           tenantId,
           status: MemberStatus.PAUSED,
-          membershipStartAt,
-          membershipEndAt: originalMembershipEndAt,
+          membershipStartDate,
+          membershipEndDate: originalMembershipEndAt,
           pausedAt,
           resumedAt: null,
         };
@@ -1127,7 +1129,7 @@ describe('MembersService', () => {
         });
 
         const updateCall = mockPrismaService.member.update.mock.calls[0][0];
-        const extendedEndAt = updateCall.data.membershipEndAt;
+        const extendedEndAt = updateCall.data.membershipEndDate;
         expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
       });
 
@@ -1135,7 +1137,7 @@ describe('MembersService', () => {
         const now = new Date('2024-02-14T10:00:00Z');
         jest.setSystemTime(now);
 
-        const membershipStartAt = new Date('2024-01-01T00:00:00Z');
+        const membershipStartDate = new Date('2024-01-01T00:00:00Z');
         const originalMembershipEndAt = new Date('2025-01-01T00:00:00Z');
         const pausedAt = new Date('2024-01-15T10:00:00Z'); // 30 days ago
 
@@ -1148,8 +1150,8 @@ describe('MembersService', () => {
           id: memberId,
           tenantId,
           status: MemberStatus.PAUSED,
-          membershipStartAt,
-          membershipEndAt: originalMembershipEndAt,
+          membershipStartDate,
+          membershipEndDate: originalMembershipEndAt,
           pausedAt,
           resumedAt: null,
         };
@@ -1167,7 +1169,7 @@ describe('MembersService', () => {
         });
 
         const updateCall = mockPrismaService.member.update.mock.calls[0][0];
-        const extendedEndAt = updateCall.data.membershipEndAt;
+        const extendedEndAt = updateCall.data.membershipEndDate;
         expect(extendedEndAt.getTime()).toBe(expectedNewEndAt.getTime());
       });
 
@@ -1179,8 +1181,8 @@ describe('MembersService', () => {
           id: memberId,
           tenantId,
           status: MemberStatus.PAUSED,
-          membershipStartAt: new Date('2024-01-01T00:00:00Z'),
-          membershipEndAt: new Date('2025-01-01T00:00:00Z'),
+          membershipStartDate: new Date('2024-01-01T00:00:00Z'),
+          membershipEndDate: new Date('2025-01-01T00:00:00Z'),
           pausedAt: null,
           resumedAt: null,
         };
@@ -1213,8 +1215,8 @@ describe('MembersService', () => {
         // Day 0: Start of membership
         jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
         const memberDay0 = {
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: MemberStatus.ACTIVE,
           pausedAt: null,
           resumedAt: null,
@@ -1226,8 +1228,8 @@ describe('MembersService', () => {
         // Day 30: 30 days elapsed
         jest.setSystemTime(new Date('2024-01-31T00:00:00Z'));
         const memberDay30 = {
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: MemberStatus.ACTIVE,
           pausedAt: null,
           resumedAt: null,
@@ -1246,8 +1248,8 @@ describe('MembersService', () => {
         // Day 15: Just paused
         jest.setSystemTime(new Date('2024-01-15T10:00:00Z'));
         const memberDay15 = {
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: MemberStatus.PAUSED,
           pausedAt,
           resumedAt: null,
@@ -1257,8 +1259,8 @@ describe('MembersService', () => {
         // Day 20: Still paused (5 days later)
         jest.setSystemTime(new Date('2024-01-20T10:00:00Z'));
         const memberDay20 = {
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: MemberStatus.PAUSED,
           pausedAt,
           resumedAt: null,
@@ -1268,8 +1270,8 @@ describe('MembersService', () => {
         // Day 30: Still paused (15 days later)
         jest.setSystemTime(new Date('2024-01-30T10:00:00Z'));
         const memberDay30 = {
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: MemberStatus.PAUSED,
           pausedAt,
           resumedAt: null,
@@ -1297,8 +1299,8 @@ describe('MembersService', () => {
         // After resume: membershipEndAt was extended
         jest.setSystemTime(new Date('2024-01-26T10:00:00Z'));
         const memberAfterResume = {
-          membershipStartAt: startAt,
-          membershipEndAt: extendedEndAt, // Extended by pause duration
+          membershipStartDate: startAt,
+          membershipEndDate: extendedEndAt, // Extended by pause duration
           status: MemberStatus.ACTIVE,
           pausedAt: null, // Cleared after resume
           resumedAt,
@@ -1320,8 +1322,8 @@ describe('MembersService', () => {
 
         jest.setSystemTime(new Date('2024-01-15T10:00:00Z'));
         const member = {
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: MemberStatus.ACTIVE,
           pausedAt: null,
           resumedAt: null,
@@ -1340,8 +1342,8 @@ describe('MembersService', () => {
         // 90 days paused
         jest.setSystemTime(new Date('2024-04-15T10:00:00Z'));
         const member = {
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: MemberStatus.PAUSED,
           pausedAt,
           resumedAt: null,
@@ -1368,8 +1370,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.ACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: null,
         resumedAt: null,
       };
@@ -1400,8 +1402,8 @@ describe('MembersService', () => {
         id: memberId,
         tenantId,
         status: MemberStatus.ARCHIVED,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(),
         pausedAt: null,
         resumedAt: null,
       };

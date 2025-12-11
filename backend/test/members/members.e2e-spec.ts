@@ -85,10 +85,40 @@ describe('Members E2E Tests', () => {
       tenantId: tenant2.id,
       email: user2.email,
     });
+
+    // Create default membership plans for each tenant
+    await prisma.membershipPlan.create({
+      data: {
+        id: 'plan-tenant1',
+        tenantId: tenant1.id,
+        name: 'Basic Plan',
+        durationType: 'MONTHS',
+        durationValue: 1,
+        price: 100,
+        currency: 'USD',
+        status: 'ACTIVE',
+      },
+    });
+
+    await prisma.membershipPlan.create({
+      data: {
+        id: 'plan-tenant2',
+        tenantId: tenant2.id,
+        name: 'Basic Plan',
+        durationType: 'MONTHS',
+        durationValue: 1,
+        price: 100,
+        currency: 'USD',
+        status: 'ACTIVE',
+      },
+    });
   });
 
   afterAll(async () => {
     await cleanupTestMembers(prisma, [tenant1.id, tenant2.id]);
+    await prisma.membershipPlan.deleteMany({
+      where: { tenantId: { in: [tenant1.id, tenant2.id] } },
+    });
     await cleanupTestData(prisma, [tenant1.id, tenant2.id]);
     await app.close();
   });
@@ -135,6 +165,7 @@ describe('Members E2E Tests', () => {
           firstName: 'Ahmet',
           lastName: 'Yılmaz',
           phone: '+905551234567',
+          membershipPlanId: 'plan-tenant1',
         };
 
         const response = await request(app.getHttpServer())

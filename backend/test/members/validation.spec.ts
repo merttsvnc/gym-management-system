@@ -46,7 +46,7 @@ describe('MembersService - Validation', () => {
               name: 'Basic Plan',
               durationType: 'MONTHS',
               durationValue: 1,
-              price: 100,
+              price: { toNumber: () => 100 },
               currency: 'USD',
               status: 'ACTIVE',
               tenantId: 'tenant-1',
@@ -80,13 +80,14 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '  +1234567890  ',
+        membershipPlanId: 'plan-1',
       };
 
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         phone: '+1234567890',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -171,8 +172,8 @@ describe('MembersService - Validation', () => {
         id: 'member-in-tenant1',
         phone,
         tenantId: tenant1,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -193,8 +194,8 @@ describe('MembersService - Validation', () => {
         phone: oldPhone,
         firstName: 'John',
         lastName: 'Doe',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -244,8 +245,8 @@ describe('MembersService - Validation', () => {
         id: 'member-1',
         firstName: 'John',
         lastName: 'Doe',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -275,8 +276,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         email: 'john@example.com',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -305,8 +306,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         notes: 'Important notes here',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -332,8 +333,8 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -384,8 +385,8 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
-        membershipStartAt: '2024-12-31',
-        membershipEndAt: '2024-01-01',
+        membershipStartDate: '2024-12-31',
+        membershipEndDate: '2024-01-01',
       };
 
       await expect(service.create(tenantId, createDto)).rejects.toThrow(
@@ -402,8 +403,8 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
-        membershipStartAt: '2024-06-15',
-        membershipEndAt: '2024-06-15',
+        membershipStartDate: '2024-06-15',
+        membershipEndDate: '2024-06-15',
       };
 
       await expect(service.create(tenantId, createDto)).rejects.toThrow(
@@ -420,8 +421,8 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
-        membershipStartAt: new Date('2024-01-01'),
-        membershipEndAt: new Date('2025-01-01'),
+        membershipStartDate: new Date('2024-01-01'),
+        membershipEndDate: new Date('2025-01-01'),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -430,8 +431,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.findUnique.mockResolvedValue(existingMember);
 
       const updateDto = {
-        membershipStartAt: '2024-12-31',
-        membershipEndAt: '2024-01-01',
+        membershipStartDate: '2024-12-31',
+        membershipEndDate: '2024-01-01',
       };
 
       await expect(
@@ -445,14 +446,14 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
-        membershipStartAt: '2024-01-01',
-        membershipEndAt: '2025-01-01',
+        membershipStartDate: '2024-01-01',
+        membershipEndDate: '2025-01-01',
       };
 
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
-        membershipStartAt: new Date('2024-01-01'),
-        membershipEndAt: new Date('2025-01-01'),
+        membershipStartDate: new Date('2024-01-01'),
+        membershipEndDate: new Date('2025-01-01'),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -473,8 +474,8 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
-        membershipStartAt: new Date('2024-06-01'),
-        membershipEndAt: new Date('2025-06-01'),
+        membershipStartDate: new Date('2024-06-01'),
+        membershipEndDate: new Date('2025-06-01'),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -484,7 +485,7 @@ describe('MembersService - Validation', () => {
 
       // Try to set end date before existing start date
       const updateDto = {
-        membershipEndAt: '2024-01-01',
+        membershipEndDate: '2024-01-01',
       };
 
       await expect(
@@ -501,8 +502,8 @@ describe('MembersService - Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         phone: '+1234567890',
-        membershipStartAt: new Date('2024-01-01'),
-        membershipEndAt: new Date('2024-06-01'),
+        membershipStartDate: new Date('2024-01-01'),
+        membershipEndDate: new Date('2024-06-01'),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -512,7 +513,7 @@ describe('MembersService - Validation', () => {
 
       // Try to set start date after existing end date
       const updateDto = {
-        membershipStartAt: '2024-12-01',
+        membershipStartDate: '2024-12-01',
       };
 
       await expect(
@@ -544,8 +545,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         membershipType: 'Basic',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -574,8 +575,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         membershipType: 'Premium',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -602,7 +603,7 @@ describe('MembersService - Validation', () => {
 
       mockPrismaService.member.create.mockImplementation(({ data }) => {
         const now = new Date();
-        const startAt = data.membershipStartAt;
+        const startAt = data.membershipStartDate;
         const diffInSeconds =
           Math.abs(now.getTime() - startAt.getTime()) / 1000;
 
@@ -611,8 +612,8 @@ describe('MembersService - Validation', () => {
 
         return Promise.resolve({
           id: 'member-1',
-          membershipStartAt: startAt,
-          membershipEndAt: data.membershipEndAt,
+          membershipStartDate: startAt,
+          membershipEndDate: data.membershipEndDate,
           status: 'ACTIVE',
           pausedAt: null,
           resumedAt: null,
@@ -631,8 +632,8 @@ describe('MembersService - Validation', () => {
       };
 
       mockPrismaService.member.create.mockImplementation(({ data }) => {
-        const startAt = data.membershipStartAt;
-        const endAt = data.membershipEndAt;
+        const startAt = data.membershipStartDate;
+        const endAt = data.membershipEndDate;
         const diffInDays =
           (endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60 * 24);
 
@@ -641,8 +642,8 @@ describe('MembersService - Validation', () => {
 
         return Promise.resolve({
           id: 'member-1',
-          membershipStartAt: startAt,
-          membershipEndAt: endAt,
+          membershipStartDate: startAt,
+          membershipEndDate: endAt,
           status: 'ACTIVE',
           pausedAt: null,
           resumedAt: null,
@@ -663,8 +664,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         status: 'ACTIVE',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         pausedAt: null,
         resumedAt: null,
       } as any);
@@ -705,8 +706,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         email: null,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -729,8 +730,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         gender: null,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -753,8 +754,8 @@ describe('MembersService - Validation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         dateOfBirth: null,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,
@@ -781,8 +782,8 @@ describe('MembersService - Validation', () => {
         lastName: 'Doe',
         phone: '+1234567890',
         email: 'old@example.com',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: 'ACTIVE',
         pausedAt: null,
         resumedAt: null,

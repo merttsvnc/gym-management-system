@@ -49,7 +49,7 @@ describe('MembersService - Tenant Isolation', () => {
               name: 'Basic Plan',
               durationType: 'MONTHS',
               durationValue: 1,
-              price: 100,
+              price: { toNumber: () => 100 },
               currency: 'USD',
               status: 'ACTIVE',
               tenantId: 'tenant-1',
@@ -92,8 +92,8 @@ describe('MembersService - Tenant Isolation', () => {
         tenantId: tenant1Id,
         firstName: 'John',
         lastName: 'Doe',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -164,8 +164,8 @@ describe('MembersService - Tenant Isolation', () => {
         branchId: 'branch-1-tenant1',
         firstName: 'John',
         phone: '+1234567890',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       };
 
       const branchFromTenant2 = {
@@ -193,8 +193,8 @@ describe('MembersService - Tenant Isolation', () => {
         branchId: 'branch-1-tenant1',
         firstName: 'John',
         phone: '+1234567890',
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       };
 
       const branchFromSameTenant = {
@@ -245,8 +245,8 @@ describe('MembersService - Tenant Isolation', () => {
         id: memberId,
         tenantId: tenant1Id,
         status: MemberStatus.ACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         pausedAt: null,
         resumedAt: null,
       };
@@ -289,8 +289,8 @@ describe('MembersService - Tenant Isolation', () => {
         id: memberId,
         tenantId: tenant1Id,
         status: MemberStatus.ACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         pausedAt: null,
         resumedAt: null,
       };
@@ -317,8 +317,8 @@ describe('MembersService - Tenant Isolation', () => {
           id: 'member-1',
           tenantId: tenant1Id,
           firstName: 'John',
-          membershipStartAt: new Date(),
-          membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          membershipStartDate: new Date(),
+          membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           status: MemberStatus.ACTIVE,
           pausedAt: null,
           resumedAt: null,
@@ -327,8 +327,8 @@ describe('MembersService - Tenant Isolation', () => {
           id: 'member-2',
           tenantId: tenant1Id,
           firstName: 'Jane',
-          membershipStartAt: new Date(),
-          membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          membershipStartDate: new Date(),
+          membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           status: MemberStatus.ACTIVE,
           pausedAt: null,
           resumedAt: null,
@@ -435,8 +435,8 @@ describe('MembersService - Tenant Isolation', () => {
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
         phone,
-        membershipStartAt: startDate,
-        membershipEndAt: endDate,
+        membershipStartDate: startDate,
+        membershipEndDate: endDate,
         status: 'ACTIVE',
       } as any);
 
@@ -474,8 +474,8 @@ describe('MembersService - Tenant Isolation', () => {
         lastName: 'Doe',
         phone: '+1234567890',
         status: MemberStatus.ACTIVE,
-        membershipStartAt: new Date(),
-        membershipEndAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        membershipStartDate: new Date(),
+        membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         pausedAt: null,
         resumedAt: null,
       } as any);
