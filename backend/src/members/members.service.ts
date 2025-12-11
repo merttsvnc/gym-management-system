@@ -236,10 +236,16 @@ export class MembersService {
    * Get a member by ID
    * Business rules:
    * - Enforces tenant isolation - throws NotFoundException if member doesn't belong to tenant
+   * - Optionally includes membership plan details if includePlan is true
    */
-  async findOne(tenantId: string, id: string) {
+  async findOne(tenantId: string, id: string, includePlan = false) {
     const member = await this.prisma.member.findUnique({
       where: { id },
+      include: includePlan
+        ? {
+            membershipPlan: true,
+          }
+        : undefined,
     });
 
     if (!member) {

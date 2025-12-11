@@ -220,3 +220,4 @@ export function formatDuration(
   return `${durationValue} ${durationValue === 1 ? 'month' : 'months'}`;
 }
 
+

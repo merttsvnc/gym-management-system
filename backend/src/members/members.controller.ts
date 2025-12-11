@@ -40,10 +40,16 @@ export class MembersController {
    * GET /api/v1/members/:id
    * Gets a single member by ID
    * Returns 404 if member doesn't belong to tenant
+   * Query parameter includePlan: if true, includes full membershipPlan object in response
    */
   @Get(':id')
-  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
-    return this.membersService.findOne(tenantId, id);
+  findOne(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Query('includePlan') includePlan?: string,
+  ) {
+    const shouldIncludePlan = includePlan === 'true';
+    return this.membersService.findOne(tenantId, id, shouldIncludePlan);
   }
 
   /**

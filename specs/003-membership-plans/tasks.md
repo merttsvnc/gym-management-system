@@ -146,36 +146,36 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### Plan DTOs
 
-- [ ] T049 [P] Create CreatePlanDto with validation decorators in backend/src/membership-plans/dto/create-plan.dto.ts
-- [ ] T050 [P] Create UpdatePlanDto with optional fields in backend/src/membership-plans/dto/update-plan.dto.ts
-- [ ] T051 [P] Create PlanListQueryDto for query parameters in backend/src/membership-plans/dto/plan-list-query.dto.ts
+- [x] T049 [P] Create CreatePlanDto with validation decorators in backend/src/membership-plans/dto/create-plan.dto.ts
+- [x] T050 [P] Create UpdatePlanDto with optional fields in backend/src/membership-plans/dto/update-plan.dto.ts
+- [x] T051 [P] Create PlanListQueryDto for query parameters in backend/src/membership-plans/dto/plan-list-query.dto.ts
 
 ### Plan Controller
 
-- [ ] T052 [P] Create MembershipPlansController file in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T053 [P] Implement GET /api/v1/membership-plans list endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T054 [P] Implement GET /api/v1/membership-plans/active endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T055 [P] Implement GET /api/v1/membership-plans/:id endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T056 [P] Implement POST /api/v1/membership-plans create endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T057 [P] Implement PATCH /api/v1/membership-plans/:id update endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T058 [P] Implement POST /api/v1/membership-plans/:id/archive endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T059 [P] Implement POST /api/v1/membership-plans/:id/restore endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T060 [P] Implement DELETE /api/v1/membership-plans/:id endpoint in backend/src/membership-plans/membership-plans.controller.ts
-- [ ] T061 Add JWT and role guards to all plan endpoints in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T052 [P] Create MembershipPlansController file in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T053 [P] Implement GET /api/v1/membership-plans list endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T054 [P] Implement GET /api/v1/membership-plans/active endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T055 [P] Implement GET /api/v1/membership-plans/:id endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T056 [P] Implement POST /api/v1/membership-plans create endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T057 [P] Implement PATCH /api/v1/membership-plans/:id update endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T058 [P] Implement POST /api/v1/membership-plans/:id/archive endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T059 [P] Implement POST /api/v1/membership-plans/:id/restore endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T060 [P] Implement DELETE /api/v1/membership-plans/:id endpoint in backend/src/membership-plans/membership-plans.controller.ts
+- [x] T061 Add JWT and role guards to all plan endpoints in backend/src/membership-plans/membership-plans.controller.ts
 
 ### Module Setup
 
-- [ ] T062 [P] Create MembershipPlansModule in backend/src/membership-plans/membership-plans.module.ts
-- [ ] T063 Import PrismaModule in MembershipPlansModule in backend/src/membership-plans/membership-plans.module.ts
-- [ ] T064 Provide MembershipPlansService in MembershipPlansModule in backend/src/membership-plans/membership-plans.module.ts
-- [ ] T065 Export MembershipPlansService for use in MembersModule in backend/src/membership-plans/membership-plans.module.ts
-- [ ] T066 Register MembershipPlansModule in AppModule in backend/src/app.module.ts
+- [x] T062 [P] Create MembershipPlansModule in backend/src/membership-plans/membership-plans.module.ts
+- [x] T063 Import PrismaModule in MembershipPlansModule in backend/src/membership-plans/membership-plans.module.ts
+- [x] T064 Provide MembershipPlansService in MembershipPlansModule in backend/src/membership-plans/membership-plans.module.ts
+- [x] T065 Export MembershipPlansService for use in MembersModule in backend/src/membership-plans/membership-plans.module.ts
+- [x] T066 Register MembershipPlansModule in AppModule in backend/src/app.module.ts
 
 ### Member Controller Updates
 
-- [ ] T067 Update MembersController create endpoint to use new CreateMemberDto in backend/src/members/members.controller.ts
-- [ ] T068 Add includePlan query parameter support to MembersController get endpoint in backend/src/members/members.controller.ts
-- [ ] T069 Import MembershipPlansService in MembersModule in backend/src/members/members.module.ts
+- [x] T067 Update MembersController create endpoint to use new CreateMemberDto in backend/src/members/members.controller.ts
+- [x] T068 Add includePlan query parameter support to MembersController get endpoint in backend/src/members/members.controller.ts
+- [x] T069 Import MembershipPlansService in MembersModule in backend/src/members/members.module.ts
 
 ---
 
