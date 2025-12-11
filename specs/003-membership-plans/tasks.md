@@ -192,45 +192,45 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### API Client
 
-- [ ] T070 [P] Create membership plans API client file in frontend/src/api/membership-plans.ts
-- [ ] T071 [P] Implement listPlans function with query params in frontend/src/api/membership-plans.ts
-- [ ] T072 [P] Implement getActivePlans function in frontend/src/api/membership-plans.ts
-- [ ] T073 [P] Implement getPlan function in frontend/src/api/membership-plans.ts
-- [ ] T074 [P] Implement createPlan function in frontend/src/api/membership-plans.ts
-- [ ] T075 [P] Implement updatePlan function in frontend/src/api/membership-plans.ts
-- [ ] T076 [P] Implement archivePlan function in frontend/src/api/membership-plans.ts
-- [ ] T077 [P] Implement restorePlan function in frontend/src/api/membership-plans.ts
-- [ ] T078 [P] Implement deletePlan function in frontend/src/api/membership-plans.ts
+- [x] T070 [P] Create membership plans API client file in frontend/src/api/membership-plans.ts
+- [x] T071 [P] Implement listPlans function with query params in frontend/src/api/membership-plans.ts
+- [x] T072 [P] Implement getActivePlans function in frontend/src/api/membership-plans.ts
+- [x] T073 [P] Implement getPlan function in frontend/src/api/membership-plans.ts
+- [x] T074 [P] Implement createPlan function in frontend/src/api/membership-plans.ts
+- [x] T075 [P] Implement updatePlan function in frontend/src/api/membership-plans.ts
+- [x] T076 [P] Implement archivePlan function in frontend/src/api/membership-plans.ts
+- [x] T077 [P] Implement restorePlan function in frontend/src/api/membership-plans.ts
+- [x] T078 [P] Implement deletePlan function in frontend/src/api/membership-plans.ts
 
 ### React Query Hooks
 
-- [ ] T079 [P] Create use-membership-plans hooks file in frontend/src/hooks/use-membership-plans.ts
-- [ ] T080 [P] Implement useMembershipPlans hook for list with filters in frontend/src/hooks/use-membership-plans.ts
-- [ ] T081 [P] Implement useActivePlans hook for dropdowns in frontend/src/hooks/use-membership-plans.ts
-- [ ] T082 [P] Implement useMembershipPlan hook for single plan in frontend/src/hooks/use-membership-plans.ts
-- [ ] T083 [P] Implement useCreatePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
-- [ ] T084 [P] Implement useUpdatePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
-- [ ] T085 [P] Implement useArchivePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
-- [ ] T086 [P] Implement useRestorePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
-- [ ] T087 [P] Implement useDeletePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
+- [x] T079 [P] Create use-membership-plans hooks file in frontend/src/hooks/use-membership-plans.ts
+- [x] T080 [P] Implement useMembershipPlans hook for list with filters in frontend/src/hooks/use-membership-plans.ts
+- [x] T081 [P] Implement useActivePlans hook for dropdowns in frontend/src/hooks/use-membership-plans.ts
+- [x] T082 [P] Implement useMembershipPlan hook for single plan in frontend/src/hooks/use-membership-plans.ts
+- [x] T083 [P] Implement useCreatePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
+- [x] T084 [P] Implement useUpdatePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
+- [x] T085 [P] Implement useArchivePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
+- [x] T086 [P] Implement useRestorePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
+- [x] T087 [P] Implement useDeletePlan mutation hook in frontend/src/hooks/use-membership-plans.ts
 
 ### TypeScript Types
 
-- [ ] T088 [P] Create membership-plan types file in frontend/src/types/membership-plan.ts
-- [ ] T089 [P] Add MembershipPlan interface in frontend/src/types/membership-plan.ts
-- [ ] T090 [P] Add DurationType enum in frontend/src/types/membership-plan.ts
-- [ ] T091 [P] Add PlanStatus enum in frontend/src/types/membership-plan.ts
-- [ ] T092 [P] Update Member interface to remove membershipType in frontend/src/types/member.ts
-- [ ] T093 [P] Update Member interface to add membershipPlanId in frontend/src/types/member.ts
-- [ ] T094 [P] Update Member interface to add membershipPriceAtPurchase in frontend/src/types/member.ts
-- [ ] T095 [P] Update Member interface to add optional membershipPlan relation in frontend/src/types/member.ts
+- [x] T088 [P] Create membership-plan types file in frontend/src/types/membership-plan.ts
+- [x] T089 [P] Add MembershipPlan interface in frontend/src/types/membership-plan.ts
+- [x] T090 [P] Add DurationType enum in frontend/src/types/membership-plan.ts
+- [x] T091 [P] Add PlanStatus enum in frontend/src/types/membership-plan.ts
+- [x] T092 [P] Update Member interface to remove membershipType in frontend/src/types/member.ts
+- [x] T093 [P] Update Member interface to add membershipPlanId in frontend/src/types/member.ts
+- [x] T094 [P] Update Member interface to add membershipPriceAtPurchase in frontend/src/types/member.ts
+- [x] T095 [P] Update Member interface to add optional membershipPlan relation in frontend/src/types/member.ts
 
 ### Member API Client Updates
 
-- [ ] T096 [P] Update createMember function to use membershipPlanId in frontend/src/api/members.ts
-- [ ] T097 [P] Update createMember function to remove membershipType in frontend/src/api/members.ts
-- [ ] T098 [P] Update createMember function to add optional membershipStartDate in frontend/src/api/members.ts
-- [ ] T099 [P] Update createMember function to add optional membershipPriceAtPurchase in frontend/src/api/members.ts
+- [x] T096 [P] Update createMember function to use membershipPlanId in frontend/src/api/members.ts
+- [x] T097 [P] Update createMember function to remove membershipType in frontend/src/api/members.ts
+- [x] T098 [P] Update createMember function to add optional membershipStartDate in frontend/src/api/members.ts
+- [x] T099 [P] Update createMember function to add optional membershipPriceAtPurchase in frontend/src/api/members.ts
 
 ---
 

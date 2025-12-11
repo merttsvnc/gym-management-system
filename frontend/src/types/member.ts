@@ -16,6 +16,8 @@ export enum MemberGender {
   FEMALE = 'FEMALE',
 }
 
+import type { MembershipPlan } from './membership-plan';
+
 /**
  * Core member entity, mirroring backend Prisma model
  */
@@ -30,9 +32,10 @@ export type Member = {
   phone: string;
   email: string | null;
   photoUrl: string | null;
-  membershipType: string;
-  membershipStartAt: string; // ISO 8601 datetime
-  membershipEndAt: string; // ISO 8601 datetime
+  membershipPlanId: string; // Foreign key to MembershipPlan
+  membershipStartDate: string; // ISO 8601 datetime
+  membershipEndDate: string; // ISO 8601 datetime
+  membershipPriceAtPurchase: number | null; // Price at purchase time (Decimal as number)
   status: MemberStatus;
   pausedAt: string | null; // ISO 8601 datetime or null
   resumedAt: string | null; // ISO 8601 datetime or null
@@ -40,6 +43,7 @@ export type Member = {
   createdAt: string; // ISO 8601 datetime
   updatedAt: string; // ISO 8601 datetime
   remainingDays: number; // Computed by backend
+  membershipPlan?: MembershipPlan; // Optional relation, included when includePlan=true
 };
 
 /**
@@ -55,15 +59,16 @@ export type CreateMemberPayload = {
   dateOfBirth?: string; // ISO 8601 date string
   email?: string;
   photoUrl?: string;
-  membershipType?: string;
-  membershipStartAt?: string; // ISO 8601 datetime
-  membershipEndAt?: string; // ISO 8601 datetime
+  membershipPlanId: string; // Required: Foreign key to MembershipPlan
+  membershipStartDate?: string; // ISO 8601 datetime (defaults to today if not provided)
+  membershipPriceAtPurchase?: number; // Optional: Price at purchase time (defaults to plan price)
   notes?: string;
 };
 
 /**
  * Payload for updating an existing member
  * Used in PATCH /api/v1/members/:id
+ * Note: membershipPlanId changes are not allowed in v1 (immutable after creation)
  */
 export type UpdateMemberPayload = {
   branchId?: string;
@@ -74,9 +79,8 @@ export type UpdateMemberPayload = {
   dateOfBirth?: string; // ISO 8601 date string
   email?: string;
   photoUrl?: string;
-  membershipType?: string;
-  membershipStartAt?: string; // ISO 8601 datetime
-  membershipEndAt?: string; // ISO 8601 datetime
+  membershipStartDate?: string; // ISO 8601 datetime
+  membershipEndDate?: string; // ISO 8601 datetime
   notes?: string;
 };
 

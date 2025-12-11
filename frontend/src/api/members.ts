@@ -44,13 +44,15 @@ export async function listMembers(
 
 /**
  * Get a single member by ID
- * GET /api/v1/members/:id
+ * GET /api/v1/members/:id?includePlan=true
  */
 export async function getMemberById(
   memberId: string,
   tenantId: string,
+  includePlan?: boolean,
 ): Promise<Member> {
-  return apiClient.get<Member>(`/members/${memberId}`, { tenantId });
+  const url = `/members/${memberId}${includePlan ? '?includePlan=true' : ''}`;
+  return apiClient.get<Member>(url, { tenantId });
 }
 
 /**
