@@ -1559,10 +1559,7 @@ describe('Members E2E Tests', () => {
         expect(response.body).toHaveProperty('membershipPlanId', activePlan.id);
         expect(response.body).toHaveProperty('membershipStartAt');
         expect(response.body).toHaveProperty('membershipEndAt');
-        expect(response.body).toHaveProperty(
-          'membershipPriceAtPurchase',
-          300,
-        );
+        expect(response.body).toHaveProperty('membershipPriceAtPurchase', 300);
 
         // Verify end date calculation (3 months from start)
         const memberStartAt = new Date(response.body.membershipStartAt);
@@ -1618,10 +1615,7 @@ describe('Members E2E Tests', () => {
           .send(createDto)
           .expect(201);
 
-        expect(response.body).toHaveProperty(
-          'membershipPriceAtPurchase',
-          300,
-        );
+        expect(response.body).toHaveProperty('membershipPriceAtPurchase', 300);
       });
 
       it('should allow custom membershipPriceAtPurchase', async () => {
@@ -1640,10 +1634,7 @@ describe('Members E2E Tests', () => {
           .send(createDto)
           .expect(201);
 
-        expect(response.body).toHaveProperty(
-          'membershipPriceAtPurchase',
-          250,
-        );
+        expect(response.body).toHaveProperty('membershipPriceAtPurchase', 250);
       });
 
       it('should calculate end date correctly for DAYS duration', async () => {
@@ -1845,7 +1836,10 @@ describe('Members E2E Tests', () => {
           .send(createDto2)
           .expect(201);
 
-        expect(response.body).toHaveProperty('membershipPlanId', archivedPlan.id);
+        expect(response.body).toHaveProperty(
+          'membershipPlanId',
+          archivedPlan.id,
+        );
       });
     });
   });

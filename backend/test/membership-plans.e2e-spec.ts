@@ -314,9 +314,9 @@ describe('MembershipPlans E2E Tests', () => {
         .expect(200);
 
       expect(response.body).toHaveLength(2);
-      expect(
-        response.body.every((plan: any) => plan.status === 'ACTIVE'),
-      ).toBe(true);
+      expect(response.body.every((plan: any) => plan.status === 'ACTIVE')).toBe(
+        true,
+      );
 
       const planNames = response.body.map((p: any) => p.name);
       expect(planNames).toContain('Active Plan 1');
