@@ -92,35 +92,35 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### Duration Calculation
 
-- [ ] T021 [P] Create duration calculator utility file in backend/src/membership-plans/utils/duration-calculator.ts
-- [ ] T022 [P] Implement calculateEndDate function for DAYS duration in backend/src/membership-plans/utils/duration-calculator.ts
-- [ ] T023 [P] Implement calculateEndDate function for MONTHS duration using date-fns addMonths in backend/src/membership-plans/utils/duration-calculator.ts
-- [ ] T024 [P] Add unit tests for DAYS duration calculation in backend/src/membership-plans/utils/duration-calculator.spec.ts
-- [ ] T025 [P] Add unit tests for MONTHS duration month-end clamping (Jan 31 + 1 month) in backend/src/membership-plans/utils/duration-calculator.spec.ts
-- [ ] T026 [P] Add unit tests for leap year edge cases in backend/src/membership-plans/utils/duration-calculator.spec.ts
+- [x] T021 [P] Create duration calculator utility file in backend/src/membership-plans/utils/duration-calculator.ts
+- [x] T022 [P] Implement calculateEndDate function for DAYS duration in backend/src/membership-plans/utils/duration-calculator.ts
+- [x] T023 [P] Implement calculateEndDate function for MONTHS duration using date-fns addMonths in backend/src/membership-plans/utils/duration-calculator.ts
+- [x] T024 [P] Add unit tests for DAYS duration calculation in backend/src/membership-plans/utils/duration-calculator.spec.ts
+- [x] T025 [P] Add unit tests for MONTHS duration month-end clamping (Jan 31 + 1 month) in backend/src/membership-plans/utils/duration-calculator.spec.ts
+- [x] T026 [P] Add unit tests for leap year edge cases in backend/src/membership-plans/utils/duration-calculator.spec.ts
 
 ### Plan Service
 
-- [ ] T027 [P] Create MembershipPlansService file in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T028 [P] Implement create method with tenant isolation in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T029 [P] Implement findAll method with pagination and filters in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T030 [P] Implement findOne method with tenant validation in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T031 [P] Implement update method with name uniqueness check in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T032 [P] Implement delete method with archival protection check in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T033 [P] Implement plan name uniqueness validation (case-insensitive) in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T034 [P] Implement duration value validation (strict ranges: DAYS 1-730, MONTHS 1-24) in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T035 [P] Implement currency validation (ISO 4217 regex) in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T036 [P] Implement checkActiveMemberCount method (status=ACTIVE AND membershipEndDate>=today) in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T037 [P] Implement archive method with active member warning in backend/src/membership-plans/membership-plans.service.ts
-- [ ] T038 [P] Implement restore method to reactivate archived plans in backend/src/membership-plans/membership-plans.service.ts
+- [x] T027 [P] Create MembershipPlansService file in backend/src/membership-plans/membership-plans.service.ts
+- [x] T028 [P] Implement create method with tenant isolation in backend/src/membership-plans/membership-plans.service.ts
+- [x] T029 [P] Implement findAll method with pagination and filters in backend/src/membership-plans/membership-plans.service.ts
+- [x] T030 [P] Implement findOne method with tenant validation in backend/src/membership-plans/membership-plans.service.ts
+- [x] T031 [P] Implement update method with name uniqueness check in backend/src/membership-plans/membership-plans.service.ts
+- [x] T032 [P] Implement delete method with archival protection check in backend/src/membership-plans/membership-plans.service.ts
+- [x] T033 [P] Implement plan name uniqueness validation (case-insensitive) in backend/src/membership-plans/membership-plans.service.ts
+- [x] T034 [P] Implement duration value validation (strict ranges: DAYS 1-730, MONTHS 1-24) in backend/src/membership-plans/membership-plans.service.ts
+- [x] T035 [P] Implement currency validation (ISO 4217 regex) in backend/src/membership-plans/membership-plans.service.ts
+- [x] T036 [P] Implement checkActiveMemberCount method (status=ACTIVE AND membershipEndDate>=today) in backend/src/membership-plans/membership-plans.service.ts
+- [x] T037 [P] Implement archive method with active member warning in backend/src/membership-plans/membership-plans.service.ts
+- [x] T038 [P] Implement restore method to reactivate archived plans in backend/src/membership-plans/membership-plans.service.ts
 
 ### Member Service Integration
 
-- [ ] T039 Update MembersService create method to accept membershipPlanId in backend/src/members/members.service.ts
-- [ ] T040 Add plan validation (exists, ACTIVE, belongs to tenant) in MembersService.create in backend/src/members/members.service.ts
-- [ ] T041 Add membershipEndDate calculation using duration calculator in MembersService.create in backend/src/members/members.service.ts
-- [ ] T042 Add membershipPriceAtPurchase defaulting to plan price in MembersService.create in backend/src/members/members.service.ts
-- [ ] T043 Remove membershipType handling from MembersService.create in backend/src/members/members.service.ts
+- [x] T039 Update MembersService create method to accept membershipPlanId in backend/src/members/members.service.ts
+- [x] T040 Add plan validation (exists, ACTIVE, belongs to tenant) in MembersService.create in backend/src/members/members.service.ts
+- [x] T041 Add membershipEndDate calculation using duration calculator in MembersService.create in backend/src/members/members.service.ts
+- [x] T042 Add membershipPriceAtPurchase defaulting to plan price in MembersService.create in backend/src/members/members.service.ts
+- [x] T043 Remove membershipType handling from MembersService.create in backend/src/members/members.service.ts
 
 ### Member DTOs
 

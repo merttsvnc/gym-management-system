@@ -12,19 +12,35 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { MemberListQueryDto } from './dto/member-list-query.dto';
 import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
 import { MemberStatus } from '@prisma/client';
+import { MembershipPlansService } from '../membership-plans/membership-plans.service';
+import { calculateMembershipEndDate } from '../membership-plans/utils/duration-calculator';
 
 @Injectable()
 export class MembersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly membershipPlansService: MembershipPlansService,
+  ) {}
 
   /**
    * Create a new member
    * Business rules:
    * - Validates branch belongs to tenant
    * - Enforces phone uniqueness within tenant
-   * - Sets default values for membershipType, membershipStartAt, membershipEndAt
+   * - Validates membership plan exists, is ACTIVE, and belongs to tenant
+   * - Calculates membershipEndDate from plan duration
+   * - Sets membershipPriceAtPurchase (defaults to plan price if not provided)
+   *
+   * Domain-level input: accepts membershipPlanId (DTO will be updated in Phase 3)
    */
-  async create(tenantId: string, dto: CreateMemberDto) {
+  async create(
+    tenantId: string,
+    dto: CreateMemberDto & {
+      membershipPlanId?: string;
+      membershipStartDate?: string | Date;
+      membershipPriceAtPurchase?: number;
+    },
+  ) {
     // Validate branch belongs to tenant
     const branch = await this.prisma.branch.findUnique({
       where: { id: dto.branchId },
@@ -55,22 +71,49 @@ export class MembersService {
       );
     }
 
-    // Set default values
-    const now = new Date();
-    const membershipStartAt = dto.membershipStartAt
-      ? new Date(dto.membershipStartAt)
-      : now;
-    const membershipEndAt = dto.membershipEndAt
-      ? new Date(dto.membershipEndAt)
-      : new Date(membershipStartAt.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year from start
-    const membershipType = dto.membershipType || 'Basic';
-
-    // Validate membershipEndAt is after membershipStartAt
-    if (membershipEndAt <= membershipStartAt) {
+    // Determine membership plan ID
+    // TODO: Phase 3 will update DTO to require membershipPlanId
+    // For now, support both old (membershipType) and new (membershipPlanId) approaches
+    const membershipPlanId = dto.membershipPlanId;
+    if (!membershipPlanId) {
       throw new BadRequestException(
-        'Üyelik bitiş tarihi başlangıç tarihinden sonra olmalıdır',
+        'Üyelik planı gereklidir. Lütfen bir plan seçiniz.',
       );
     }
+
+    // Fetch and validate plan
+    const plan = await this.membershipPlansService.getPlanByIdForTenant(
+      tenantId,
+      membershipPlanId,
+    );
+
+    // Validate plan is ACTIVE (for new members)
+    if (plan.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        'Arşivlenmiş planlar yeni üyeler için kullanılamaz',
+      );
+    }
+
+    // Determine membership start date
+    const now = new Date();
+    const membershipStartDate = dto.membershipStartDate
+      ? new Date(dto.membershipStartDate)
+      : dto.membershipStartAt
+        ? new Date(dto.membershipStartAt)
+        : now;
+
+    // Calculate membership end date using duration calculator
+    const membershipEndDate = calculateMembershipEndDate(
+      membershipStartDate,
+      plan.durationType,
+      plan.durationValue,
+    );
+
+    // Set membership price at purchase (use provided value or default to plan price)
+    const membershipPriceAtPurchase =
+      dto.membershipPriceAtPurchase !== undefined
+        ? dto.membershipPriceAtPurchase
+        : plan.price.toNumber();
 
     const member = await this.prisma.member.create({
       data: {
@@ -83,9 +126,10 @@ export class MembersService {
         gender: dto.gender,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
         photoUrl: dto.photoUrl,
-        membershipType,
-        membershipStartAt,
-        membershipEndAt,
+        membershipPlanId,
+        membershipStartDate,
+        membershipEndDate,
+        membershipPriceAtPurchase,
         notes: dto.notes?.trim(),
         status: 'ACTIVE',
       },
@@ -261,14 +305,15 @@ export class MembersService {
     }
 
     // Validate membership dates if being updated
-    const membershipStartAt = dto.membershipStartAt
+    // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
+    const membershipStartDate = dto.membershipStartAt
       ? new Date(dto.membershipStartAt)
-      : existingMember.membershipStartAt;
-    const membershipEndAt = dto.membershipEndAt
+      : existingMember.membershipStartDate;
+    const membershipEndDate = dto.membershipEndAt
       ? new Date(dto.membershipEndAt)
-      : existingMember.membershipEndAt;
+      : existingMember.membershipEndDate;
 
-    if (membershipEndAt <= membershipStartAt) {
+    if (membershipEndDate <= membershipStartDate) {
       throw new BadRequestException(
         'Üyelik bitiş tarihi başlangıç tarihinden sonra olmalıdır',
       );
@@ -300,14 +345,14 @@ export class MembersService {
     if (dto.photoUrl !== undefined)
       updateData.photoUrl = dto.photoUrl ? dto.photoUrl : null;
 
-    if (dto.membershipType !== undefined)
-      updateData.membershipType = dto.membershipType;
+    // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
+    // membershipType is deprecated and will be removed in Phase 3
 
     if (dto.membershipStartAt !== undefined)
-      updateData.membershipStartAt = membershipStartAt;
+      updateData.membershipStartDate = membershipStartDate;
 
     if (dto.membershipEndAt !== undefined)
-      updateData.membershipEndAt = membershipEndAt;
+      updateData.membershipEndDate = membershipEndDate;
 
     if (dto.notes !== undefined)
       updateData.notes = dto.notes ? dto.notes.trim() : null;
@@ -377,16 +422,16 @@ export class MembersService {
     };
 
     // T055: Handle ACTIVE → PAUSED transition (freeze membership)
-    // When pausing: set pausedAt timestamp, don't modify membershipEndAt,
+    // When pausing: set pausedAt timestamp, don't modify membershipEndDate,
     // clear resumedAt for clean state
     if (member.status === 'ACTIVE' && dto.status === 'PAUSED') {
       updateData.pausedAt = now;
       updateData.resumedAt = null; // Clear resumedAt for clean state
-      // Don't modify membershipEndAt - it will be extended when resuming
+      // Don't modify membershipEndDate - it will be extended when resuming
     }
     // T056: Handle PAUSED → ACTIVE transition (resume membership)
     // When resuming: require pausedAt exists, calculate pause duration,
-    // extend membershipEndAt by pause duration, set resumedAt, clear pausedAt
+    // extend membershipEndDate by pause duration, set resumedAt, clear pausedAt
     else if (member.status === 'PAUSED' && dto.status === 'ACTIVE') {
       // Require pausedAt; otherwise throw BadRequestException in Turkish
       if (!member.pausedAt) {
@@ -398,11 +443,11 @@ export class MembersService {
       // Calculate pause duration in milliseconds
       const pauseDurationMs = now.getTime() - member.pausedAt.getTime();
 
-      // Extend membershipEndAt by pause duration to compensate for frozen time
+      // Extend membershipEndDate by pause duration to compensate for frozen time
       // This ensures remaining days calculation works correctly after resume
-      const currentMembershipEndAt = new Date(member.membershipEndAt);
-      updateData.membershipEndAt = new Date(
-        currentMembershipEndAt.getTime() + pauseDurationMs,
+      const currentMembershipEndDate = new Date(member.membershipEndDate);
+      updateData.membershipEndDate = new Date(
+        currentMembershipEndDate.getTime() + pauseDurationMs,
       );
 
       // Set resumedAt timestamp and clear pausedAt for clean state management
@@ -469,38 +514,39 @@ export class MembersService {
    * paused periods where membership time is frozen.
    *
    * Business rules:
-   * - Formula: (membershipEndAt - membershipStartAt) - (days elapsed while ACTIVE)
+   * - Formula: (membershipEndDate - membershipStartDate) - (days elapsed while ACTIVE)
    * - Days while PAUSED don't count against remaining time
    * - Uses pausedAt and resumedAt timestamps to track pause periods
-   * - If membershipEndAt is in the past, remaining days may be negative
+   * - If membershipEndDate is in the past, remaining days may be negative
    *
    * Freeze logic (T057):
    * - If status === PAUSED and pausedAt exists, remaining days stay constant during freeze
-   * - After resume, membershipEndAt is extended by pause duration, so normal calculation works
+   * - After resume, membershipEndDate is extended by pause duration, so normal calculation works
    *
    * @param member - Member object with membership dates and status timestamps
    * @returns Number of remaining days (rounded to nearest integer)
    */
   calculateRemainingDays(member: {
-    membershipStartAt: Date;
-    membershipEndAt: Date;
+    membershipStartDate: Date;
+    membershipEndDate: Date;
     status: MemberStatus;
     pausedAt: Date | null;
     resumedAt: Date | null;
   }): number {
     // Safety check: invalid date range
-    if (member.membershipEndAt <= member.membershipStartAt) {
+    if (member.membershipEndDate <= member.membershipStartDate) {
       return 0;
     }
 
     const now = new Date();
     // Calculate total membership duration in days
     const totalDays =
-      (member.membershipEndAt.getTime() - member.membershipStartAt.getTime()) /
+      (member.membershipEndDate.getTime() -
+        member.membershipStartDate.getTime()) /
       (1000 * 60 * 60 * 24);
 
     // If membership hasn't started yet, return full duration
-    if (now < member.membershipStartAt) {
+    if (now < member.membershipStartDate) {
       return Math.round(totalDays);
     }
 
@@ -514,7 +560,7 @@ export class MembersService {
       // Active days = time from membership start to when paused
       // Remaining days stay constant during freeze (don't decrease)
       activeDaysElapsed =
-        (member.pausedAt.getTime() - member.membershipStartAt.getTime()) /
+        (member.pausedAt.getTime() - member.membershipStartDate.getTime()) /
         (1000 * 60 * 60 * 24);
     }
     // Case 2: Previously paused and resumed (both timestamps exist - historical data)
@@ -525,7 +571,7 @@ export class MembersService {
       // 2. Active days after resume: now - resumedAt
       // The pause period (pausedAt to resumedAt) is excluded
       const activeDaysBeforePause =
-        (member.pausedAt.getTime() - member.membershipStartAt.getTime()) /
+        (member.pausedAt.getTime() - member.membershipStartDate.getTime()) /
         (1000 * 60 * 60 * 24);
 
       // Only count active days after resume if now is after resumedAt
@@ -536,20 +582,20 @@ export class MembersService {
 
       activeDaysElapsed = activeDaysBeforePause + activeDaysAfterResume;
     }
-    // Case 3: After resume (pausedAt cleared, resumedAt exists, membershipEndAt extended)
-    // Since membershipEndAt was extended by pause duration in changeStatus(),
+    // Case 3: After resume (pausedAt cleared, resumedAt exists, membershipEndDate extended)
+    // Since membershipEndDate was extended by pause duration in changeStatus(),
     // we can calculate normally - the extension compensates for the pause period
     else if (!member.pausedAt && member.resumedAt) {
-      // Normal calculation: membershipEndAt was already extended, so just calculate elapsed time
+      // Normal calculation: membershipEndDate was already extended, so just calculate elapsed time
       activeDaysElapsed =
-        (now.getTime() - member.membershipStartAt.getTime()) /
+        (now.getTime() - member.membershipStartDate.getTime()) /
         (1000 * 60 * 60 * 24);
     }
     // Case 4: No pause history (ACTIVE, INACTIVE, ARCHIVED without pause)
     else {
       // No pause period, so active days = total elapsed from start to now
       activeDaysElapsed =
-        (now.getTime() - member.membershipStartAt.getTime()) /
+        (now.getTime() - member.membershipStartDate.getTime()) /
         (1000 * 60 * 60 * 24);
     }
 
