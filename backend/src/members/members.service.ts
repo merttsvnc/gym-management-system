@@ -96,10 +96,12 @@ export class MembersService {
 
     // Determine membership start date
     const now = new Date();
+
     const membershipStartDate = dto.membershipStartDate
       ? new Date(dto.membershipStartDate)
       : dto.membershipStartAt
-        ? new Date(dto.membershipStartAt)
+        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          new Date(dto.membershipStartAt)
         : now;
 
     // Calculate membership end date using duration calculator

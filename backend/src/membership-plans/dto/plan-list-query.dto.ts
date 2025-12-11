@@ -1,11 +1,4 @@
-import {
-  IsOptional,
-  IsEnum,
-  IsString,
-  IsInt,
-  Min,
-  Max,
-} from 'class-validator';
+import { IsOptional, IsEnum, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PlanStatus } from '@prisma/client';
 
@@ -33,4 +26,3 @@ export class PlanListQueryDto {
   @IsString({ message: 'Arama metni metin olmalıdır' })
   search?: string;
 }
-

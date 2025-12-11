@@ -46,8 +46,7 @@ export function calculateMembershipEndDate(
     return addMonths(startDate, durationValue);
   } else {
     throw new BadRequestException(
-      `Geçersiz süre tipi: ${durationType}. DAYS veya MONTHS olmalıdır.`,
+      `Geçersiz süre tipi: ${durationType as string}. DAYS veya MONTHS olmalıdır.`,
     );
   }
 }
-

@@ -178,4 +178,3 @@ export class MembershipPlansController {
     await this.membershipPlansService.deletePlanForTenant(tenantId, id);
   }
 }
-

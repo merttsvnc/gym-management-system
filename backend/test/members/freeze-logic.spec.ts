@@ -22,8 +22,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year later
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -42,8 +42,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(now.getTime() + 335 * 24 * 60 * 60 * 1000); // Ends in 335 days
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -62,8 +62,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000); // Ended 35 days ago
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.INACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -83,8 +83,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(now.getTime() - 100 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -104,8 +104,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year membership
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.PAUSED,
         pausedAt,
         resumedAt: null,
@@ -126,8 +126,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.PAUSED,
         pausedAt,
         resumedAt: null,
@@ -149,8 +149,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.PAUSED,
         pausedAt,
         resumedAt: null,
@@ -174,8 +174,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt,
         resumedAt,
@@ -202,8 +202,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt,
         resumedAt,
@@ -228,8 +228,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt,
         resumedAt,
@@ -254,8 +254,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(now.getTime() - 50 * 24 * 60 * 60 * 1000); // Expired 50 days ago
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.INACTIVE,
         pausedAt,
         resumedAt,
@@ -282,8 +282,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = now;
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -300,8 +300,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 366 * 24 * 60 * 60 * 1000); // 366 days from start (leap year)
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -320,8 +320,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 3650 * 24 * 60 * 60 * 1000); // 10 years
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -341,8 +341,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
@@ -361,8 +361,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
@@ -382,8 +382,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ACTIVE,
         pausedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
         resumedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
@@ -406,8 +406,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.INACTIVE,
         pausedAt,
         resumedAt,
@@ -426,8 +426,8 @@ describe('MembersService - Freeze Logic (calculateRemainingDays)', () => {
       const endAt = new Date(startAt.getTime() + 365 * 24 * 60 * 60 * 1000);
 
       const member = {
-        membershipStartAt: startAt,
-        membershipEndAt: endAt,
+        membershipStartDate: startAt,
+        membershipEndDate: endAt,
         status: MemberStatus.ARCHIVED,
         pausedAt: null,
         resumedAt: null,

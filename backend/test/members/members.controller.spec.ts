@@ -97,7 +97,7 @@ describe('MembersController', () => {
 
       const result = await controller.findOne(tenantId, memberId);
 
-      expect(service.findOne).toHaveBeenCalledWith(tenantId, memberId);
+      expect(service.findOne).toHaveBeenCalledWith(tenantId, memberId, false);
       expect(result).toEqual(mockMember);
     });
   });
@@ -427,7 +427,7 @@ describe('MembersController', () => {
       );
 
       await controller.findOne(tenantId, 'member-1');
-      expect(service.findOne).toHaveBeenCalledWith(tenantId, 'member-1');
+      expect(service.findOne).toHaveBeenCalledWith(tenantId, 'member-1', false);
 
       await controller.create(tenantId, {
         branchId: 'branch-1',

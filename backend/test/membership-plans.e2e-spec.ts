@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -23,7 +26,6 @@ describe('MembershipPlans E2E Tests', () => {
   let token1: string;
   let tenant2: any;
   let user2: any;
-  let branch2: any;
   let token2: string;
 
   beforeAll(async () => {
@@ -70,7 +72,7 @@ describe('MembershipPlans E2E Tests', () => {
     });
     tenant2 = setup2.tenant;
     user2 = setup2.user;
-    branch2 = await createTestBranch(prisma, tenant2.id, {
+    await createTestBranch(prisma, tenant2.id, {
       name: 'Branch 2',
       isDefault: true,
     });
@@ -110,7 +112,7 @@ describe('MembershipPlans E2E Tests', () => {
   describe('T124 - GET /api/v1/membership-plans', () => {
     it('should return only tenant-specific plans with tenant isolation', async () => {
       // Create plans for tenant1
-      const plan1 = await prisma.membershipPlan.create({
+      await prisma.membershipPlan.create({
         data: {
           tenantId: tenant1.id,
           name: 'Basic Plan',
@@ -122,7 +124,7 @@ describe('MembershipPlans E2E Tests', () => {
         },
       });
 
-      const plan2 = await prisma.membershipPlan.create({
+      await prisma.membershipPlan.create({
         data: {
           tenantId: tenant1.id,
           name: 'Premium Plan',
@@ -412,7 +414,7 @@ describe('MembershipPlans E2E Tests', () => {
       });
 
       // Try to access with tenant2's token
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .get(`/api/v1/membership-plans/${plan.id}`)
         .set('Authorization', `Bearer ${token2}`)
         .expect((res) => {
@@ -732,7 +734,7 @@ describe('MembershipPlans E2E Tests', () => {
       });
 
       // Try to update plan1 to have same name as plan2
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .patch(`/api/v1/membership-plans/${plan1.id}`)
         .set('Authorization', `Bearer ${token1}`)
         .send({ name: 'Plan Two' })

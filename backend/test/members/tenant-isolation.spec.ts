@@ -5,6 +5,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from '../../src/members/members.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { MembershipPlansService } from '../../src/membership-plans/membership-plans.service';
 import { NotFoundException } from '@nestjs/common';
 import { MemberStatus } from '@prisma/client';
 
@@ -39,6 +40,21 @@ describe('MembersService - Tenant Isolation', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: MembershipPlansService,
+          useValue: {
+            getPlanByIdForTenant: jest.fn().mockResolvedValue({
+              id: 'plan-1',
+              name: 'Basic Plan',
+              durationType: 'MONTHS',
+              durationValue: 1,
+              price: 100,
+              currency: 'USD',
+              status: 'ACTIVE',
+              tenantId: 'tenant-1',
+            }),
+          },
         },
       ],
     }).compile();

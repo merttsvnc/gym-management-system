@@ -5,7 +5,6 @@ import {
   IsInt,
   IsNumber,
   Min,
-  Max,
   MaxLength,
   Matches,
   IsBoolean,
@@ -60,4 +59,3 @@ export class CreatePlanDto {
   @IsInt({ message: 'Sıralama değeri tam sayı olmalıdır' })
   sortOrder?: number;
 }
-

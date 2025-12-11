@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/require-await */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   NotFoundException,
@@ -589,13 +586,14 @@ describe('MembershipPlansService', () => {
     });
 
     it('should check name uniqueness only within tenant', async () => {
-      const createInput = {
-        name: 'Duplicate Plan',
-        durationType: DurationType.MONTHS,
-        durationValue: 1,
-        price: 100,
-        currency: 'TRY',
-      };
+      // Test data structure
+      // const createInput = {
+      //   name: 'Duplicate Plan',
+      //   durationType: DurationType.MONTHS,
+      //   durationValue: 1,
+      //   price: 100,
+      //   currency: 'TRY',
+      // };
       mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
 
       await service['checkNameUniqueness'](tenantId, 'Duplicate Plan', null);

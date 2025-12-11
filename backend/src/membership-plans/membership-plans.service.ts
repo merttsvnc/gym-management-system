@@ -112,12 +112,7 @@ export class MembershipPlansService {
       totalPages: number;
     };
   }> {
-    const {
-      status,
-      search,
-      page = 1,
-      limit = 20,
-    } = filters;
+    const { status, search, page = 1, limit = 20 } = filters;
 
     const where: Prisma.MembershipPlanWhereInput = {
       tenantId,
@@ -139,10 +134,7 @@ export class MembershipPlansService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: [
-          { sortOrder: 'asc' },
-          { createdAt: 'asc' },
-        ],
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       }),
       this.prisma.membershipPlan.count({ where }),
     ]);
@@ -164,18 +156,13 @@ export class MembershipPlansService {
    * - Returns only ACTIVE plans
    * - Ordered by sortOrder, then createdAt
    */
-  async listActivePlansForTenant(
-    tenantId: string,
-  ): Promise<MembershipPlan[]> {
+  async listActivePlansForTenant(tenantId: string): Promise<MembershipPlan[]> {
     return this.prisma.membershipPlan.findMany({
       where: {
         tenantId,
         status: PlanStatus.ACTIVE,
       },
-      orderBy: [
-        { sortOrder: 'asc' },
-        { createdAt: 'asc' },
-      ],
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
   }
 
@@ -343,11 +330,9 @@ export class MembershipPlansService {
    * - Cannot delete if ANY member exists for that plan (any status)
    * - Throws BadRequestException with Turkish message if members exist
    */
-  async deletePlanForTenant(
-    tenantId: string,
-    planId: string,
-  ): Promise<void> {
-    const plan = await this.getPlanByIdForTenant(tenantId, planId);
+  async deletePlanForTenant(tenantId: string, planId: string): Promise<void> {
+    // Verify plan exists for tenant
+    await this.getPlanByIdForTenant(tenantId, planId);
 
     // Check if any members exist for this plan (any status)
     const memberCount = await this.prisma.member.count({
@@ -464,4 +449,3 @@ export class MembershipPlansService {
     }
   }
 }
-

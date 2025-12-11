@@ -1562,7 +1562,6 @@ describe('Members E2E Tests', () => {
         expect(response.body).toHaveProperty('membershipPriceAtPurchase', 300);
 
         // Verify end date calculation (3 months from start)
-        const memberStartAt = new Date(response.body.membershipStartAt);
         const memberEndAt = new Date(response.body.membershipEndAt);
 
         // Expected end date: 2025-04-15 (3 months from 2025-01-15)
