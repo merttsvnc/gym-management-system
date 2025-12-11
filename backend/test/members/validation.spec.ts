@@ -14,7 +14,6 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
  */
 describe('MembersService - Validation', () => {
   let service: MembersService;
-  let prisma: PrismaService;
 
   const mockPrismaService = {
     member: {

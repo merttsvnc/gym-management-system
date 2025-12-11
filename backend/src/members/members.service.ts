@@ -316,13 +316,11 @@ export class MembersService {
     // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
     const membershipStartDate =
       dto.membershipStartDate || dto.membershipStartAt
-        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          new Date(dto.membershipStartDate || dto.membershipStartAt)
+        ? new Date(dto.membershipStartDate || dto.membershipStartAt)
         : existingMember.membershipStartDate;
     const membershipEndDate =
       dto.membershipEndDate || dto.membershipEndAt
-        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          new Date(dto.membershipEndDate || dto.membershipEndAt)
+        ? new Date(dto.membershipEndDate || dto.membershipEndAt)
         : existingMember.membershipEndDate;
 
     if (membershipEndDate <= membershipStartDate) {

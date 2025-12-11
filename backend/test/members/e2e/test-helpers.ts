@@ -15,7 +15,6 @@ export async function createTestMember(
     email: string;
     gender: MemberGender;
     dateOfBirth: Date;
-    membershipType: string;
     membershipPlanId: string;
     membershipStartDate: Date;
     membershipEndDate: Date;
@@ -51,7 +50,6 @@ export async function createTestMember(
       email: overrides?.email,
       gender: overrides?.gender,
       dateOfBirth: overrides?.dateOfBirth,
-      membershipType: overrides?.membershipType || 'Basic',
       membershipPlanId: overrides?.membershipPlanId || defaultPlan?.id,
       membershipStartDate: overrides?.membershipStartDate || defaultStartDate,
       membershipEndDate: overrides?.membershipEndDate || defaultEndDate,
