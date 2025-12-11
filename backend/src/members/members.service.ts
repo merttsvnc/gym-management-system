@@ -99,10 +99,7 @@ export class MembersService {
 
     const membershipStartDate = dto.membershipStartDate
       ? new Date(dto.membershipStartDate)
-      : dto.membershipStartAt
-        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          new Date(dto.membershipStartAt)
-        : now;
+      : now;
 
     // Calculate membership end date using duration calculator
     const membershipEndDate = calculateMembershipEndDate(
@@ -314,14 +311,12 @@ export class MembersService {
 
     // Validate membership dates if being updated
     // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
-    const membershipStartDate =
-      dto.membershipStartDate || dto.membershipStartAt
-        ? new Date(dto.membershipStartDate || dto.membershipStartAt)
-        : existingMember.membershipStartDate;
-    const membershipEndDate =
-      dto.membershipEndDate || dto.membershipEndAt
-        ? new Date(dto.membershipEndDate || dto.membershipEndAt)
-        : existingMember.membershipEndDate;
+    const membershipStartDate = dto.membershipStartDate
+      ? new Date(dto.membershipStartDate)
+      : existingMember.membershipStartDate;
+    const membershipEndDate = dto.membershipEndDate
+      ? new Date(dto.membershipEndDate)
+      : existingMember.membershipEndDate;
 
     if (membershipEndDate <= membershipStartDate) {
       throw new BadRequestException(

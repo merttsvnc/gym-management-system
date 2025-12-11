@@ -26,19 +26,18 @@ async function migrateMembershipTypes() {
   for (const tenant of tenants) {
     console.log(`Processing tenant: ${tenant.name} (${tenant.id})`);
 
-    // Get unique membershipType values for this tenant
+    // Get unique membershipPlan IDs for this tenant
+    // Note: membershipType field has been removed, migration already completed
     const members = await prisma.member.findMany({
       where: {
         tenantId: tenant.id,
       },
-      select: { membershipType: true },
-      distinct: ['membershipType'],
+      select: { membershipPlanId: true },
+      distinct: ['membershipPlanId'],
     });
 
-    // Filter out null values
-    const membershipTypes = members
-      .map((m) => m.membershipType)
-      .filter((type): type is string => type !== null && type.trim() !== '');
+    // Skip migration as membershipType no longer exists
+    const membershipTypes: string[] = [];
 
     console.log(
       `Found ${membershipTypes.length} unique membership types for tenant ${tenant.name}`,
@@ -80,11 +79,9 @@ async function migrateMembershipTypes() {
       const updateResult = await prisma.member.updateMany({
         where: {
           tenantId: tenant.id,
-          membershipType: membershipType,
-          membershipPlanId: null, // Only update members not already assigned
+          membershipPlanId: plan.id,
         },
         data: {
-          membershipPlanId: plan.id,
           membershipPriceAtPurchase: plan.price, // Set to plan's current price (0)
         },
       });

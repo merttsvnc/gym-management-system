@@ -31,9 +31,10 @@ export interface UpdatePlanInput {
   durationValue?: number;
   price?: number;
   currency?: string;
-  maxFreezeDays?: number;
+  maxFreezeDays?: number | null;
   autoRenew?: boolean;
-  sortOrder?: number;
+  sortOrder?: number | null;
+  status?: PlanStatus;
 }
 
 export interface PlanListFilters {
