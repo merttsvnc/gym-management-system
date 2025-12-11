@@ -298,19 +298,19 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### Integration Tests
 
-- [ ] T124 Write integration test for GET /api/v1/membership-plans list endpoint in backend/test/membership-plans.e2e-spec.ts
-- [ ] T125 Write integration test for GET /api/v1/membership-plans/active endpoint in backend/test/membership-plans.e2e-spec.ts
-- [ ] T126 Write integration test for GET /api/v1/membership-plans/:id endpoint in backend/test/membership-plans.e2e-spec.ts
-- [ ] T127 Write integration test for POST /api/v1/membership-plans create endpoint in backend/test/membership-plans.e2e-spec.ts
-- [ ] T128 Write integration test for duplicate plan name validation in backend/test/membership-plans.e2e-spec.ts
-- [ ] T129 Write integration test for PATCH /api/v1/membership-plans/:id update endpoint in backend/test/membership-plans.e2e-spec.ts
-- [ ] T130 Write integration test for POST /api/v1/membership-plans/:id/archive endpoint in backend/test/membership-plans.e2e-spec.ts
-- [ ] T131 Write integration test for POST /api/v1/membership-plans/:id/restore endpoint in backend/test/membership-plans.e2e-spec.ts
-- [ ] T132 Write integration test for DELETE /api/v1/membership-plans/:id with members protection in backend/test/membership-plans.e2e-spec.ts
-- [ ] T133 Write integration test for tenant isolation (cross-tenant access blocked) in backend/test/membership-plans.e2e-spec.ts
-- [ ] T134 Write integration test for member creation with plan in backend/test/members/members.e2e-spec.ts
-- [ ] T135 Write integration test for member creation with invalid plan in backend/test/members/members.e2e-spec.ts
-- [ ] T136 Write integration test for member creation with archived plan rejection in backend/test/members/members.e2e-spec.ts
+- [x] T124 Write integration test for GET /api/v1/membership-plans list endpoint in backend/test/membership-plans.e2e-spec.ts
+- [x] T125 Write integration test for GET /api/v1/membership-plans/active endpoint in backend/test/membership-plans.e2e-spec.ts
+- [x] T126 Write integration test for GET /api/v1/membership-plans/:id endpoint in backend/test/membership-plans.e2e-spec.ts
+- [x] T127 Write integration test for POST /api/v1/membership-plans create endpoint in backend/test/membership-plans.e2e-spec.ts
+- [x] T128 Write integration test for duplicate plan name validation in backend/test/membership-plans.e2e-spec.ts
+- [x] T129 Write integration test for PATCH /api/v1/membership-plans/:id update endpoint in backend/test/membership-plans.e2e-spec.ts
+- [x] T130 Write integration test for POST /api/v1/membership-plans/:id/archive endpoint in backend/test/membership-plans.e2e-spec.ts
+- [x] T131 Write integration test for POST /api/v1/membership-plans/:id/restore endpoint in backend/test/membership-plans.e2e-spec.ts
+- [x] T132 Write integration test for DELETE /api/v1/membership-plans/:id with members protection in backend/test/membership-plans.e2e-spec.ts
+- [x] T133 Write integration test for tenant isolation (cross-tenant access blocked) in backend/test/membership-plans.e2e-spec.ts
+- [x] T134 Write integration test for member creation with plan in backend/test/members/members.e2e-spec.ts
+- [x] T135 Write integration test for member creation with invalid plan in backend/test/members/members.e2e-spec.ts
+- [x] T136 Write integration test for member creation with archived plan rejection in backend/test/members/members.e2e-spec.ts
 
 ### Documentation
 

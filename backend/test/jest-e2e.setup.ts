@@ -8,7 +8,7 @@
 // IMPORTANT: This must run before PrismaClient is instantiated
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL =
-    'postgresql://postgres:postgres@localhost:5432/gym_management_test';
+    'postgresql://mertsevinc@localhost:5432/gym_management_test?schema=public';
 
   // Log for debugging (can be removed in production)
   console.log(

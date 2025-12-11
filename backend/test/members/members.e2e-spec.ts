@@ -1493,4 +1493,360 @@ describe('Members E2E Tests', () => {
       expect(archive.body).toHaveProperty('remainingDays');
     });
   });
+
+  // =====================================================================
+  // T134-T136: MEMBER CREATION WITH MEMBERSHIP PLAN
+  // =====================================================================
+
+  describe('Member Creation with Membership Plan', () => {
+    let activePlan: any;
+    let archivedPlan: any;
+
+    beforeEach(async () => {
+      // Create test plans
+      activePlan = await prisma.membershipPlan.create({
+        data: {
+          tenantId: tenant1.id,
+          name: 'Active Test Plan',
+          durationType: 'MONTHS',
+          durationValue: 3,
+          price: 300,
+          currency: 'USD',
+          status: 'ACTIVE',
+        },
+      });
+
+      archivedPlan = await prisma.membershipPlan.create({
+        data: {
+          tenantId: tenant1.id,
+          name: 'Archived Test Plan',
+          durationType: 'MONTHS',
+          durationValue: 1,
+          price: 100,
+          currency: 'USD',
+          status: 'ARCHIVED',
+        },
+      });
+    });
+
+    afterEach(async () => {
+      // Clean up plans after each test
+      await prisma.membershipPlan.deleteMany({
+        where: { tenantId: { in: [tenant1.id, tenant2.id] } },
+      });
+    });
+
+    // T134: Create member with valid membershipPlanId
+    describe('T134 - Create member with valid plan', () => {
+      it('should create member with valid membershipPlanId and calculate end date correctly', async () => {
+        const startDate = new Date('2025-01-15');
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'John',
+          lastName: 'Doe',
+          phone: '+905551234567',
+          membershipPlanId: activePlan.id,
+          membershipStartDate: startDate.toISOString(),
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        expect(response.body).toHaveProperty('id');
+        expect(response.body).toHaveProperty('membershipPlanId', activePlan.id);
+        expect(response.body).toHaveProperty('membershipStartAt');
+        expect(response.body).toHaveProperty('membershipEndAt');
+        expect(response.body).toHaveProperty(
+          'membershipPriceAtPurchase',
+          300,
+        );
+
+        // Verify end date calculation (3 months from start)
+        const memberStartAt = new Date(response.body.membershipStartAt);
+        const memberEndAt = new Date(response.body.membershipEndAt);
+
+        // Expected end date: 2025-04-15 (3 months from 2025-01-15)
+        expect(memberEndAt.getFullYear()).toBe(2025);
+        expect(memberEndAt.getMonth()).toBe(3); // April (0-indexed)
+        expect(memberEndAt.getDate()).toBe(15);
+      });
+
+      it('should default to today if membershipStartDate not provided', async () => {
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Jane',
+          lastName: 'Smith',
+          phone: '+905551234568',
+          membershipPlanId: activePlan.id,
+        };
+
+        const beforeRequest = new Date();
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        const memberStartAt = new Date(response.body.membershipStartAt);
+        const afterRequest = new Date();
+
+        // Start date should be between before and after request
+        expect(memberStartAt.getTime()).toBeGreaterThanOrEqual(
+          beforeRequest.getTime() - 1000,
+        );
+        expect(memberStartAt.getTime()).toBeLessThanOrEqual(
+          afterRequest.getTime() + 1000,
+        );
+      });
+
+      it('should use plan price when membershipPriceAtPurchase not provided', async () => {
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Price',
+          lastName: 'Default',
+          phone: '+905551234569',
+          membershipPlanId: activePlan.id,
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        expect(response.body).toHaveProperty(
+          'membershipPriceAtPurchase',
+          300,
+        );
+      });
+
+      it('should allow custom membershipPriceAtPurchase', async () => {
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Custom',
+          lastName: 'Price',
+          phone: '+905551234570',
+          membershipPlanId: activePlan.id,
+          membershipPriceAtPurchase: 250, // Discounted price
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        expect(response.body).toHaveProperty(
+          'membershipPriceAtPurchase',
+          250,
+        );
+      });
+
+      it('should calculate end date correctly for DAYS duration', async () => {
+        // Create plan with DAYS duration
+        const daysPlan = await prisma.membershipPlan.create({
+          data: {
+            tenantId: tenant1.id,
+            name: '30 Days Plan',
+            durationType: 'DAYS',
+            durationValue: 30,
+            price: 100,
+            currency: 'USD',
+            status: 'ACTIVE',
+          },
+        });
+
+        const startDate = new Date('2025-01-15');
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Days',
+          lastName: 'Test',
+          phone: '+905551234571',
+          membershipPlanId: daysPlan.id,
+          membershipStartDate: startDate.toISOString(),
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        const memberEndAt = new Date(response.body.membershipEndAt);
+
+        // Expected: 30 days from 2025-01-15 = 2025-02-14
+        expect(memberEndAt.getFullYear()).toBe(2025);
+        expect(memberEndAt.getMonth()).toBe(1); // February (0-indexed)
+        expect(memberEndAt.getDate()).toBe(14);
+      });
+
+      it('should handle month-end clamping correctly (Jan 31 + 1 month)', async () => {
+        // Create 1-month plan
+        const monthPlan = await prisma.membershipPlan.create({
+          data: {
+            tenantId: tenant1.id,
+            name: '1 Month Plan',
+            durationType: 'MONTHS',
+            durationValue: 1,
+            price: 100,
+            currency: 'USD',
+            status: 'ACTIVE',
+          },
+        });
+
+        const startDate = new Date('2025-01-31');
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'MonthEnd',
+          lastName: 'Test',
+          phone: '+905551234572',
+          membershipPlanId: monthPlan.id,
+          membershipStartDate: startDate.toISOString(),
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        const memberEndAt = new Date(response.body.membershipEndAt);
+
+        // Expected: Feb 28, 2025 (clamped to last day of month)
+        expect(memberEndAt.getFullYear()).toBe(2025);
+        expect(memberEndAt.getMonth()).toBe(1); // February
+        expect(memberEndAt.getDate()).toBe(28); // Clamped to last day
+      });
+    });
+
+    // T135: Invalid plan (other tenant, non-existent)
+    describe('T135 - Invalid plan rejection', () => {
+      it('should reject non-existent plan ID', async () => {
+        const fakeId = '00000000-0000-0000-0000-000000000000';
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Invalid',
+          lastName: 'Plan',
+          phone: '+905551234573',
+          membershipPlanId: fakeId,
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect((res) => {
+            expect([400, 403, 404]).toContain(res.status);
+          });
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('should reject plan from another tenant', async () => {
+        // Create plan for tenant2
+        const tenant2Plan = await prisma.membershipPlan.create({
+          data: {
+            tenantId: tenant2.id,
+            name: 'Tenant2 Plan',
+            durationType: 'MONTHS',
+            durationValue: 1,
+            price: 100,
+            currency: 'USD',
+            status: 'ACTIVE',
+          },
+        });
+
+        // Try to create member in tenant1 with tenant2's plan
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'CrossTenant',
+          lastName: 'Test',
+          phone: '+905551234574',
+          membershipPlanId: tenant2Plan.id,
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect((res) => {
+            expect([400, 403, 404]).toContain(res.status);
+          });
+
+        expect(response.body).toHaveProperty('message');
+      });
+    });
+
+    // T136: Archived plan rejection
+    describe('T136 - Archived plan rejection', () => {
+      it('should reject member creation with archived plan', async () => {
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Archived',
+          lastName: 'Plan',
+          phone: '+905551234575',
+          membershipPlanId: archivedPlan.id,
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect((res) => {
+            expect([400, 403]).toContain(res.status);
+          });
+
+        expect(response.body).toHaveProperty('message');
+        expect(response.body.message.toLowerCase()).toMatch(
+          /archived|inactive|active/i,
+        );
+      });
+
+      it('should successfully create member after plan is restored', async () => {
+        // First attempt should fail
+        const createDto1 = {
+          branchId: branch1.id,
+          firstName: 'Before',
+          lastName: 'Restore',
+          phone: '+905551234576',
+          membershipPlanId: archivedPlan.id,
+        };
+
+        await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto1)
+          .expect((res) => {
+            expect([400, 403]).toContain(res.status);
+          });
+
+        // Restore the plan
+        await prisma.membershipPlan.update({
+          where: { id: archivedPlan.id },
+          data: { status: 'ACTIVE' },
+        });
+
+        // Second attempt should succeed
+        const createDto2 = {
+          branchId: branch1.id,
+          firstName: 'After',
+          lastName: 'Restore',
+          phone: '+905551234577',
+          membershipPlanId: archivedPlan.id,
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/members')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto2)
+          .expect(201);
+
+        expect(response.body).toHaveProperty('membershipPlanId', archivedPlan.id);
+      });
+    });
+  });
 });
