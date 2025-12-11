@@ -43,3 +43,5 @@ export class MemberListQueryDto {
   @IsBoolean({ message: 'includeArchived boolean olmalıdır' })
   includeArchived?: boolean = false;
 }
+
+

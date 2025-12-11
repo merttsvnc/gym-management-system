@@ -1,0 +1,683 @@
+openapi: 3.0.3
+info:
+  title: Membership Plan Management API
+  version: 1.0.0
+  description: |
+    API for managing membership plans in the Gym Management System.
+    Plans define membership packages with duration, pricing, and optional rules.
+  contact:
+    name: API Support
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Membership Plans
+    description: Membership plan management operations
+
+paths:
+  /membership-plans:
+    get:
+      tags:
+        - Membership Plans
+      summary: List membership plans
+      description: |
+        List all membership plans for the current tenant with filtering and pagination.
+      operationId: listPlans
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page (default: 20, max: 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            $ref: '#/components/schemas/PlanStatus'
+        - name: search
+          in: query
+          description: Search by plan name (partial match, case-insensitive)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Membership Plans
+      summary: Create membership plan
+      description: |
+        Create a new membership plan for the current tenant.
+        Requires ADMIN role.
+      operationId: createPlan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlanRequest'
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '400':
+          description: Validation error (including duplicate plan name)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/active:
+    get:
+      tags:
+        - Membership Plans
+      summary: Get active plans
+      description: |
+        Get all ACTIVE plans for the current tenant (for dropdown selection).
+        Returns only ACTIVE plans without pagination (typically < 50 plans per tenant).
+      operationId: getActivePlans
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MembershipPlan'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/{id}:
+    get:
+      tags:
+        - Membership Plans
+      summary: Get plan by ID
+      description: Get details of a specific membership plan
+      operationId: getPlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags:
+        - Membership Plans
+      summary: Update plan
+      description: Update an existing membership plan
+      operationId: updatePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlanRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '400':
+          description: Validation error (including duplicate plan name if name changed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Membership Plans
+      summary: Delete plan
+      description: |
+        Hard delete a membership plan (only allowed if plan has no members).
+        If plan has any members, returns 400 with message to archive instead.
+      operationId: deletePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Successfully deleted
+        '400':
+          description: Bad request (plan has members, cannot delete - must archive instead)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/{id}/archive:
+    post:
+      tags:
+        - Membership Plans
+      summary: Archive plan
+      description: |
+        Archive a membership plan (soft delete).
+        Sets plan status to ARCHIVED.
+        Plan is no longer selectable for new members.
+        Returns count of active members using this plan (informational warning).
+      operationId: archivePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchivePlanResponse'
+        '400':
+          description: Bad request (plan already archived)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/{id}/restore:
+    post:
+      tags:
+        - Membership Plans
+      summary: Restore archived plan
+      description: Restore an archived plan to ACTIVE status
+      operationId: restorePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '400':
+          description: Bad request (plan already active)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DurationType:
+      type: string
+      enum:
+        - DAYS
+        - MONTHS
+      description: Duration type for membership plans
+
+    PlanStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - ARCHIVED
+      description: Status of a membership plan
+
+    MembershipPlan:
+      type: object
+      required:
+        - id
+        - tenantId
+        - name
+        - durationType
+        - durationValue
+        - price
+        - currency
+        - autoRenew
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: Plan ID (CUID)
+        tenantId:
+          type: string
+          description: Tenant ID this plan belongs to
+        name:
+          type: string
+          description: Plan name, unique per tenant
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Optional plan description
+          maxLength: 1000
+        durationType:
+          $ref: '#/components/schemas/DurationType'
+        durationValue:
+          type: integer
+          description: Duration value (1-730 for DAYS, 1-24 for MONTHS)
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          description: Price >= 0
+          minimum: 0
+        currency:
+          type: string
+          description: ISO 4217 currency code (3 uppercase letters)
+          pattern: '^[A-Z]{3}$'
+        maxFreezeDays:
+          type: integer
+          nullable: true
+          description: Maximum freeze days allowed (null means no freeze)
+          minimum: 0
+        autoRenew:
+          type: boolean
+          description: Whether membership should auto-renew
+        status:
+          $ref: '#/components/schemas/PlanStatus'
+        sortOrder:
+          type: integer
+          nullable: true
+          description: Sort order for UI display (lower numbers appear first)
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 datetime of plan creation
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 datetime of last update
+        activeMemberCount:
+          type: integer
+          description: Number of active members using this plan (computed field, optional)
+
+    CreatePlanRequest:
+      type: object
+      required:
+        - name
+        - durationType
+        - durationValue
+        - price
+        - currency
+      properties:
+        name:
+          type: string
+          description: Plan name, unique per tenant
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Optional plan description
+          maxLength: 1000
+        durationType:
+          $ref: '#/components/schemas/DurationType'
+        durationValue:
+          type: integer
+          description: Duration value (1-730 for DAYS, 1-24 for MONTHS)
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          description: Price >= 0
+          minimum: 0
+        currency:
+          type: string
+          description: ISO 4217 currency code (3 uppercase letters)
+          pattern: '^[A-Z]{3}$'
+        maxFreezeDays:
+          type: integer
+          nullable: true
+          description: Maximum freeze days allowed (null means no freeze)
+          minimum: 0
+        autoRenew:
+          type: boolean
+          description: Whether membership should auto-renew (default: false)
+          default: false
+        sortOrder:
+          type: integer
+          nullable: true
+          description: Sort order for UI display
+
+    UpdatePlanRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Update plan name
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Update description
+          maxLength: 1000
+        durationType:
+          $ref: '#/components/schemas/DurationType'
+        durationValue:
+          type: integer
+          description: Update duration value
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          description: Update price
+          minimum: 0
+        currency:
+          type: string
+          description: Update currency
+          pattern: '^[A-Z]{3}$'
+        maxFreezeDays:
+          type: integer
+          nullable: true
+          description: Update freeze days (null to remove)
+          minimum: 0
+        autoRenew:
+          type: boolean
+          description: Update auto-renew flag
+        sortOrder:
+          type: integer
+          nullable: true
+          description: Update sort order
+        status:
+          $ref: '#/components/schemas/PlanStatus'
+
+    PlanListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipPlan'
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+    ArchivePlanResponse:
+      type: object
+      required:
+        - id
+        - status
+        - message
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - ARCHIVED
+        message:
+          type: string
+        activeMemberCount:
+          type: integer
+          description: Number of active members using this plan (if any)
+
+    ErrorResponse:
+      type: object
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+              - field
+              - message
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+

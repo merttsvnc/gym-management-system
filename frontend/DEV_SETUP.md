@@ -84,3 +84,5 @@ The dev token is a base64-encoded JSON object:
 - **401 Unauthorized**: Make sure you have a valid token in localStorage
 - **403 Forbidden**: The tenantId in your token doesn't exist in the database
 - **Token expired**: Tokens don't expire in dev mode, but you can regenerate if needed
+
+
