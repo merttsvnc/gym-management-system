@@ -8,6 +8,9 @@ import { MembersPage } from "./pages/MembersPage";
 import { CreateMemberPage } from "./pages/CreateMemberPage";
 import { MemberDetailPage } from "./pages/MemberDetailPage";
 import { EditMemberPage } from "./pages/EditMemberPage";
+import { MembershipPlansPage } from "./pages/MembershipPlansPage";
+import { CreatePlanPage } from "./pages/CreatePlanPage";
+import { EditPlanPage } from "./pages/EditPlanPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProtectedRoute } from "./features/auth/ProtectedRoute";
 import { Toaster } from "@/components/ui/sonner";
@@ -33,6 +36,9 @@ function App() {
         <Route path="/members/new" element={<CreateMemberPage />} />
         <Route path="/members/:id" element={<MemberDetailPage />} />
         <Route path="/members/:id/edit" element={<EditMemberPage />} />
+        <Route path="/membership-plans" element={<MembershipPlansPage />} />
+        <Route path="/membership-plans/new" element={<CreatePlanPage />} />
+        <Route path="/membership-plans/:id/edit" element={<EditPlanPage />} />
         <Route path="/" element={<Navigate to="/panel" replace />} />
       </Route>
     </Routes>

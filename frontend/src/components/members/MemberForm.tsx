@@ -11,8 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MembershipTypeSelector } from "./MembershipTypeSelector";
+import { PlanSelector } from "@/components/membership-plans/PlanSelector";
+import { DurationPreview } from "@/components/membership-plans/DurationPreview";
 import { useBranches } from "@/hooks/useBranches";
+import { useActivePlans } from "@/hooks/use-membership-plans";
 import { MemberGender } from "@/types/member";
 import type {
   Member,
@@ -45,6 +47,11 @@ export function MemberForm({
 }: MemberFormProps) {
   const { data: branchesData } = useBranches(tenantId);
   const branches = branchesData?.data || [];
+  const { data: plans } = useActivePlans(tenantId);
+  
+  // Get today's date in YYYY-MM-DD format for default
+  const today = new Date().toISOString().split("T")[0];
+  
   // Form state
   const [branchId, setBranchId] = useState(initialData?.branchId || "");
   const [firstName, setFirstName] = useState(initialData?.firstName || "");
@@ -57,20 +64,19 @@ export function MemberForm({
   const [dateOfBirth, setDateOfBirth] = useState(
     initialData?.dateOfBirth ? initialData.dateOfBirth.split("T")[0] : ""
   );
-  const [membershipType, setMembershipType] = useState(
-    initialData?.membershipType || ""
+  const [membershipPlanId, setMembershipPlanId] = useState(
+    initialData?.membershipPlanId || ""
   );
-  const [membershipStartAt, setMembershipStartAt] = useState(
-    initialData?.membershipStartAt
-      ? initialData.membershipStartAt.split("T")[0]
-      : ""
-  );
-  const [membershipEndAt, setMembershipEndAt] = useState(
-    initialData?.membershipEndAt
-      ? initialData.membershipEndAt.split("T")[0]
-      : ""
+  const [membershipStartDate, setMembershipStartDate] = useState(
+    initialData?.membershipStartDate
+      ? initialData.membershipStartDate.split("T")[0]
+      : today
   );
   const [notes, setNotes] = useState(initialData?.notes || "");
+  
+  // Get selected plan for DurationPreview
+  const selectedPlan = plans?.find((p) => p.id === membershipPlanId) || null;
+  const startDateForPreview = membershipStartDate ? new Date(membershipStartDate) : null;
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -88,16 +94,11 @@ export function MemberForm({
         setDateOfBirth(
           initialData.dateOfBirth ? initialData.dateOfBirth.split("T")[0] : ""
         );
-        setMembershipType(initialData.membershipType);
-        setMembershipStartAt(
-          initialData.membershipStartAt
-            ? initialData.membershipStartAt.split("T")[0]
-            : ""
-        );
-        setMembershipEndAt(
-          initialData.membershipEndAt
-            ? initialData.membershipEndAt.split("T")[0]
-            : ""
+        setMembershipPlanId(initialData.membershipPlanId || "");
+        setMembershipStartDate(
+          initialData.membershipStartDate
+            ? initialData.membershipStartDate.split("T")[0]
+            : today
         );
         setNotes(initialData.notes || "");
       };
@@ -139,13 +140,8 @@ export function MemberForm({
       }
     }
 
-    if (membershipStartAt && membershipEndAt) {
-      const startDate = new Date(membershipStartAt);
-      const endDate = new Date(membershipEndAt);
-      if (endDate <= startDate) {
-        newErrors.membershipEndAt =
-          "Üyelik bitiş tarihi başlangıç tarihinden sonra olmalıdır";
-      }
+    if (mode === "create" && !membershipPlanId.trim()) {
+      newErrors.membershipPlanId = "Üyelik planı seçimi zorunludur";
     }
 
     if (notes && notes.length > 5000) {
@@ -173,12 +169,9 @@ export function MemberForm({
       ...(email.trim() && { email: email.trim() }),
       ...(gender && { gender: gender as MemberGender }),
       ...(dateOfBirth && { dateOfBirth }),
-      ...(membershipType && { membershipType }),
-      ...(membershipStartAt && {
-        membershipStartAt: new Date(membershipStartAt).toISOString(),
-      }),
-      ...(membershipEndAt && {
-        membershipEndAt: new Date(membershipEndAt).toISOString(),
+      ...(mode === "create" && { membershipPlanId: membershipPlanId.trim() }),
+      ...(membershipStartDate && {
+        membershipStartDate: new Date(membershipStartDate).toISOString(),
       }),
       ...(notes.trim() && { notes: notes.trim() }),
     };
@@ -356,61 +349,58 @@ export function MemberForm({
       </div>
 
       <div className="space-y-4">
-        {/* Membership Type */}
-        <div className="space-y-2">
-          <Label htmlFor="membershipType">Üyelik Tipi</Label>
-          <MembershipTypeSelector
-            value={membershipType}
-            onValueChange={(value) => {
-              setMembershipType(value);
-              if (errors.membershipType)
-                setErrors({ ...errors, membershipType: "" });
-            }}
-            disabled={isLoading}
-          />
-        </div>
+        {/* Membership Plan (only for create mode) */}
+        {mode === "create" && (
+          <div className="space-y-2">
+            <Label htmlFor="membershipPlanId">
+              Üyelik Planı <span className="text-destructive">*</span>
+            </Label>
+            <PlanSelector
+              value={membershipPlanId}
+              onValueChange={(value) => {
+                setMembershipPlanId(value);
+                if (errors.membershipPlanId)
+                  setErrors({ ...errors, membershipPlanId: "" });
+              }}
+              disabled={isLoading}
+            />
+            {errors.membershipPlanId && (
+              <p className="text-sm text-destructive">
+                {errors.membershipPlanId}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Membership Start Date */}
         <div className="space-y-2">
-          <Label htmlFor="membershipStartAt">Üyelik Başlangıç Tarihi</Label>
+          <Label htmlFor="membershipStartDate">Üyelik Başlangıç Tarihi</Label>
           <Input
-            id="membershipStartAt"
+            id="membershipStartDate"
             type="date"
-            value={membershipStartAt}
+            value={membershipStartDate}
             onChange={(e) => {
-              setMembershipStartAt(e.target.value);
-              if (errors.membershipStartAt)
-                setErrors({ ...errors, membershipStartAt: "" });
+              setMembershipStartDate(e.target.value);
+              if (errors.membershipStartDate)
+                setErrors({ ...errors, membershipStartDate: "" });
             }}
-            className={errors.membershipStartAt ? "border-destructive" : ""}
+            className={errors.membershipStartDate ? "border-destructive" : ""}
             disabled={isLoading}
           />
-          {errors.membershipStartAt && (
+          {errors.membershipStartDate && (
             <p className="text-sm text-destructive">
-              {errors.membershipStartAt}
+              {errors.membershipStartDate}
             </p>
           )}
+          <p className="text-xs text-muted-foreground">
+            Boş bırakılırsa bugünün tarihi kullanılır
+          </p>
         </div>
 
-        {/* Membership End Date */}
-        <div className="space-y-2">
-          <Label htmlFor="membershipEndAt">Üyelik Bitiş Tarihi</Label>
-          <Input
-            id="membershipEndAt"
-            type="date"
-            value={membershipEndAt}
-            onChange={(e) => {
-              setMembershipEndAt(e.target.value);
-              if (errors.membershipEndAt)
-                setErrors({ ...errors, membershipEndAt: "" });
-            }}
-            className={errors.membershipEndAt ? "border-destructive" : ""}
-            disabled={isLoading}
-          />
-          {errors.membershipEndAt && (
-            <p className="text-sm text-destructive">{errors.membershipEndAt}</p>
-          )}
-        </div>
+        {/* Duration Preview (only for create mode with plan selected) */}
+        {mode === "create" && selectedPlan && startDateForPreview && (
+          <DurationPreview startDate={startDateForPreview} plan={selectedPlan} />
+        )}
 
         {/* Notes */}
         <div className="space-y-2">

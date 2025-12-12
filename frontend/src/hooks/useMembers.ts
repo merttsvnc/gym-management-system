@@ -43,11 +43,12 @@ export function useMembers(tenantId: string, query?: Partial<MemberListQuery>) {
 /**
  * Hook to fetch a single member by ID
  * Automatically disabled if tenantId or memberId is not provided
+ * Includes plan information by default
  */
 export function useMember(tenantId: string, memberId: string) {
   return useQuery<Member, ApiError>({
     queryKey: memberKeys.detail(tenantId, memberId),
-    queryFn: () => getMemberById(memberId, tenantId),
+    queryFn: () => getMemberById(memberId, tenantId, true), // includePlan=true
     enabled: !!tenantId && !!memberId,
   });
 }

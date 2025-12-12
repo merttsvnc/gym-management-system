@@ -177,9 +177,38 @@ export function MemberDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground">Üyelik Tipi</p>
-              <p className="font-medium">{member.membershipType}</p>
+              <p className="text-sm text-muted-foreground">Üyelik Planı</p>
+              <p className="font-medium">
+                {member.membershipPlan?.name || member.membershipPlanId || "-"}
+              </p>
+              {member.membershipPlan && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {member.membershipPlan.durationType === "DAYS"
+                    ? `${member.membershipPlan.durationValue} gün`
+                    : `${member.membershipPlan.durationValue} ay`}
+                  {" - "}
+                  {new Intl.NumberFormat("tr-TR", {
+                    style: "currency",
+                    currency: member.membershipPlan.currency,
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }).format(member.membershipPlan.price)}
+                </p>
+              )}
             </div>
+            {member.membershipPriceAtPurchase !== null && (
+              <div>
+                <p className="text-sm text-muted-foreground">Satın Alma Fiyatı</p>
+                <p className="font-medium">
+                  {new Intl.NumberFormat("tr-TR", {
+                    style: "currency",
+                    currency: member.membershipPlan?.currency || "TRY",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }).format(member.membershipPriceAtPurchase)}
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-sm text-muted-foreground">Durum</p>
               <div className="mt-1">
@@ -189,13 +218,13 @@ export function MemberDetailPage() {
             <div>
               <p className="text-sm text-muted-foreground">Başlangıç Tarihi</p>
               <p className="font-medium">
-                {formatDate(member.membershipStartAt)}
+                {formatDate(member.membershipStartDate)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bitiş Tarihi</p>
               <p className="font-medium">
-                {formatDate(member.membershipEndAt)}
+                {formatDate(member.membershipEndDate)}
               </p>
             </div>
             <div>
@@ -210,6 +239,12 @@ export function MemberDetailPage() {
                 {member.remainingDays >= 0
                   ? `${member.remainingDays} gün`
                   : "Süresi dolmuş"}
+              </p>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                Not: Üyelik planı değişikliği v1 sürümünde desteklenmemektedir.
+                Plan değişikliği için lütfen yeni bir üyelik oluşturun.
               </p>
             </div>
           </CardContent>

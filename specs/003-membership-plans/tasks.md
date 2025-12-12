@@ -248,27 +248,27 @@ Tasks marked with `[P]` can be executed in parallel if they:
 
 ### Plan Components
 
-- [ ] T100 [P] Create PlanSelector component in frontend/src/components/membership-plans/PlanSelector.tsx
-- [ ] T101 [P] Create DurationPreview component in frontend/src/components/membership-plans/DurationPreview.tsx
-- [ ] T102 [P] Create PlanForm component in frontend/src/components/membership-plans/PlanForm.tsx
-- [ ] T103 [P] Create PlanCard component in frontend/src/components/membership-plans/PlanCard.tsx
-- [ ] T104 [P] Create PlanStatusBadge component in frontend/src/components/membership-plans/PlanStatusBadge.tsx
+- [x] T100 [P] Create PlanSelector component in frontend/src/components/membership-plans/PlanSelector.tsx
+- [x] T101 [P] Create DurationPreview component in frontend/src/components/membership-plans/DurationPreview.tsx
+- [x] T102 [P] Create PlanForm component in frontend/src/components/membership-plans/PlanForm.tsx
+- [x] T103 [P] Create PlanCard component in frontend/src/components/membership-plans/PlanCard.tsx
+- [x] T104 [P] Create PlanStatusBadge component in frontend/src/components/membership-plans/PlanStatusBadge.tsx
 
 ### Plan Pages
 
-- [ ] T105 [P] Create Plan List page in frontend/src/pages/MembershipPlansPage.tsx
-- [ ] T106 [P] Create Create Plan page in frontend/src/pages/CreatePlanPage.tsx
-- [ ] T107 [P] Create Edit Plan page in frontend/src/pages/EditPlanPage.tsx
-- [ ] T108 Add routes for plan pages in frontend/src/App.tsx or router config
+- [x] T105 [P] Create Plan List page in frontend/src/pages/MembershipPlansPage.tsx
+- [x] T106 [P] Create Create Plan page in frontend/src/pages/CreatePlanPage.tsx
+- [x] T107 [P] Create Edit Plan page in frontend/src/pages/EditPlanPage.tsx
+- [x] T108 Add routes for plan pages in frontend/src/App.tsx or router config
 
 ### Member Form Updates
 
-- [ ] T109 Update MemberForm to replace membershipType with PlanSelector in frontend/src/components/members/MemberForm.tsx
-- [ ] T110 Add DurationPreview component to MemberForm in frontend/src/components/members/MemberForm.tsx
-- [ ] T111 Add optional membershipStartDate date picker to MemberForm in frontend/src/components/members/MemberForm.tsx
-- [ ] T112 Remove membershipEndDate input from MemberForm in frontend/src/components/members/MemberForm.tsx
-- [ ] T113 Update MemberDetail page to display plan information in frontend/src/pages/MemberDetailPage.tsx
-- [ ] T114 Add plan change disabled message to MemberDetail page in frontend/src/pages/MemberDetailPage.tsx
+- [x] T109 Update MemberForm to replace membershipType with PlanSelector in frontend/src/components/members/MemberForm.tsx
+- [x] T110 Add DurationPreview component to MemberForm in frontend/src/components/members/MemberForm.tsx
+- [x] T111 Add optional membershipStartDate date picker to MemberForm in frontend/src/components/members/MemberForm.tsx
+- [x] T112 Remove membershipEndDate input from MemberForm in frontend/src/components/members/MemberForm.tsx
+- [x] T113 Update MemberDetail page to display plan information in frontend/src/pages/MemberDetailPage.tsx
+- [x] T114 Add plan change disabled message to MemberDetail page in frontend/src/pages/MemberDetailPage.tsx
 
 ---
 
