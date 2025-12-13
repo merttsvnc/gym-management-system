@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -16,13 +16,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MemberStatusBadge } from './MemberStatusBadge';
-import { MemberStatus } from '@/types/member';
-import type { Member } from '@/types/member';
-import type { ApiError } from '@/types/error';
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MemberStatusBadge } from "./MemberStatusBadge";
+import { MemberStatus } from "@/types/member";
+import type { Member } from "@/types/member";
+import type { ApiError } from "@/types/error";
 
 interface MemberListProps {
   members: Member[];
@@ -30,10 +30,10 @@ interface MemberListProps {
   error: ApiError | null;
   search: string;
   onSearchChange: (search: string) => void;
-  statusFilter: MemberStatus | 'ALL';
-  onStatusFilterChange: (status: MemberStatus | 'ALL') => void;
-  membershipTypeFilter: string | 'ALL';
-  onMembershipTypeFilterChange: (type: string | 'ALL') => void;
+  statusFilter: MemberStatus | "ALL";
+  onStatusFilterChange: (status: MemberStatus | "ALL") => void;
+  membershipTypeFilter: string | "ALL";
+  onMembershipTypeFilterChange: (type: string | "ALL") => void;
 }
 
 /**
@@ -83,14 +83,14 @@ export function MemberList({
   }, [search]);
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    return new Date(dateString).toLocaleDateString("tr-TR");
   };
 
   if (error) {
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          {error.message || 'Üyeler yüklenirken bir hata oluştu'}
+          {error.message || "Üyeler yüklenirken bir hata oluştu"}
         </AlertDescription>
       </Alert>
     );
@@ -112,7 +112,7 @@ export function MemberList({
           <Select
             value={statusFilter}
             onValueChange={(value) =>
-              onStatusFilterChange(value as MemberStatus | 'ALL')
+              onStatusFilterChange(value as MemberStatus | "ALL")
             }
           >
             <SelectTrigger className="w-[180px]">
@@ -129,7 +129,7 @@ export function MemberList({
           <Select
             value={membershipTypeFilter}
             onValueChange={(value) =>
-              onMembershipTypeFilterChange(value as string | 'ALL')
+              onMembershipTypeFilterChange(value as string | "ALL")
             }
           >
             <SelectTrigger className="w-[180px]">
@@ -182,7 +182,7 @@ export function MemberList({
                     {member.firstName} {member.lastName}
                   </TableCell>
                   <TableCell>{member.phone}</TableCell>
-                  <TableCell>{member.membershipType}</TableCell>
+                  <TableCell>{member.membershipPlan?.name || "-"}</TableCell>
                   <TableCell>
                     <MemberStatusBadge status={member.status} />
                   </TableCell>
@@ -198,8 +198,8 @@ export function MemberList({
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    <div>{formatDate(member.membershipStartAt)}</div>
-                    <div>{formatDate(member.membershipEndAt)}</div>
+                    <div>{formatDate(member.membershipStartDate)}</div>
+                    <div>{formatDate(member.membershipEndDate)}</div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -220,4 +220,3 @@ export function MemberList({
     </div>
   );
 }
-

@@ -211,6 +211,9 @@ export class MembersService {
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          membershipPlan: true,
+        },
       }),
       this.prisma.member.count({ where }),
     ]);
