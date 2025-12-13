@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,10 +48,10 @@ export function MemberForm({
   const { data: branchesData } = useBranches(tenantId);
   const branches = branchesData?.data || [];
   const { data: plans } = useActivePlans(tenantId);
-  
+
   // Get today's date in YYYY-MM-DD format for default
   const today = new Date().toISOString().split("T")[0];
-  
+
   // Form state
   const [branchId, setBranchId] = useState(initialData?.branchId || "");
   const [firstName, setFirstName] = useState(initialData?.firstName || "");
@@ -73,10 +73,12 @@ export function MemberForm({
       : today
   );
   const [notes, setNotes] = useState(initialData?.notes || "");
-  
+
   // Get selected plan for DurationPreview
   const selectedPlan = plans?.find((p) => p.id === membershipPlanId) || null;
-  const startDateForPreview = membershipStartDate ? new Date(membershipStartDate) : null;
+  const startDateForPreview = membershipStartDate
+    ? new Date(membershipStartDate)
+    : null;
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -104,7 +106,7 @@ export function MemberForm({
       };
       updateFormData();
     }
-  }, [initialData]);
+  }, [initialData, today]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -356,6 +358,7 @@ export function MemberForm({
               Üyelik Planı <span className="text-destructive">*</span>
             </Label>
             <PlanSelector
+              tenantId={tenantId}
               value={membershipPlanId}
               onValueChange={(value) => {
                 setMembershipPlanId(value);
@@ -399,7 +402,10 @@ export function MemberForm({
 
         {/* Duration Preview (only for create mode with plan selected) */}
         {mode === "create" && selectedPlan && startDateForPreview && (
-          <DurationPreview startDate={startDateForPreview} plan={selectedPlan} />
+          <DurationPreview
+            startDate={startDateForPreview}
+            plan={selectedPlan}
+          />
         )}
 
         {/* Notes */}

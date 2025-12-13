@@ -1,28 +1,28 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useCurrentTenant } from '@/hooks/useTenant';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCurrentTenant } from "@/hooks/useTenant";
 import {
   useMembershipPlan,
   useUpdatePlan,
   useArchivePlan,
   useRestorePlan,
-} from '@/hooks/use-membership-plans';
-import { PlanForm } from '@/components/membership-plans/PlanForm';
-import { PlanStatus } from '@/types/membership-plan';
-import type { UpdatePlanPayload } from '@/types/membership-plan';
-import { toast } from 'sonner';
-import { Archive, ArchiveRestore } from 'lucide-react';
-import type { ApiError } from '@/types/error';
+} from "@/hooks/use-membership-plans";
+import { PlanForm } from "@/components/membership-plans/PlanForm";
+import { PlanStatus } from "@/types/membership-plan";
+import type { UpdatePlanPayload } from "@/types/membership-plan";
+import { toast } from "sonner";
+import { Archive, ArchiveRestore } from "lucide-react";
+import type { ApiError } from "@/types/error";
 
 /**
  * Edit Plan Page
@@ -36,11 +36,11 @@ export function EditPlanPage() {
     data: plan,
     isLoading: planLoading,
     error: planError,
-  } = useMembershipPlan(tenant?.id || '', id || '');
+  } = useMembershipPlan(tenant?.id || "", id || "");
 
-  const updatePlan = useUpdatePlan(tenant?.id || '');
-  const archivePlan = useArchivePlan(tenant?.id || '');
-  const restorePlan = useRestorePlan(tenant?.id || '');
+  const updatePlan = useUpdatePlan(tenant?.id || "");
+  const archivePlan = useArchivePlan(tenant?.id || "");
+  const restorePlan = useRestorePlan(tenant?.id || "");
 
   const handleSubmit = async (data: UpdatePlanPayload) => {
     if (!id) return;
@@ -51,14 +51,14 @@ export function EditPlanPage() {
     if (!id) return;
     if (
       confirm(
-        'Bu planı arşivlemek istediğinizden emin misiniz? Arşivlenen planlar yeni üyeliklerde görünmez.',
+        "Bu planı arşivlemek istediğinizden emin misiniz? Arşivlenen planlar yeni üyeliklerde görünmez."
       )
     ) {
       try {
         await archivePlan.mutateAsync(id);
       } catch (error) {
         const apiError = error as ApiError;
-        toast.error(apiError.message || 'Plan arşivlenirken bir hata oluştu');
+        toast.error(apiError.message || "Plan arşivlenirken bir hata oluştu");
       }
     }
   };
@@ -69,7 +69,7 @@ export function EditPlanPage() {
       await restorePlan.mutateAsync(id);
     } catch (error) {
       const apiError = error as ApiError;
-      toast.error(apiError.message || 'Plan geri yüklenirken bir hata oluştu');
+      toast.error(apiError.message || "Plan geri yüklenirken bir hata oluştu");
     }
   };
 
@@ -108,10 +108,10 @@ export function EditPlanPage() {
       <div className="space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
-            {apiError.message || 'Plan bilgisi yüklenirken bir hata oluştu'}
+            {apiError.message || "Plan bilgisi yüklenirken bir hata oluştu"}
           </AlertDescription>
         </Alert>
-        <Button onClick={() => navigate('/membership-plans')}>
+        <Button onClick={() => navigate("/membership-plans")}>
           Plan Listesine Dön
         </Button>
       </div>
@@ -124,7 +124,7 @@ export function EditPlanPage() {
         <Alert>
           <AlertDescription>Plan bulunamadı</AlertDescription>
         </Alert>
-        <Button onClick={() => navigate('/membership-plans')}>
+        <Button onClick={() => navigate("/membership-plans")}>
           Plan Listesine Dön
         </Button>
       </div>
@@ -163,8 +163,8 @@ export function EditPlanPage() {
       {!isArchived && (
         <Alert>
           <AlertDescription>
-            Bu plana bağlı aktif üyeler varsa, plan değişiklikleri mevcut üyelikleri
-            etkilemez. Yalnızca yeni üyelikler için geçerlidir.
+            Bu plana bağlı aktif üyeler varsa, plan değişiklikleri mevcut
+            üyelikleri etkilemez. Yalnızca yeni üyelikler için geçerlidir.
           </AlertDescription>
         </Alert>
       )}
@@ -181,7 +181,7 @@ export function EditPlanPage() {
             mode="edit"
             initialData={plan}
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/membership-plans')}
+            onCancel={() => navigate("/membership-plans")}
             isLoading={updatePlan.isPending}
             error={updatePlan.error}
           />
@@ -190,4 +190,3 @@ export function EditPlanPage() {
     </div>
   );
 }
-

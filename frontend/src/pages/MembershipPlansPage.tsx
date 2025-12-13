@@ -1,35 +1,35 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useCurrentTenant } from '@/hooks/useTenant';
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCurrentTenant } from "@/hooks/useTenant";
 import {
   useMembershipPlans,
   useArchivePlan,
   useRestorePlan,
   useDeletePlan,
-} from '@/hooks/use-membership-plans';
-import { PlanCard } from '@/components/membership-plans/PlanCard';
-import { PlanStatus, type MembershipPlan } from '@/types/membership-plan';
-import { toast } from 'sonner';
-import type { ApiError } from '@/types/error';
+} from "@/hooks/use-membership-plans";
+import { PlanCard } from "@/components/membership-plans/PlanCard";
+import { PlanStatus, type MembershipPlan } from "@/types/membership-plan";
+import { toast } from "sonner";
+import type { ApiError } from "@/types/error";
 
 /**
  * Plan List Page
@@ -40,35 +40,35 @@ export function MembershipPlansPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PlanStatus | 'ALL'>('ALL');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PlanStatus | "ALL">("ALL");
 
   const {
     data: plansData,
     isLoading: plansLoading,
     error: plansError,
-  } = useMembershipPlans(tenant?.id || '', {
+  } = useMembershipPlans(tenant?.id || "", {
     page,
     limit,
     ...(search && { search }),
-    ...(statusFilter !== 'ALL' && { status: statusFilter }),
+    ...(statusFilter !== "ALL" && { status: statusFilter }),
   });
 
-  const archivePlan = useArchivePlan(tenant?.id || '');
-  const restorePlan = useRestorePlan(tenant?.id || '');
-  const deletePlan = useDeletePlan(tenant?.id || '');
+  const archivePlan = useArchivePlan(tenant?.id || "");
+  const restorePlan = useRestorePlan(tenant?.id || "");
+  const deletePlan = useDeletePlan(tenant?.id || "");
 
   const handleArchive = async (plan: MembershipPlan) => {
     if (
       confirm(
-        'Bu planı arşivlemek istediğinizden emin misiniz? Arşivlenen planlar yeni üyeliklerde görünmez.',
+        "Bu planı arşivlemek istediğinizden emin misiniz? Arşivlenen planlar yeni üyeliklerde görünmez."
       )
     ) {
       try {
         await archivePlan.mutateAsync(plan.id);
       } catch (error) {
         const apiError = error as ApiError;
-        toast.error(apiError.message || 'Plan arşivlenirken bir hata oluştu');
+        toast.error(apiError.message || "Plan arşivlenirken bir hata oluştu");
       }
     }
   };
@@ -78,14 +78,14 @@ export function MembershipPlansPage() {
       await restorePlan.mutateAsync(plan.id);
     } catch (error) {
       const apiError = error as ApiError;
-      toast.error(apiError.message || 'Plan geri yüklenirken bir hata oluştu');
+      toast.error(apiError.message || "Plan geri yüklenirken bir hata oluştu");
     }
   };
 
   const handleDelete = async (plan: MembershipPlan) => {
     if (
       confirm(
-        'Bu planı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+        "Bu planı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
       )
     ) {
       try {
@@ -94,7 +94,7 @@ export function MembershipPlansPage() {
         const apiError = error as ApiError;
         toast.error(
           apiError.message ||
-            'Plan silinirken bir hata oluştu. Planın üyeleri varsa silinemez.',
+            "Plan silinirken bir hata oluştu. Planın üyeleri varsa silinemez."
         );
       }
     }
@@ -140,7 +140,7 @@ export function MembershipPlansPage() {
             Üyelik planlarınızı görüntüleyin ve yönetin.
           </p>
         </div>
-        <Button onClick={() => navigate('/membership-plans/new')}>
+        <Button onClick={() => navigate("/membership-plans/new")}>
           Yeni Plan
         </Button>
       </div>
@@ -172,7 +172,7 @@ export function MembershipPlansPage() {
               <Select
                 value={statusFilter}
                 onValueChange={(value) => {
-                  setStatusFilter(value as PlanStatus | 'ALL');
+                  setStatusFilter(value as PlanStatus | "ALL");
                   setPage(1);
                 }}
               >
@@ -182,7 +182,9 @@ export function MembershipPlansPage() {
                 <SelectContent>
                   <SelectItem value="ALL">Tümü</SelectItem>
                   <SelectItem value={PlanStatus.ACTIVE}>Aktif</SelectItem>
-                  <SelectItem value={PlanStatus.ARCHIVED}>Arşivlenmiş</SelectItem>
+                  <SelectItem value={PlanStatus.ARCHIVED}>
+                    Arşivlenmiş
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -193,7 +195,7 @@ export function MembershipPlansPage() {
             <Alert variant="destructive">
               <AlertDescription>
                 {(plansError as ApiError).message ||
-                  'Planlar yüklenirken bir hata oluştu'}
+                  "Planlar yüklenirken bir hata oluştu"}
               </AlertDescription>
             </Alert>
           )}
@@ -221,14 +223,14 @@ export function MembershipPlansPage() {
               {plans.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">
-                    {search || statusFilter !== 'ALL'
-                      ? 'Arama kriterlerinize uygun plan bulunamadı'
-                      : 'Henüz plan oluşturulmamış'}
+                    {search || statusFilter !== "ALL"
+                      ? "Arama kriterlerinize uygun plan bulunamadı"
+                      : "Henüz plan oluşturulmamış"}
                   </p>
-                  {!search && statusFilter === 'ALL' && (
+                  {!search && statusFilter === "ALL" && (
                     <Button
                       className="mt-4"
-                      onClick={() => navigate('/membership-plans/new')}
+                      onClick={() => navigate("/membership-plans/new")}
                     >
                       İlk Planı Oluştur
                     </Button>
@@ -256,7 +258,7 @@ export function MembershipPlansPage() {
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-6">
               <div className="text-sm text-muted-foreground">
-                Toplam {pagination.total} plan, Sayfa {pagination.page} /{' '}
+                Toplam {pagination.total} plan, Sayfa {pagination.page} /{" "}
                 {pagination.totalPages}
               </div>
               <div className="flex gap-2">
@@ -286,4 +288,3 @@ export function MembershipPlansPage() {
     </div>
   );
 }
-

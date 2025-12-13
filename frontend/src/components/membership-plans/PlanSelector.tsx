@@ -4,13 +4,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useActivePlans } from '@/hooks/use-membership-plans';
-import { useCurrentTenant } from '@/hooks/useTenant';
-import { DurationType } from '@/types/membership-plan';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/select";
+import { useActivePlans } from "@/hooks/use-membership-plans";
+import { DurationType } from "@/types/membership-plan";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PlanSelectorProps {
+  tenantId: string;
   value?: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
@@ -19,7 +19,10 @@ interface PlanSelectorProps {
 /**
  * Format duration for display
  */
-function formatDuration(durationType: DurationType, durationValue: number): string {
+function formatDuration(
+  durationType: DurationType,
+  durationValue: number
+): string {
   if (durationType === DurationType.DAYS) {
     return `${durationValue} gün`;
   }
@@ -30,8 +33,8 @@ function formatDuration(durationType: DurationType, durationValue: number): stri
  * Format price for display
  */
 function formatPrice(price: number, currency: string): string {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
     currency: currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -43,12 +46,12 @@ function formatPrice(price: number, currency: string): string {
  * Shows only ACTIVE plans with name, duration, and price
  */
 export function PlanSelector({
+  tenantId,
   value,
   onValueChange,
   disabled,
 }: PlanSelectorProps) {
-  const { data: tenant } = useCurrentTenant();
-  const { data: plans, isLoading } = useActivePlans(tenant?.id || '');
+  const { data: plans, isLoading } = useActivePlans(tenantId);
 
   if (isLoading) {
     return <Skeleton className="h-10 w-full" />;
@@ -65,7 +68,11 @@ export function PlanSelector({
   }
 
   return (
-    <Select value={value || ''} onValueChange={onValueChange} disabled={disabled}>
+    <Select
+      value={value || ""}
+      onValueChange={onValueChange}
+      disabled={disabled}
+    >
       <SelectTrigger>
         <SelectValue placeholder="Üyelik planı seçin" />
       </SelectTrigger>
@@ -75,7 +82,7 @@ export function PlanSelector({
             <div className="flex flex-col">
               <span className="font-medium">{plan.name}</span>
               <span className="text-xs text-muted-foreground">
-                {formatDuration(plan.durationType, plan.durationValue)} -{' '}
+                {formatDuration(plan.durationType, plan.durationValue)} -{" "}
                 {formatPrice(plan.price, plan.currency)}
               </span>
             </div>
@@ -85,4 +92,3 @@ export function PlanSelector({
     </Select>
   );
 }
-

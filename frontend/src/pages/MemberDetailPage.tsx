@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -198,7 +198,9 @@ export function MemberDetailPage() {
             </div>
             {member.membershipPriceAtPurchase !== null && (
               <div>
-                <p className="text-sm text-muted-foreground">Satın Alma Fiyatı</p>
+                <p className="text-sm text-muted-foreground">
+                  Satın Alma Fiyatı
+                </p>
                 <p className="font-medium">
                   {new Intl.NumberFormat("tr-TR", {
                     style: "currency",

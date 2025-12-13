@@ -1,28 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DurationType,
   PlanStatus,
   type MembershipPlan,
   type CreatePlanPayload,
   type UpdatePlanPayload,
-} from '@/types/membership-plan';
-import type { ApiError } from '@/types/error';
+} from "@/types/membership-plan";
+import type { ApiError } from "@/types/error";
 
 interface PlanFormProps {
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   initialData?: MembershipPlan;
   onSubmit: (data: CreatePlanPayload | UpdatePlanPayload) => Promise<void>;
   onCancel?: () => void;
@@ -43,22 +43,24 @@ export function PlanForm({
   error,
 }: PlanFormProps) {
   // Form state
-  const [name, setName] = useState(initialData?.name || '');
-  const [description, setDescription] = useState(initialData?.description || '');
+  const [name, setName] = useState(initialData?.name || "");
+  const [description, setDescription] = useState(
+    initialData?.description || ""
+  );
   const [durationType, setDurationType] = useState<DurationType>(
-    initialData?.durationType || DurationType.MONTHS,
+    initialData?.durationType || DurationType.MONTHS
   );
   const [durationValue, setDurationValue] = useState(
-    initialData?.durationValue?.toString() || '12',
+    initialData?.durationValue?.toString() || "12"
   );
-  const [price, setPrice] = useState(initialData?.price?.toString() || '0');
-  const [currency, setCurrency] = useState(initialData?.currency || 'TRY');
+  const [price, setPrice] = useState(initialData?.price?.toString() || "0");
+  const [currency, setCurrency] = useState(initialData?.currency || "TRY");
   const [maxFreezeDays, setMaxFreezeDays] = useState(
-    initialData?.maxFreezeDays?.toString() || '',
+    initialData?.maxFreezeDays?.toString() || ""
   );
   const [autoRenew, setAutoRenew] = useState(initialData?.autoRenew || false);
   const [sortOrder, setSortOrder] = useState(
-    initialData?.sortOrder?.toString() || '',
+    initialData?.sortOrder?.toString() || ""
   );
 
   // Validation errors
@@ -68,14 +70,14 @@ export function PlanForm({
   useEffect(() => {
     if (initialData) {
       setName(initialData.name);
-      setDescription(initialData.description || '');
+      setDescription(initialData.description || "");
       setDurationType(initialData.durationType);
       setDurationValue(initialData.durationValue.toString());
       setPrice(initialData.price.toString());
       setCurrency(initialData.currency);
-      setMaxFreezeDays(initialData.maxFreezeDays?.toString() || '');
+      setMaxFreezeDays(initialData.maxFreezeDays?.toString() || "");
       setAutoRenew(initialData.autoRenew);
-      setSortOrder(initialData.sortOrder?.toString() || '');
+      setSortOrder(initialData.sortOrder?.toString() || "");
     }
   }, [initialData]);
 
@@ -83,57 +85,61 @@ export function PlanForm({
     const newErrors: Record<string, string> = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Plan adı zorunludur';
+      newErrors.name = "Plan adı zorunludur";
     } else if (name.trim().length > 100) {
-      newErrors.name = 'Plan adı en fazla 100 karakter olabilir';
+      newErrors.name = "Plan adı en fazla 100 karakter olabilir";
     }
 
     if (description && description.length > 1000) {
-      newErrors.description = 'Açıklama en fazla 1000 karakter olabilir';
+      newErrors.description = "Açıklama en fazla 1000 karakter olabilir";
     }
 
     if (!durationValue) {
-      newErrors.durationValue = 'Süre değeri zorunludur';
+      newErrors.durationValue = "Süre değeri zorunludur";
     } else {
       const durationNum = parseInt(durationValue, 10);
       if (isNaN(durationNum) || durationNum <= 0) {
-        newErrors.durationValue = 'Süre değeri pozitif bir sayı olmalıdır';
-      } else if (durationType === DurationType.DAYS && (durationNum < 1 || durationNum > 730)) {
-        newErrors.durationValue = 'Gün sayısı 1 ile 730 arasında olmalıdır';
+        newErrors.durationValue = "Süre değeri pozitif bir sayı olmalıdır";
+      } else if (
+        durationType === DurationType.DAYS &&
+        (durationNum < 1 || durationNum > 730)
+      ) {
+        newErrors.durationValue = "Gün sayısı 1 ile 730 arasında olmalıdır";
       } else if (
         durationType === DurationType.MONTHS &&
         (durationNum < 1 || durationNum > 24)
       ) {
-        newErrors.durationValue = 'Ay sayısı 1 ile 24 arasında olmalıdır';
+        newErrors.durationValue = "Ay sayısı 1 ile 24 arasında olmalıdır";
       }
     }
 
     if (!price) {
-      newErrors.price = 'Fiyat zorunludur';
+      newErrors.price = "Fiyat zorunludur";
     } else {
       const priceNum = parseFloat(price);
       if (isNaN(priceNum) || priceNum < 0) {
-        newErrors.price = 'Fiyat 0 veya daha büyük olmalıdır';
+        newErrors.price = "Fiyat 0 veya daha büyük olmalıdır";
       }
     }
 
     if (!currency.trim()) {
-      newErrors.currency = 'Para birimi zorunludur';
+      newErrors.currency = "Para birimi zorunludur";
     } else if (!/^[A-Z]{3}$/.test(currency.trim())) {
-      newErrors.currency = 'Para birimi 3 büyük harf olmalıdır (örn: TRY, USD, EUR)';
+      newErrors.currency =
+        "Para birimi 3 büyük harf olmalıdır (örn: TRY, USD, EUR)";
     }
 
     if (maxFreezeDays && maxFreezeDays.trim()) {
       const freezeNum = parseInt(maxFreezeDays, 10);
       if (isNaN(freezeNum) || freezeNum < 0) {
-        newErrors.maxFreezeDays = 'Dondurma günü 0 veya daha büyük olmalıdır';
+        newErrors.maxFreezeDays = "Dondurma günü 0 veya daha büyük olmalıdır";
       }
     }
 
     if (sortOrder && sortOrder.trim()) {
       const sortNum = parseInt(sortOrder, 10);
       if (isNaN(sortNum)) {
-        newErrors.sortOrder = 'Sıralama değeri bir sayı olmalıdır';
+        newErrors.sortOrder = "Sıralama değeri bir sayı olmalıdır";
       }
     }
 
@@ -166,7 +172,7 @@ export function PlanForm({
       await onSubmit(payload);
     } catch (err) {
       // Error handled by parent component
-      console.error('Form submission error:', err);
+      console.error("Form submission error:", err);
     }
   };
 
@@ -183,10 +189,10 @@ export function PlanForm({
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              if (errors.name) setErrors({ ...errors, name: '' });
+              if (errors.name) setErrors({ ...errors, name: "" });
             }}
             placeholder="Örn: Temel 1 Aylık Plan"
-            className={errors.name ? 'border-destructive' : ''}
+            className={errors.name ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.name && (
@@ -202,11 +208,11 @@ export function PlanForm({
             value={description}
             onChange={(e) => {
               setDescription(e.target.value);
-              if (errors.description) setErrors({ ...errors, description: '' });
+              if (errors.description) setErrors({ ...errors, description: "" });
             }}
             placeholder="Plan hakkında açıklama..."
             rows={3}
-            className={errors.description ? 'border-destructive' : ''}
+            className={errors.description ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.description && (
@@ -223,7 +229,8 @@ export function PlanForm({
             value={durationType}
             onValueChange={(value) => {
               setDurationType(value as DurationType);
-              if (errors.durationType) setErrors({ ...errors, durationType: '' });
+              if (errors.durationType)
+                setErrors({ ...errors, durationType: "" });
             }}
             disabled={isLoading}
           >
@@ -252,14 +259,12 @@ export function PlanForm({
             onChange={(e) => {
               setDurationValue(e.target.value);
               if (errors.durationValue)
-                setErrors({ ...errors, durationValue: '' });
+                setErrors({ ...errors, durationValue: "" });
             }}
-            placeholder={
-              durationType === DurationType.DAYS ? '1-730' : '1-24'
-            }
+            placeholder={durationType === DurationType.DAYS ? "1-730" : "1-24"}
             min={1}
             max={durationType === DurationType.DAYS ? 730 : 24}
-            className={errors.durationValue ? 'border-destructive' : ''}
+            className={errors.durationValue ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.durationValue && (
@@ -267,8 +272,8 @@ export function PlanForm({
           )}
           <p className="text-xs text-muted-foreground">
             {durationType === DurationType.DAYS
-              ? '1 ile 730 gün arasında'
-              : '1 ile 24 ay arasında'}
+              ? "1 ile 730 gün arasında"
+              : "1 ile 24 ay arasında"}
           </p>
         </div>
 
@@ -284,11 +289,11 @@ export function PlanForm({
             value={price}
             onChange={(e) => {
               setPrice(e.target.value);
-              if (errors.price) setErrors({ ...errors, price: '' });
+              if (errors.price) setErrors({ ...errors, price: "" });
             }}
             placeholder="0.00"
             min="0"
-            className={errors.price ? 'border-destructive' : ''}
+            className={errors.price ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.price && (
@@ -306,11 +311,11 @@ export function PlanForm({
             value={currency}
             onChange={(e) => {
               setCurrency(e.target.value.toUpperCase());
-              if (errors.currency) setErrors({ ...errors, currency: '' });
+              if (errors.currency) setErrors({ ...errors, currency: "" });
             }}
             placeholder="TRY"
             maxLength={3}
-            className={errors.currency ? 'border-destructive' : ''}
+            className={errors.currency ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.currency && (
@@ -331,11 +336,11 @@ export function PlanForm({
             onChange={(e) => {
               setMaxFreezeDays(e.target.value);
               if (errors.maxFreezeDays)
-                setErrors({ ...errors, maxFreezeDays: '' });
+                setErrors({ ...errors, maxFreezeDays: "" });
             }}
             placeholder="Boş bırakılabilir"
             min="0"
-            className={errors.maxFreezeDays ? 'border-destructive' : ''}
+            className={errors.maxFreezeDays ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.maxFreezeDays && (
@@ -355,10 +360,10 @@ export function PlanForm({
             value={sortOrder}
             onChange={(e) => {
               setSortOrder(e.target.value);
-              if (errors.sortOrder) setErrors({ ...errors, sortOrder: '' });
+              if (errors.sortOrder) setErrors({ ...errors, sortOrder: "" });
             }}
             placeholder="Boş bırakılabilir"
-            className={errors.sortOrder ? 'border-destructive' : ''}
+            className={errors.sortOrder ? "border-destructive" : ""}
             disabled={isLoading}
           />
           {errors.sortOrder && (
@@ -394,7 +399,7 @@ export function PlanForm({
         <Alert variant="destructive">
           <AlertDescription>
             {error.message ||
-              'Form gönderilirken bir hata oluştu. Lütfen tekrar deneyin.'}
+              "Form gönderilirken bir hata oluştu. Lütfen tekrar deneyin."}
           </AlertDescription>
         </Alert>
       )}
@@ -412,13 +417,12 @@ export function PlanForm({
         )}
         <Button type="submit" disabled={isLoading}>
           {isLoading
-            ? 'Kaydediliyor...'
-            : mode === 'create'
-              ? 'Kaydet'
-              : 'Güncelle'}
+            ? "Kaydediliyor..."
+            : mode === "create"
+            ? "Kaydet"
+            : "Güncelle"}
         </Button>
       </div>
     </form>
   );
 }
-
