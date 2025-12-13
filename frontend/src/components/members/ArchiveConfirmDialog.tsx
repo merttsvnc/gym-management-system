@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,11 +5,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useArchiveMember } from '@/hooks/useMembers';
-import type { ApiError } from '@/types/error';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useArchiveMember } from "@/hooks/useMembers";
+import type { ApiError } from "@/types/error";
 
 interface ArchiveConfirmDialogProps {
   member: {
@@ -43,7 +42,7 @@ export function ArchiveConfirmDialog({
       onSuccess?.();
     } catch (error) {
       // Error handled by mutation and global interceptor
-      console.error('Archive error:', error);
+      console.error("Archive error:", error);
     }
   };
 
@@ -64,7 +63,7 @@ export function ArchiveConfirmDialog({
           <p className="text-sm text-muted-foreground">
             <strong>
               {member.firstName} {member.lastName}
-            </strong>{' '}
+            </strong>{" "}
             adlı üye arşivlenecek.
           </p>
 
@@ -72,7 +71,7 @@ export function ArchiveConfirmDialog({
             <Alert variant="destructive" className="mt-4">
               <AlertDescription>
                 {(error as ApiError).message ||
-                  'Üye arşivlenirken bir hata oluştu. Lütfen tekrar deneyin.'}
+                  "Üye arşivlenirken bir hata oluştu. Lütfen tekrar deneyin."}
               </AlertDescription>
             </Alert>
           )}
@@ -92,11 +91,10 @@ export function ArchiveConfirmDialog({
             onClick={handleConfirm}
             disabled={isPending}
           >
-            {isPending ? 'Arşivleniyor...' : 'Evet, Arşivle'}
+            {isPending ? "Arşivleniyor..." : "Evet, Arşivle"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

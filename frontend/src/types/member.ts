@@ -1,22 +1,24 @@
 /**
  * Member status enum matching backend Prisma schema
  */
-export enum MemberStatus {
-  ACTIVE = 'ACTIVE',
-  PAUSED = 'PAUSED',
-  INACTIVE = 'INACTIVE',
-  ARCHIVED = 'ARCHIVED',
-}
+export const MemberStatus = {
+  ACTIVE: "ACTIVE",
+  PAUSED: "PAUSED",
+  INACTIVE: "INACTIVE",
+  ARCHIVED: "ARCHIVED",
+} as const;
+export type MemberStatus = (typeof MemberStatus)[keyof typeof MemberStatus];
 
 /**
  * Member gender enum matching backend Prisma schema
  */
-export enum MemberGender {
-  MALE = 'MALE',
-  FEMALE = 'FEMALE',
-}
+export const MemberGender = {
+  MALE: "MALE",
+  FEMALE: "FEMALE",
+} as const;
+export type MemberGender = (typeof MemberGender)[keyof typeof MemberGender];
 
-import type { MembershipPlan } from './membership-plan';
+import type { MembershipPlan } from "./membership-plan";
 
 /**
  * Core member entity, mirroring backend Prisma model
@@ -117,4 +119,3 @@ export type MemberListResponse = {
     totalPages: number;
   };
 };
-

@@ -868,24 +868,8 @@ describe('Members E2E Tests', () => {
         .expect(201);
     });
 
-    // NOTE: Skipped because membershipEndDate is now auto-calculated from plan
-    it.skip('should reject invalid membership dates', async () => {
-      const createDto = {
-        branchId: branch1.id,
-        firstName: 'John',
-        lastName: 'Doe',
-        phone: '+1234567890',
-        membershipPlanId: 'plan-tenant1',
-        membershipStartAt: '2024-12-31',
-        membershipEndAt: '2024-01-01',
-      };
-
-      await request(app.getHttpServer())
-        .post('/api/v1/members')
-        .set('Authorization', `Bearer ${token1}`)
-        .send(createDto)
-        .expect(400);
-    });
+    // NOTE: Test removed - membershipEndDate is now auto-calculated from plan.
+    // Invalid date validation is no longer applicable since dates come from plan duration.
 
     it('should reject branch from another tenant', async () => {
       const createDto = {
@@ -903,8 +887,7 @@ describe('Members E2E Tests', () => {
         .expect(404);
     });
 
-    // NOTE: Skipped because membershipType is deprecated, dates come from plan
-    it.skip('should set default values when not provided', async () => {
+    it('should set default values from plan when not provided', async () => {
       const createDto = {
         branchId: branch1.id,
         firstName: 'John',
@@ -919,10 +902,12 @@ describe('Members E2E Tests', () => {
         .send(createDto)
         .expect(201);
 
-      expect(response.body.membershipType).toBe('Basic');
       expect(response.body.status).toBe(MemberStatus.ACTIVE);
-      expect(response.body.membershipStartAt).toBeDefined();
-      expect(response.body.membershipEndAt).toBeDefined();
+      expect(response.body.membershipStartDate).toBeDefined();
+      expect(response.body.membershipEndDate).toBeDefined();
+      expect(response.body.membershipPlanId).toBe('plan-tenant1');
+      // Verify price was captured from plan
+      expect(Number(response.body.membershipPriceAtPurchase)).toBe(100);
     });
   });
 
@@ -986,8 +971,8 @@ describe('Members E2E Tests', () => {
       const member = await createTestMember(prisma, tenant1.id, branch1.id);
 
       const updateDto = {
-        membershipStartAt: '2024-12-31',
-        membershipEndAt: '2024-01-01',
+        membershipStartDate: '2024-12-31',
+        membershipEndDate: '2024-01-01',
       };
 
       await request(app.getHttpServer())
@@ -1223,15 +1208,14 @@ describe('Members E2E Tests', () => {
       expect(getResponse.body.pausedAt).not.toBeNull();
     });
 
-    it.skip('should extend membershipEndAt when resuming', async () => {
-      // Create member
+    it('should extend membershipEndDate when resuming', async () => {
+      // Create member with plan
       const createDto = {
         branchId: branch1.id,
         firstName: 'Jane',
         lastName: 'Smith',
         phone: '+9876543210',
-        membershipStartAt: '2024-01-01T00:00:00Z',
-        membershipEndAt: '2025-01-01T00:00:00Z',
+        membershipPlanId: 'plan-tenant1',
       };
 
       const createResponse = await request(app.getHttpServer())
@@ -1241,7 +1225,7 @@ describe('Members E2E Tests', () => {
         .expect(201);
 
       const memberId = createResponse.body.id;
-      const originalEndAt = new Date(createResponse.body.membershipEndAt);
+      const originalEndDate = new Date(createResponse.body.membershipEndDate);
 
       // Pause member
       await request(app.getHttpServer())
@@ -1273,19 +1257,21 @@ describe('Members E2E Tests', () => {
         .send({ status: MemberStatus.ACTIVE })
         .expect(200);
 
-      const newEndAt = new Date(resumeResponse.body.membershipEndAt);
+      const newEndDate = new Date(resumeResponse.body.membershipEndDate);
       const resumedAt = new Date(resumeResponse.body.resumedAt);
 
-      // Verify membershipEndAt was extended
-      expect(newEndAt.getTime()).toBeGreaterThan(originalEndAt.getTime());
+      // Verify membershipEndDate was extended
+      expect(newEndDate.getTime()).toBeGreaterThan(originalEndDate.getTime());
 
       // Verify pause duration was added
       const pauseDurationMs = resumedAt.getTime() - pausedAt.getTime();
-      const expectedNewEndAt = new Date(
-        originalEndAt.getTime() + pauseDurationMs,
+      const expectedNewEndDate = new Date(
+        originalEndDate.getTime() + pauseDurationMs,
       );
       // Allow small tolerance for test execution time
-      const diff = Math.abs(newEndAt.getTime() - expectedNewEndAt.getTime());
+      const diff = Math.abs(
+        newEndDate.getTime() - expectedNewEndDate.getTime(),
+      );
       expect(diff).toBeLessThan(5000); // Within 5 seconds
 
       // Verify timestamps
@@ -1293,15 +1279,14 @@ describe('Members E2E Tests', () => {
       expect(resumeResponse.body.pausedAt).toBeNull();
     });
 
-    it.skip('should keep remaining days stable while paused', async () => {
-      // Create member
+    it('should keep remaining days stable while paused', async () => {
+      // Create member with plan
       const createDto = {
         branchId: branch1.id,
         firstName: 'Bob',
         lastName: 'Johnson',
         phone: '+1111111111',
-        membershipStartAt: '2024-01-01T00:00:00Z',
-        membershipEndAt: '2025-01-01T00:00:00Z',
+        membershipPlanId: 'plan-tenant1',
       };
 
       const createResponse = await request(app.getHttpServer())
@@ -1383,15 +1368,14 @@ describe('Members E2E Tests', () => {
       expect(response.body.message).toContain('bulunamadı');
     });
 
-    it.skip('should complete full pause-resume cycle end-to-end', async () => {
-      // Create member
+    it('should complete full pause-resume cycle end-to-end', async () => {
+      // Create member with plan
       const createDto = {
         branchId: branch1.id,
         firstName: 'Charlie',
         lastName: 'Brown',
         phone: '+3333333333',
-        membershipStartAt: '2024-01-01T00:00:00Z',
-        membershipEndAt: '2025-01-01T00:00:00Z',
+        membershipPlanId: 'plan-tenant1',
       };
 
       const createResponse = await request(app.getHttpServer())
@@ -1401,7 +1385,7 @@ describe('Members E2E Tests', () => {
         .expect(201);
 
       const memberId = createResponse.body.id;
-      const originalEndAt = new Date(createResponse.body.membershipEndAt);
+      const originalEndDate = new Date(createResponse.body.membershipEndDate);
 
       // Step 1: Pause member
       const pauseResponse = await request(app.getHttpServer())
@@ -1413,8 +1397,8 @@ describe('Members E2E Tests', () => {
       expect(pauseResponse.body.status).toBe(MemberStatus.PAUSED);
       expect(pauseResponse.body.pausedAt).toBeDefined();
       expect(pauseResponse.body.resumedAt).toBeNull();
-      expect(pauseResponse.body.membershipEndAt).toBe(
-        originalEndAt.toISOString(),
+      expect(pauseResponse.body.membershipEndDate).toBe(
+        originalEndDate.toISOString(),
       );
 
       const pausedAt = new Date(pauseResponse.body.pausedAt);
@@ -1440,17 +1424,19 @@ describe('Members E2E Tests', () => {
       expect(resumeResponse.body.pausedAt).toBeNull();
 
       const resumedAt = new Date(resumeResponse.body.resumedAt);
-      const newEndAt = new Date(resumeResponse.body.membershipEndAt);
+      const newEndDate = new Date(resumeResponse.body.membershipEndDate);
 
-      // Verify membershipEndAt was extended
-      expect(newEndAt.getTime()).toBeGreaterThan(originalEndAt.getTime());
+      // Verify membershipEndDate was extended
+      expect(newEndDate.getTime()).toBeGreaterThan(originalEndDate.getTime());
 
       // Verify pause duration was added
       const pauseDurationMs = resumedAt.getTime() - pausedAt.getTime();
-      const expectedNewEndAt = new Date(
-        originalEndAt.getTime() + pauseDurationMs,
+      const expectedNewEndDate = new Date(
+        originalEndDate.getTime() + pauseDurationMs,
       );
-      const diff = Math.abs(newEndAt.getTime() - expectedNewEndAt.getTime());
+      const diff = Math.abs(
+        newEndDate.getTime() - expectedNewEndDate.getTime(),
+      );
       expect(diff).toBeLessThan(5000); // Within 5 seconds
 
       // Step 4: Verify final state
@@ -1462,7 +1448,9 @@ describe('Members E2E Tests', () => {
       expect(finalResponse.body.status).toBe(MemberStatus.ACTIVE);
       expect(finalResponse.body.pausedAt).toBeNull();
       expect(finalResponse.body.resumedAt).toBeDefined();
-      expect(finalResponse.body.membershipEndAt).toBe(newEndAt.toISOString());
+      expect(finalResponse.body.membershipEndDate).toBe(
+        newEndDate.toISOString(),
+      );
       expect(finalResponse.body.remainingDays).toBeDefined();
     });
   });
@@ -1489,7 +1477,7 @@ describe('Members E2E Tests', () => {
       expect(Array.isArray(response.body.data)).toBe(true);
     });
 
-    it.skip('all responses should include remainingDays', async () => {
+    it('all responses should include remainingDays', async () => {
       const member = await createTestMember(prisma, tenant1.id, branch1.id);
 
       // GET one
@@ -1508,6 +1496,7 @@ describe('Members E2E Tests', () => {
           firstName: 'New',
           lastName: 'Member',
           phone: '+9999999999',
+          membershipPlanId: 'plan-tenant1',
         })
         .expect(201);
       expect(create.body).toHaveProperty('remainingDays');
@@ -1544,13 +1533,15 @@ describe('Members E2E Tests', () => {
   describe('Member Creation with Membership Plan', () => {
     let activePlan: any;
     let archivedPlan: any;
+    const testPlanIds: string[] = [];
 
     beforeEach(async () => {
-      // Create test plans
+      // Create test plans with unique names
+      const timestamp = Date.now();
       activePlan = await prisma.membershipPlan.create({
         data: {
           tenantId: tenant1.id,
-          name: 'Active Test Plan',
+          name: `Active Test Plan ${timestamp}`,
           durationType: 'MONTHS',
           durationValue: 3,
           price: 300,
@@ -1558,11 +1549,12 @@ describe('Members E2E Tests', () => {
           status: 'ACTIVE',
         },
       });
+      testPlanIds.push(activePlan.id);
 
       archivedPlan = await prisma.membershipPlan.create({
         data: {
           tenantId: tenant1.id,
-          name: 'Archived Test Plan',
+          name: `Archived Test Plan ${timestamp}`,
           durationType: 'MONTHS',
           durationValue: 1,
           price: 100,
@@ -1570,18 +1562,24 @@ describe('Members E2E Tests', () => {
           status: 'ARCHIVED',
         },
       });
+      testPlanIds.push(archivedPlan.id);
     });
 
     afterEach(async () => {
-      // Clean up plans after each test
-      await prisma.membershipPlan.deleteMany({
-        where: { tenantId: { in: [tenant1.id, tenant2.id] } },
+      // Clean up members first (they reference plans via FK)
+      await prisma.member.deleteMany({
+        where: { membershipPlanId: { in: testPlanIds } },
       });
+      // Then clean up plans created in this test block
+      await prisma.membershipPlan.deleteMany({
+        where: { id: { in: testPlanIds } },
+      });
+      testPlanIds.length = 0; // Clear the array
     });
 
     // T134: Create member with valid membershipPlanId
     describe('T134 - Create member with valid plan', () => {
-      it.skip('should create member with valid membershipPlanId and calculate end date correctly', async () => {
+      it('should create member with valid membershipPlanId and calculate end date correctly', async () => {
         const startDate = new Date('2025-01-15');
         const createDto = {
           branchId: branch1.id,
@@ -1600,26 +1598,26 @@ describe('Members E2E Tests', () => {
 
         expect(response.body).toHaveProperty('id');
         expect(response.body).toHaveProperty('membershipPlanId', activePlan.id);
-        expect(response.body).toHaveProperty('membershipStartAt');
-        expect(response.body).toHaveProperty('membershipEndAt');
-        expect(response.body).toHaveProperty('membershipPriceAtPurchase', 300);
+        expect(response.body).toHaveProperty('membershipStartDate');
+        expect(response.body).toHaveProperty('membershipEndDate');
+        expect(Number(response.body.membershipPriceAtPurchase)).toBe(300);
 
         // Verify end date calculation (3 months from start)
-        const memberEndAt = new Date(response.body.membershipEndAt);
+        const memberEndDate = new Date(response.body.membershipEndDate);
 
         // Expected end date: 2025-04-15 (3 months from 2025-01-15)
-        expect(memberEndAt.getFullYear()).toBe(2025);
-        expect(memberEndAt.getMonth()).toBe(3); // April (0-indexed)
-        expect(memberEndAt.getDate()).toBe(15);
+        expect(memberEndDate.getFullYear()).toBe(2025);
+        expect(memberEndDate.getMonth()).toBe(3); // April (0-indexed)
+        expect(memberEndDate.getDate()).toBe(15);
       });
 
-      it.skip('should default to today if membershipStartDate not provided', async () => {
+      it('should default to today if membershipStartDate not provided', async () => {
         const createDto = {
           branchId: branch1.id,
           firstName: 'Jane',
           lastName: 'Smith',
           phone: '+905551234568',
-          membershipPlanId: 'plan-tenant1',
+          membershipPlanId: activePlan.id,
         };
 
         const beforeRequest = new Date();
@@ -1630,25 +1628,25 @@ describe('Members E2E Tests', () => {
           .send(createDto)
           .expect(201);
 
-        const memberStartAt = new Date(response.body.membershipStartAt);
+        const memberStartDate = new Date(response.body.membershipStartDate);
         const afterRequest = new Date();
 
         // Start date should be between before and after request
-        expect(memberStartAt.getTime()).toBeGreaterThanOrEqual(
+        expect(memberStartDate.getTime()).toBeGreaterThanOrEqual(
           beforeRequest.getTime() - 1000,
         );
-        expect(memberStartAt.getTime()).toBeLessThanOrEqual(
+        expect(memberStartDate.getTime()).toBeLessThanOrEqual(
           afterRequest.getTime() + 1000,
         );
       });
 
-      it.skip('should use plan price when membershipPriceAtPurchase not provided', async () => {
+      it('should use plan price when membershipPriceAtPurchase not provided', async () => {
         const createDto = {
           branchId: branch1.id,
           firstName: 'Price',
           lastName: 'Default',
           phone: '+905551234569',
-          membershipPlanId: 'plan-tenant1',
+          membershipPlanId: activePlan.id,
         };
 
         const response = await request(app.getHttpServer())
@@ -1657,15 +1655,16 @@ describe('Members E2E Tests', () => {
           .send(createDto)
           .expect(201);
 
-        expect(response.body).toHaveProperty('membershipPriceAtPurchase', 300);
+        expect(Number(response.body.membershipPriceAtPurchase)).toBe(300);
       });
 
-      it.skip('should allow custom membershipPriceAtPurchase', async () => {
+      it('should allow custom membershipPriceAtPurchase', async () => {
         const createDto = {
           branchId: branch1.id,
           firstName: 'Custom',
           lastName: 'Price',
           phone: '+905551234570',
+          membershipPlanId: activePlan.id,
           membershipPriceAtPurchase: 250, // Discounted price
         };
 
@@ -1675,10 +1674,10 @@ describe('Members E2E Tests', () => {
           .send(createDto)
           .expect(201);
 
-        expect(response.body).toHaveProperty('membershipPriceAtPurchase', 250);
+        expect(Number(response.body.membershipPriceAtPurchase)).toBe(250);
       });
 
-      it.skip('should calculate end date correctly for DAYS duration', async () => {
+      it('should calculate end date correctly for DAYS duration', async () => {
         // Create plan with DAYS duration
         const daysPlan = await prisma.membershipPlan.create({
           data: {
@@ -1708,15 +1707,15 @@ describe('Members E2E Tests', () => {
           .send(createDto)
           .expect(201);
 
-        const memberEndAt = new Date(response.body.membershipEndAt);
+        const memberEndDate = new Date(response.body.membershipEndDate);
 
         // Expected: 30 days from 2025-01-15 = 2025-02-14
-        expect(memberEndAt.getFullYear()).toBe(2025);
-        expect(memberEndAt.getMonth()).toBe(1); // February (0-indexed)
-        expect(memberEndAt.getDate()).toBe(14);
+        expect(memberEndDate.getFullYear()).toBe(2025);
+        expect(memberEndDate.getMonth()).toBe(1); // February (0-indexed)
+        expect(memberEndDate.getDate()).toBe(14);
       });
 
-      it.skip('should handle month-end clamping correctly (Jan 31 + 1 month)', async () => {
+      it('should handle month-end clamping correctly (Jan 31 + 1 month)', async () => {
         // Create 1-month plan
         const monthPlan = await prisma.membershipPlan.create({
           data: {
@@ -1746,12 +1745,12 @@ describe('Members E2E Tests', () => {
           .send(createDto)
           .expect(201);
 
-        const memberEndAt = new Date(response.body.membershipEndAt);
+        const memberEndDate = new Date(response.body.membershipEndDate);
 
         // Expected: Feb 28, 2025 (clamped to last day of month)
-        expect(memberEndAt.getFullYear()).toBe(2025);
-        expect(memberEndAt.getMonth()).toBe(1); // February
-        expect(memberEndAt.getDate()).toBe(28); // Clamped to last day
+        expect(memberEndDate.getFullYear()).toBe(2025);
+        expect(memberEndDate.getMonth()).toBe(1); // February
+        expect(memberEndDate.getDate()).toBe(28); // Clamped to last day
       });
     });
 
@@ -1815,7 +1814,7 @@ describe('Members E2E Tests', () => {
 
     // T136: Archived plan rejection
     describe('T136 - Archived plan rejection', () => {
-      it.skip('should reject member creation with archived plan', async () => {
+      it('should reject member creation with archived plan', async () => {
         const createDto = {
           branchId: branch1.id,
           firstName: 'Archived',
@@ -1828,53 +1827,31 @@ describe('Members E2E Tests', () => {
           .post('/api/v1/members')
           .set('Authorization', `Bearer ${token1}`)
           .send(createDto)
-          .expect((res) => {
-            expect([400, 403]).toContain(res.status);
-          });
+          .expect(400);
 
         expect(response.body).toHaveProperty('message');
-        expect(response.body.message.toLowerCase()).toMatch(
-          /archived|inactive|active/i,
-        );
       });
 
-      it.skip('should successfully create member after plan is restored', async () => {
-        // First attempt should fail
-        const createDto1 = {
-          branchId: branch1.id,
-          firstName: 'Before',
-          lastName: 'Restore',
-          phone: '+905551234576',
-          membershipPlanId: 'plan-tenant1',
-        };
-
-        await request(app.getHttpServer())
-          .post('/api/v1/members')
-          .set('Authorization', `Bearer ${token1}`)
-          .send(createDto1)
-          .expect((res) => {
-            expect([400, 403]).toContain(res.status);
-          });
-
-        // Restore the plan
+      it('should successfully create member after plan is restored', async () => {
+        // Restore the archived plan
         await prisma.membershipPlan.update({
           where: { id: archivedPlan.id },
           data: { status: 'ACTIVE' },
         });
 
-        // Second attempt should succeed
-        const createDto2 = {
+        // Now attempt should succeed
+        const createDto = {
           branchId: branch1.id,
           firstName: 'After',
           lastName: 'Restore',
           phone: '+905551234577',
-          membershipPlanId: 'plan-tenant1',
+          membershipPlanId: archivedPlan.id,
         };
 
         const response = await request(app.getHttpServer())
           .post('/api/v1/members')
           .set('Authorization', `Bearer ${token1}`)
-          .send(createDto2)
+          .send(createDto)
           .expect(201);
 
         expect(response.body).toHaveProperty(

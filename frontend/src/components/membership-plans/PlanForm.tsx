@@ -14,7 +14,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DurationType,
-  PlanStatus,
   type MembershipPlan,
   type CreatePlanPayload,
   type UpdatePlanPayload,
@@ -66,9 +65,11 @@ export function PlanForm({
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Reset form when initialData changes
+  // Reset form when initialData changes (e.g., when editing a different plan)
+  // This pattern is intentional for form synchronization
   useEffect(() => {
     if (initialData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional form reset on data change
       setName(initialData.name);
       setDescription(initialData.description || "");
       setDurationType(initialData.durationType);

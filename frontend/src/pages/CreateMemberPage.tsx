@@ -1,16 +1,15 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { useCurrentTenant } from '@/hooks/useTenant';
-import { useCreateMember } from '@/hooks/useMembers';
-import { MemberForm } from '@/components/members/MemberForm';
-import type { CreateMemberPayload } from '@/types/member';
+} from "@/components/ui/card";
+import { useCurrentTenant } from "@/hooks/useTenant";
+import { useCreateMember } from "@/hooks/useMembers";
+import { MemberForm } from "@/components/members/MemberForm";
+import type { CreateMemberPayload, UpdateMemberPayload } from "@/types/member";
 
 /**
  * Create Member Page
@@ -19,12 +18,14 @@ import type { CreateMemberPayload } from '@/types/member';
 export function CreateMemberPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
   const navigate = useNavigate();
-  const createMember = useCreateMember(tenant?.id || '');
+  const createMember = useCreateMember(tenant?.id || "");
 
-  const handleSubmit = async (data: CreateMemberPayload) => {
-    await createMember.mutateAsync(data);
+  const handleSubmit = async (
+    data: CreateMemberPayload | UpdateMemberPayload
+  ) => {
+    await createMember.mutateAsync(data as CreateMemberPayload);
     // Redirect to members list on success
-    navigate('/members');
+    navigate("/members");
   };
 
   if (tenantLoading) {
@@ -57,9 +58,7 @@ export function CreateMemberPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Yeni Üye</h1>
-        <p className="text-sm text-muted-foreground">
-          Yeni bir üye ekleyin.
-        </p>
+        <p className="text-sm text-muted-foreground">Yeni bir üye ekleyin.</p>
       </div>
 
       <Card className="w-full">
@@ -73,7 +72,7 @@ export function CreateMemberPage() {
           <MemberForm
             mode="create"
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/members')}
+            onCancel={() => navigate("/members")}
             isLoading={createMember.isPending}
             error={createMember.error}
             tenantId={tenant.id}
@@ -83,4 +82,3 @@ export function CreateMemberPage() {
     </div>
   );
 }
-

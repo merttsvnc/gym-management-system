@@ -1,20 +1,19 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { useCurrentTenant } from '@/hooks/useTenant';
-import { useMember, useUpdateMember } from '@/hooks/useMembers';
-import { MemberForm } from '@/components/members/MemberForm';
-import type { UpdateMemberPayload } from '@/types/member';
-import type { ApiError } from '@/types/error';
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { useCurrentTenant } from "@/hooks/useTenant";
+import { useMember, useUpdateMember } from "@/hooks/useMembers";
+import { MemberForm } from "@/components/members/MemberForm";
+import type { UpdateMemberPayload } from "@/types/member";
+import type { ApiError } from "@/types/error";
 
 /**
  * Edit Member Page
@@ -28,8 +27,8 @@ export function EditMemberPage() {
     data: member,
     isLoading: memberLoading,
     error: memberError,
-  } = useMember(tenant?.id || '', id || '');
-  const updateMember = useUpdateMember(tenant?.id || '');
+  } = useMember(tenant?.id || "", id || "");
+  const updateMember = useUpdateMember(tenant?.id || "");
 
   const handleSubmit = async (data: UpdateMemberPayload) => {
     if (!id) return;
@@ -74,10 +73,10 @@ export function EditMemberPage() {
       <div className="space-y-6">
         <Alert variant="destructive">
           <AlertDescription>
-            {apiError.message || 'Üye bilgisi yüklenirken bir hata oluştu'}
+            {apiError.message || "Üye bilgisi yüklenirken bir hata oluştu"}
           </AlertDescription>
         </Alert>
-        <Button onClick={() => navigate('/members')}>Üye Listesine Dön</Button>
+        <Button onClick={() => navigate("/members")}>Üye Listesine Dön</Button>
       </div>
     );
   }
@@ -88,7 +87,7 @@ export function EditMemberPage() {
         <Alert>
           <AlertDescription>Üye bulunamadı</AlertDescription>
         </Alert>
-        <Button onClick={() => navigate('/members')}>Üye Listesine Dön</Button>
+        <Button onClick={() => navigate("/members")}>Üye Listesine Dön</Button>
       </div>
     );
   }
@@ -124,4 +123,3 @@ export function EditMemberPage() {
     </div>
   );
 }
-

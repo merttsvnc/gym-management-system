@@ -1,16 +1,18 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { useCurrentTenant } from '@/hooks/useTenant';
-import { useCreatePlan } from '@/hooks/use-membership-plans';
-import { PlanForm } from '@/components/membership-plans/PlanForm';
-import type { CreatePlanPayload } from '@/types/membership-plan';
+} from "@/components/ui/card";
+import { useCurrentTenant } from "@/hooks/useTenant";
+import { useCreatePlan } from "@/hooks/use-membership-plans";
+import { PlanForm } from "@/components/membership-plans/PlanForm";
+import type {
+  CreatePlanPayload,
+  UpdatePlanPayload,
+} from "@/types/membership-plan";
 
 /**
  * Create Plan Page
@@ -19,12 +21,12 @@ import type { CreatePlanPayload } from '@/types/membership-plan';
 export function CreatePlanPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
   const navigate = useNavigate();
-  const createPlan = useCreatePlan(tenant?.id || '');
+  const createPlan = useCreatePlan(tenant?.id || "");
 
-  const handleSubmit = async (data: CreatePlanPayload) => {
-    await createPlan.mutateAsync(data);
+  const handleSubmit = async (data: CreatePlanPayload | UpdatePlanPayload) => {
+    await createPlan.mutateAsync(data as CreatePlanPayload);
     // Redirect to plan list on success
-    navigate('/membership-plans');
+    navigate("/membership-plans");
   };
 
   if (tenantLoading) {
@@ -56,7 +58,9 @@ export function CreatePlanPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Yeni Üyelik Planı</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Yeni Üyelik Planı
+        </h1>
         <p className="text-sm text-muted-foreground">
           Yeni bir üyelik planı oluşturun.
         </p>
@@ -73,7 +77,7 @@ export function CreatePlanPage() {
           <PlanForm
             mode="create"
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/membership-plans')}
+            onCancel={() => navigate("/membership-plans")}
             isLoading={createPlan.isPending}
             error={createPlan.error}
           />
@@ -82,4 +86,3 @@ export function CreatePlanPage() {
     </div>
   );
 }
-

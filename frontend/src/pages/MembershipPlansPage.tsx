@@ -24,7 +24,6 @@ import {
   useMembershipPlans,
   useArchivePlan,
   useRestorePlan,
-  useDeletePlan,
 } from "@/hooks/use-membership-plans";
 import { PlanCard } from "@/components/membership-plans/PlanCard";
 import { PlanStatus, type MembershipPlan } from "@/types/membership-plan";
@@ -56,7 +55,7 @@ export function MembershipPlansPage() {
 
   const archivePlan = useArchivePlan(tenant?.id || "");
   const restorePlan = useRestorePlan(tenant?.id || "");
-  const deletePlan = useDeletePlan(tenant?.id || "");
+  // Note: useDeletePlan hook removed - add back when delete UI is implemented
 
   const handleArchive = async (plan: MembershipPlan) => {
     if (
@@ -82,23 +81,8 @@ export function MembershipPlansPage() {
     }
   };
 
-  const handleDelete = async (plan: MembershipPlan) => {
-    if (
-      confirm(
-        "Bu planı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-      )
-    ) {
-      try {
-        await deletePlan.mutateAsync(plan.id);
-      } catch (error) {
-        const apiError = error as ApiError;
-        toast.error(
-          apiError.message ||
-            "Plan silinirken bir hata oluştu. Planın üyeleri varsa silinemez."
-        );
-      }
-    }
-  };
+  // Note: handleDelete removed - delete functionality via PlanCard not yet implemented
+  // The deletePlan mutation hook is available when delete UI is needed
 
   if (tenantLoading) {
     return (

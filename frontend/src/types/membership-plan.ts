@@ -1,18 +1,20 @@
 /**
  * Duration type enum matching backend Prisma schema
  */
-export enum DurationType {
-  DAYS = 'DAYS',
-  MONTHS = 'MONTHS',
-}
+export const DurationType = {
+  DAYS: "DAYS",
+  MONTHS: "MONTHS",
+} as const;
+export type DurationType = (typeof DurationType)[keyof typeof DurationType];
 
 /**
  * Plan status enum matching backend Prisma schema
  */
-export enum PlanStatus {
-  ACTIVE = 'ACTIVE',
-  ARCHIVED = 'ARCHIVED',
-}
+export const PlanStatus = {
+  ACTIVE: "ACTIVE",
+  ARCHIVED: "ARCHIVED",
+} as const;
+export type PlanStatus = (typeof PlanStatus)[keyof typeof PlanStatus];
 
 /**
  * Core membership plan entity, mirroring backend Prisma model
@@ -100,5 +102,3 @@ export type ArchivePlanResponse = {
   message: string;
   activeMemberCount?: number;
 };
-
-
