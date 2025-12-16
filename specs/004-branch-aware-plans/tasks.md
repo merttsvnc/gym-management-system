@@ -3,7 +3,7 @@
 **Version:** 2.0.0  
 **Created:** 2025-01-27  
 **Updated:** 2025-01-27  
-**Status:** Ready for Implementation
+**Status:** In Progress (PR5 Complete)
 
 ---
 
@@ -330,7 +330,7 @@ Update all controller endpoints to handle scope and branchId. Ensure correct sta
 
 **Goal:** Comprehensive test coverage for all functionality
 
-### Task 4.1: Unit Tests - Scope Validation and scopeKey Derivation
+### Task 4.1: Unit Tests - Scope Validation and scopeKey Derivation ✅
 
 **Files:**
 - `backend/src/membership-plans/membership-plans.service.spec.ts`
@@ -339,17 +339,17 @@ Update all controller endpoints to handle scope and branchId. Ensure correct sta
 Write unit tests for scope validation (TENANT/BRANCH rules, branch validation) and scopeKey derivation (computation, security, never user-provided).
 
 **Acceptance Criteria:**
-- Test createPlanForTenant: TENANT scope with null branchId succeeds
-- Test createPlanForTenant: TENANT scope with branchId fails (400 Bad Request)
-- Test createPlanForTenant: BRANCH scope without branchId fails (400 Bad Request)
-- Test createPlanForTenant: BRANCH scope with branchId from different tenant fails (403 Forbidden)
-- Test createPlanForTenant: BRANCH scope with archived branch fails (400 Bad Request)
-- Test computeScopeKey: Returns "TENANT" for TENANT scope
-- Test computeScopeKey: Returns branchId for BRANCH scope
-- Test createPlanForTenant: scopeKey is set correctly for TENANT scope
-- Test createPlanForTenant: scopeKey is set correctly for BRANCH scope
-- Test createPlanForTenant: scopeKey is NEVER user-provided (test fails if provided)
-- All tests pass with >90% coverage for validation logic
+- ✅ Test createPlanForTenant: TENANT scope with null branchId succeeds
+- ✅ Test createPlanForTenant: TENANT scope with branchId fails (400 Bad Request)
+- ✅ Test createPlanForTenant: BRANCH scope without branchId fails (400 Bad Request)
+- ✅ Test createPlanForTenant: BRANCH scope with branchId from different tenant fails (403 Forbidden)
+- ✅ Test createPlanForTenant: BRANCH scope with archived branch fails (400 Bad Request)
+- ✅ Test computeScopeKey: Returns "TENANT" for TENANT scope
+- ✅ Test computeScopeKey: Returns branchId for BRANCH scope
+- ✅ Test createPlanForTenant: scopeKey is set correctly for TENANT scope
+- ✅ Test createPlanForTenant: scopeKey is set correctly for BRANCH scope
+- ✅ Test createPlanForTenant: scopeKey is NEVER user-provided (test fails if provided)
+- ✅ All tests pass with >90% coverage for validation logic
 
 **Dependencies:** Task 3.2
 
@@ -357,7 +357,7 @@ Write unit tests for scope validation (TENANT/BRANCH rules, branch validation) a
 
 ---
 
-### Task 4.2: Unit Tests - Uniqueness Validation
+### Task 4.2: Unit Tests - Uniqueness Validation ✅
 
 **Files:**
 - `backend/src/membership-plans/membership-plans.service.spec.ts`
@@ -366,13 +366,13 @@ Write unit tests for scope validation (TENANT/BRANCH rules, branch validation) a
 Write unit tests for scope-based uniqueness validation covering all edge cases (TENANT/BRANCH scopes, cross-branch duplicates, archived plans, case-insensitivity).
 
 **Acceptance Criteria:**
-- Test checkNameUniqueness: TENANT scope duplicate name fails
-- Test checkNameUniqueness: BRANCH scope duplicate name within branch fails
-- Test checkNameUniqueness: Duplicate names across different branches succeed
-- Test checkNameUniqueness: Duplicate names between TENANT and BRANCH scopes succeed
-- Test checkNameUniqueness: Archived plans don't count toward uniqueness
-- Test checkNameUniqueness: Case-insensitive uniqueness enforcement
-- All tests pass with clear test names and arrange-act-assert pattern
+- ✅ Test checkNameUniqueness: TENANT scope duplicate name fails
+- ✅ Test checkNameUniqueness: BRANCH scope duplicate name within branch fails
+- ✅ Test checkNameUniqueness: Duplicate names across different branches succeed
+- ✅ Test checkNameUniqueness: Duplicate names between TENANT and BRANCH scopes succeed
+- ✅ Test checkNameUniqueness: Archived plans don't count toward uniqueness
+- ✅ Test checkNameUniqueness: Case-insensitive uniqueness enforcement
+- ✅ All tests pass with clear test names and arrange-act-assert pattern
 
 **Dependencies:** Task 4.1
 
@@ -380,7 +380,7 @@ Write unit tests for scope-based uniqueness validation covering all edge cases (
 
 ---
 
-### Task 4.3: Unit Tests - Immutability and Archive/Restore
+### Task 4.3: Unit Tests - Immutability and Archive/Restore ✅
 
 **Files:**
 - `backend/src/membership-plans/membership-plans.service.spec.ts`
@@ -389,13 +389,13 @@ Write unit tests for scope-based uniqueness validation covering all edge cases (
 Write unit tests for scope/branchId immutability and archive/restore behavior (idempotency, uniqueness validation, scopeKey recomputation).
 
 **Acceptance Criteria:**
-- Test updatePlanForTenant: Scope change rejection (400 Bad Request)
-- Test updatePlanForTenant: branchId change rejection (400 Bad Request)
-- Test archivePlanForTenant: Idempotent behavior (already archived → 200 OK)
-- Test restorePlanForTenant: Fails if plan already ACTIVE (400 Bad Request)
-- Test restorePlanForTenant: Fails if would violate uniqueness (400 Bad Request)
-- Test restorePlanForTenant: scopeKey is recomputed during restore
-- All tests pass with clear assertions
+- ✅ Test updatePlanForTenant: Scope change rejection (400 Bad Request)
+- ✅ Test updatePlanForTenant: branchId change rejection (400 Bad Request)
+- ✅ Test archivePlanForTenant: Idempotent behavior (already archived → 200 OK)
+- ✅ Test restorePlanForTenant: Fails if plan already ACTIVE (400 Bad Request)
+- ✅ Test restorePlanForTenant: Fails if would violate uniqueness (400 Bad Request)
+- ✅ Test restorePlanForTenant: scopeKey is recomputed during restore
+- ✅ All tests pass with clear assertions
 
 **Dependencies:** Task 4.2
 
@@ -612,9 +612,10 @@ This section maps consolidated tasks to original task numbers for traceability.
 - DTO updates and controller endpoint updates
 - Review focus: Status code correctness, DTO validation, scopeKey not in DTOs
 
-**PR 5: Unit Tests** (Tasks 4.1-4.3)
+**PR 5: Unit Tests** (Tasks 4.1-4.3) ✅
 - All service layer unit tests
 - Review focus: Test coverage, edge cases, scopeKey security tests
+- **Status:** Complete - All 77 unit tests passing
 
 **PR 6: Integration Tests - Core Endpoints** (Tasks 4.4-4.5)
 - POST and GET endpoint integration tests
