@@ -46,6 +46,10 @@ export interface PlanListFilters {
   search?: string;
   page?: number;
   limit?: number;
+  scope?: PlanScope;
+  branchId?: string;
+  q?: string; // Name contains search (case-insensitive)
+  includeArchived?: boolean; // Default false
 }
 
 @Injectable()
@@ -128,9 +132,11 @@ export class MembershipPlansService {
    * List plans for a tenant with filters and pagination
    * Business rules:
    * - All queries are tenant-scoped
-   * - Supports filtering by status
-   * - Supports search by name (case-insensitive)
+   * - Supports filtering by scope, branchId, status
+   * - Supports search by name (case-insensitive) via 'q' parameter
+   * - Supports includeArchived flag (default false, uses archivedAt for archived logic)
    * - Default pagination: page=1, limit=20
+   * - Sorting: sortOrder ASC, then createdAt ASC
    */
   async listPlansForTenant(
     tenantId: string,
@@ -144,19 +150,53 @@ export class MembershipPlansService {
       totalPages: number;
     };
   }> {
-    const { status, search, page = 1, limit = 20 } = filters;
+    const {
+      status,
+      search,
+      page = 1,
+      limit = 20,
+      scope,
+      branchId,
+      q,
+      includeArchived = false,
+    } = filters;
+
+    // Validate branchId if provided (must exist and belong to tenant)
+    if (branchId) {
+      await this.validateBranchIdForListing(tenantId, branchId);
+    }
 
     const where: Prisma.MembershipPlanWhereInput = {
       tenantId,
     };
 
+    // Filter by scope
+    if (scope) {
+      where.scope = scope;
+    }
+
+    // Filter by branchId (returns only BRANCH-scoped plans for that branch)
+    if (branchId) {
+      where.branchId = branchId;
+      // If branchId is provided, implicitly filter to BRANCH scope
+      where.scope = PlanScope.BRANCH;
+    }
+
+    // Filter by archivedAt (not status) - archived = archivedAt != null
+    if (!includeArchived) {
+      where.archivedAt = null;
+    }
+
+    // Filter by status if provided (legacy support)
     if (status) {
       where.status = status;
     }
 
-    if (search) {
+    // Name search: use 'q' parameter if provided, fallback to 'search' for backward compatibility
+    const nameSearch = q || search;
+    if (nameSearch) {
       where.name = {
-        contains: search,
+        contains: nameSearch,
         mode: 'insensitive',
       };
     }
@@ -185,15 +225,43 @@ export class MembershipPlansService {
   /**
    * List active plans for a tenant (no pagination, for dropdowns)
    * Business rules:
-   * - Returns only ACTIVE plans
-   * - Ordered by sortOrder, then createdAt
+   * - Returns only ACTIVE plans (archivedAt is null)
+   * - If branchId is NOT provided: returns TENANT plans only
+   * - If branchId is provided (and valid for tenant): returns TENANT plans + BRANCH plans for that branch
+   * - Does NOT return BRANCH plans for other branches
+   * - Ordered by sortOrder ASC, then createdAt ASC
    */
-  async listActivePlansForTenant(tenantId: string): Promise<MembershipPlan[]> {
+  async listActivePlansForTenant(
+    tenantId: string,
+    branchId?: string,
+  ): Promise<MembershipPlan[]> {
+    // Validate branchId if provided
+    if (branchId) {
+      await this.validateBranchIdForListing(tenantId, branchId);
+    }
+
+    // Build where clause: ACTIVE plans (archivedAt is null)
+    const where: Prisma.MembershipPlanWhereInput = {
+      tenantId,
+      archivedAt: null, // ACTIVE = archivedAt is null
+    };
+
+    if (branchId) {
+      // Return TENANT plans + BRANCH plans for the specified branch
+      where.OR = [
+        { scope: PlanScope.TENANT }, // TENANT-scoped plans
+        {
+          scope: PlanScope.BRANCH,
+          branchId: branchId, // BRANCH-scoped plans for this branch only
+        },
+      ];
+    } else {
+      // No branchId provided: return only TENANT plans
+      where.scope = PlanScope.TENANT;
+    }
+
     return this.prisma.membershipPlan.findMany({
-      where: {
-        tenantId,
-        status: PlanStatus.ACTIVE,
-      },
+      where,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
   }
@@ -236,6 +304,19 @@ export class MembershipPlansService {
     input: UpdatePlanInput,
   ): Promise<MembershipPlan> {
     const existingPlan = await this.getPlanByIdForTenant(tenantId, planId);
+
+    // Enforce immutability: scope and branchId cannot be changed after creation
+    // Check if input contains scope or branchId (defensive check, even though TypeScript prevents it)
+    if ('scope' in input && input.scope !== undefined) {
+      throw new BadRequestException(
+        'Plan kapsamı (scope) değiştirilemez. Plan oluşturulduktan sonra kapsam değiştirilemez.',
+      );
+    }
+    if ('branchId' in input && input.branchId !== undefined) {
+      throw new BadRequestException(
+        'Plan şubesi (branchId) değiştirilemez. Plan oluşturulduktan sonra şube değiştirilemez.',
+      );
+    }
 
     // Validate duration value if being updated
     if (input.durationType && input.durationValue !== undefined) {
@@ -307,9 +388,10 @@ export class MembershipPlansService {
   }
 
   /**
-   * Archive a plan for a tenant
+   * Archive a plan for a tenant (soft delete)
    * Business rules:
-   * - Sets status to ARCHIVED
+   * - Sets archivedAt = now (uses archivedAt for archived logic, not status)
+   * - MUST be idempotent: if already archived (archivedAt != null), return successfully without error
    * - Does NOT block archival when active members exist (spec says warn, not block)
    * - Returns plan with active member count for warnings (used later by controller)
    */
@@ -319,18 +401,19 @@ export class MembershipPlansService {
   ): Promise<{ plan: MembershipPlan; activeMemberCount: number }> {
     const plan = await this.getPlanByIdForTenant(tenantId, planId);
 
-    if (plan.status === PlanStatus.ARCHIVED) {
-      // Already archived, return as-is
+    // Idempotent: if already archived (archivedAt != null), return successfully
+    if (plan.archivedAt !== null) {
       const activeMemberCount = await this.countActiveMembersForPlan(planId);
       return { plan, activeMemberCount };
     }
 
     const activeMemberCount = await this.countActiveMembersForPlan(planId);
 
+    // Soft delete by setting archivedAt = now
     const archivedPlan = await this.prisma.membershipPlan.update({
       where: { id: planId },
       data: {
-        status: PlanStatus.ARCHIVED,
+        archivedAt: new Date(),
       },
     });
 
@@ -338,10 +421,14 @@ export class MembershipPlansService {
   }
 
   /**
-   * Restore an archived plan (set status back to ACTIVE)
+   * Restore an archived plan (set archivedAt back to null)
    * Business rules:
-   * - Sets status to ACTIVE
-   * - No restrictions on restoration
+   * - If plan already ACTIVE (archivedAt is null), return 400 Bad Request
+   * - Before restoring, run uniqueness validation (case-insensitive, archivedAt null check)
+   * - Recompute scopeKey during restore:
+   *   - TENANT -> "TENANT"
+   *   - BRANCH -> branchId (must exist)
+   * - Then set archivedAt = null
    */
   async restorePlanForTenant(
     tenantId: string,
@@ -349,15 +436,31 @@ export class MembershipPlansService {
   ): Promise<MembershipPlan> {
     const plan = await this.getPlanByIdForTenant(tenantId, planId);
 
-    if (plan.status === PlanStatus.ACTIVE) {
-      // Already active, return as-is
-      return plan;
+    // If plan already ACTIVE (archivedAt is null), return 400
+    if (plan.archivedAt === null) {
+      throw new BadRequestException(
+        'Plan zaten aktif durumda. Arşivlenmiş planlar geri yüklenebilir.',
+      );
     }
 
+    // Before restoring, run uniqueness validation (case-insensitive, archivedAt null check)
+    await this.checkNameUniqueness(
+      tenantId,
+      plan.name,
+      planId,
+      plan.scope,
+      plan.branchId,
+    );
+
+    // Recompute scopeKey during restore
+    const scopeKey = this.computeScopeKey(plan.scope, plan.branchId);
+
+    // Restore by setting archivedAt = null and updating scopeKey
     return this.prisma.membershipPlan.update({
       where: { id: planId },
       data: {
-        status: PlanStatus.ACTIVE,
+        archivedAt: null,
+        scopeKey, // Recompute scopeKey during restore
       },
     });
   }
@@ -503,6 +606,28 @@ export class MembershipPlansService {
       throw new BadRequestException(
         'Arşivlenmiş şubeler için plan oluşturulamaz',
       );
+    }
+  }
+
+  /**
+   * Validate branchId for listing operations
+   * Business rules:
+   * - Branch must exist
+   * - Branch must belong to tenantId
+   * - Returns 400 Bad Request with generic Turkish message if invalid (no tenant leakage)
+   * - Used for listing filters (doesn't require branch to be active)
+   */
+  private async validateBranchIdForListing(
+    tenantId: string,
+    branchId: string,
+  ): Promise<void> {
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: branchId },
+    });
+
+    if (!branch || branch.tenantId !== tenantId) {
+      // Generic error message to prevent tenant leakage
+      throw new BadRequestException('Geçersiz şube kimliği');
     }
   }
 
