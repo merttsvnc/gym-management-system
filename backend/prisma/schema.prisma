@@ -134,6 +134,7 @@ model MembershipPlan {
   maxFreezeDays Int?
   autoRenew     Boolean      @default(false)
   status        PlanStatus
+  archivedAt    DateTime?
   sortOrder     Int?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

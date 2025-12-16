@@ -629,3 +629,36 @@ This section maps consolidated tasks to original task numbers for traceability.
 ---
 
 **End of Tasks**
+
+---
+
+## Hotfixes
+
+### Hotfix: Add archivedAt to MembershipPlan
+
+**Date:** 2025-12-16  
+**Migration:** `20251216124731_add_archived_at_to_membership_plan`  
+**Status:** ✅ Complete
+
+**Description:**
+Added `archivedAt DateTime?` field to MembershipPlan model to support soft archiving functionality. This aligns with spec 004 decisions where archivedAt is used to filter out archived plans from uniqueness checks and queries.
+
+**Changes:**
+- ✅ Schema already includes `archivedAt DateTime?` (line 137)
+- ✅ Migration created: `add_archivedAt_to_membership_plan`
+- ✅ Migration SQL verified: Only adds `archivedAt` column (no indexes needed for current usage)
+- ✅ Service logic already uses `archivedAt` in `checkNameUniqueness` method (line 554)
+
+**Migration Details:**
+- Migration file: `backend/prisma/migrations/20251216124731_add_archived_at_to_membership_plan/migration.sql`
+- SQL operation: `ALTER TABLE "MembershipPlan" ADD COLUMN "archivedAt" TIMESTAMP(3);`
+- No index added: Current queries filter by `archivedAt: null` which doesn't require a dedicated index
+
+**Application:**
+To apply this migration in production:
+```bash
+cd backend
+npx prisma migrate deploy
+```
+
+This will apply all pending migrations including `add_archivedAt_to_membership_plan`.
