@@ -1517,10 +1517,46 @@ describe('MembershipPlansService', () => {
   // PR5 - Task 4.3: Unit Tests - Immutability and Archive/Restore
   describe('PR5 - Immutability and Archive/Restore', () => {
     describe('updatePlanForTenant - Immutability', () => {
-      // Note: scope and branchId immutability is now enforced at the DTO/ValidationPipe layer.
+      // Note: scope and branchId immutability is enforced at the DTO/ValidationPipe layer.
       // UpdatePlanDto does not include scope/branchId fields, and ValidationPipe with
       // forbidNonWhitelisted=true rejects requests containing these fields with 400 Bad Request.
-      // Service no longer needs to check for these fields.
+      // However, service has defense-in-depth checks to prevent any attempts to modify
+      // scope/branchId/scopeKey in updateData before database update.
+
+      it('should never include scope/branchId/scopeKey in updateData (defense-in-depth)', async () => {
+        const existingPlan = {
+          ...mockPlan,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+          scopeKey: branchId,
+        };
+        const updateInput = {
+          name: 'Updated Name',
+          description: 'New description',
+          price: 150,
+          status: PlanStatus.ARCHIVED,
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          existingPlan,
+        );
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.update.mockResolvedValue({
+          ...existingPlan,
+          ...updateInput,
+        });
+
+        await service.updatePlanForTenant(tenantId, planId, updateInput);
+
+        // Verify that immutable fields are never in the updateData sent to Prisma
+        const updateCall = (prismaService.membershipPlan.update as jest.Mock)
+          .mock.calls[0][0];
+        expect(updateCall.data).not.toHaveProperty('scope');
+        expect(updateCall.data).not.toHaveProperty('branchId');
+        expect(updateCall.data).not.toHaveProperty('scopeKey');
+        // Verify mutable fields are present
+        expect(updateCall.data).toHaveProperty('name', 'Updated Name');
+        expect(updateCall.data).toHaveProperty('price', 150);
+      });
 
       it('should allow updating other fields while preserving scope and branchId', async () => {
         const existingPlan = {
@@ -1562,6 +1598,35 @@ describe('MembershipPlansService', () => {
           .mock.calls[0][0];
         expect(updateCall.data).not.toHaveProperty('scope');
         expect(updateCall.data).not.toHaveProperty('branchId');
+        expect(updateCall.data).not.toHaveProperty('scopeKey');
+      });
+
+      it('should verify scopeKey is never in updateData (defense-in-depth)', async () => {
+        const existingPlan = {
+          ...mockPlan,
+          scope: PlanScope.TENANT,
+          scopeKey: 'TENANT',
+        };
+        const updateInput = {
+          name: 'Updated Name',
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          existingPlan,
+        );
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.update.mockResolvedValue({
+          ...existingPlan,
+          name: 'Updated Name',
+        });
+
+        await service.updatePlanForTenant(tenantId, planId, updateInput);
+
+        const updateCall = (prismaService.membershipPlan.update as jest.Mock)
+          .mock.calls[0][0];
+        // Verify immutable fields are not in updateData
+        expect(updateCall.data).not.toHaveProperty('scope');
+        expect(updateCall.data).not.toHaveProperty('branchId');
+        expect(updateCall.data).not.toHaveProperty('scopeKey');
       });
     });
 

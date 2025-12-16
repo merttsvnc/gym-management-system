@@ -366,6 +366,24 @@ export class MembershipPlansService {
       updateData.sortOrder = input.sortOrder ?? null;
     }
 
+    // Defense-in-depth: Ensure immutable fields are never in updateData
+    // Even though UpdatePlanInput doesn't include them, verify at runtime
+    if ('scope' in updateData) {
+      throw new BadRequestException(
+        'Plan kapsamı (scope) değiştirilemez. Plan oluşturulduktan sonra kapsam değiştirilemez.',
+      );
+    }
+    if ('branchId' in updateData) {
+      throw new BadRequestException(
+        'Plan şubesi (branchId) değiştirilemez. Plan oluşturulduktan sonra şube değiştirilemez.',
+      );
+    }
+    if ('scopeKey' in updateData) {
+      throw new BadRequestException(
+        'Plan scopeKey değiştirilemez. scopeKey sistem tarafından yönetilir.',
+      );
+    }
+
     return this.prisma.membershipPlan.update({
       where: { id: planId },
       data: updateData,
