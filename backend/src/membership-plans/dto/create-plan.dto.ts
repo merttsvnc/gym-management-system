@@ -8,11 +8,24 @@ import {
   MaxLength,
   Matches,
   IsBoolean,
+  ValidateIf,
+  IsNotEmpty,
+  IsEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { DurationType } from '@prisma/client';
+import { DurationType, PlanScope } from '@prisma/client';
 
 export class CreatePlanDto {
+  @IsEnum(PlanScope, {
+    message: 'Kapsam TENANT veya BRANCH olmalıdır',
+  })
+  scope: PlanScope;
+
+  @ValidateIf((o) => o.scope === PlanScope.BRANCH)
+  @IsNotEmpty({ message: 'BRANCH kapsamı için şube ID gereklidir' })
+  @IsString({ message: 'Şube ID metin olmalıdır' })
+  branchId?: string;
+
   @IsString({ message: 'Plan adı gereklidir' })
   @MaxLength(100, { message: 'Plan adı en fazla 100 karakter olabilir' })
   name: string;

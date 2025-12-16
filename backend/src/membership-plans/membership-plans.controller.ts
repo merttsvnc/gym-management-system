@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -31,6 +32,14 @@ export class MembershipPlansController {
   /**
    * GET /api/v1/membership-plans
    * List all membership plans for the current tenant with filtering and pagination
+   * Query parameters:
+   * - scope?: TENANT|BRANCH
+   * - branchId?: string
+   * - q?: string (name search)
+   * - includeArchived?: boolean (default false)
+   * - page?: number (default 1)
+   * - limit?: number (default 20)
+   * Returns: { data, pagination } always (empty results => 200 with empty data + pagination.total=0)
    */
   @Get()
   listPlansForTenant(
@@ -40,6 +49,10 @@ export class MembershipPlansController {
     return this.membershipPlansService.listPlansForTenant(tenantId, {
       status: query.status,
       search: query.search,
+      q: query.q,
+      scope: query.scope,
+      branchId: query.branchId,
+      includeArchived: query.includeArchived,
       page: query.page,
       limit: query.limit,
     });
@@ -48,10 +61,42 @@ export class MembershipPlansController {
   /**
    * GET /api/v1/membership-plans/active
    * Get all ACTIVE plans for the current tenant (for dropdown selection)
+   * Query parameters:
+   * - branchId?: string
+   * - includeMemberCount?: boolean (default false)
+   * Behavior:
+   * - If branchId provided -> TENANT + that branch's BRANCH plans
+   * - else -> TENANT plans only
+   * - If includeMemberCount=true, include activeMemberCount per plan
    */
   @Get('active')
-  listActivePlansForTenant(@CurrentUser('tenantId') tenantId: string) {
-    return this.membershipPlansService.listActivePlansForTenant(tenantId);
+  async listActivePlansForTenant(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('branchId') branchId?: string,
+    @Query('includeMemberCount', new ParseBoolPipe({ optional: true }))
+    includeMemberCount?: boolean,
+  ) {
+    const plans =
+      await this.membershipPlansService.listActivePlansForTenant(
+        tenantId,
+        branchId,
+      );
+
+    if (includeMemberCount) {
+      const plansWithCounts = await Promise.all(
+        plans.map(async (plan) => {
+          const count =
+            await this.membershipPlansService.countActiveMembersForPlan(plan.id);
+          return {
+            ...plan,
+            activeMemberCount: count,
+          };
+        }),
+      );
+      return plansWithCounts;
+    }
+
+    return plans;
   }
 
   /**
@@ -70,6 +115,12 @@ export class MembershipPlansController {
    * POST /api/v1/membership-plans
    * Create a new membership plan for the current tenant
    * Requires ADMIN role
+   * Body:
+   * - scope (required): TENANT or BRANCH
+   * - branchId (required only if scope=BRANCH)
+   * - name, durationType, durationValue, price, currency, optional fields
+   * - Never allow scopeKey
+   * Returns: created plan
    */
   @Post()
   @UseGuards(RolesGuard)
@@ -80,6 +131,8 @@ export class MembershipPlansController {
     @Body() dto: CreatePlanDto,
   ) {
     return this.membershipPlansService.createPlanForTenant(tenantId, {
+      scope: dto.scope,
+      branchId: dto.branchId,
       name: dto.name,
       description: dto.description,
       durationType: dto.durationType,
