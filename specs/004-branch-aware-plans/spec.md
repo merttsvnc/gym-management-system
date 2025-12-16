@@ -160,6 +160,30 @@ Branch (1) ──< (many) Member (existing)
    - Archived plans do not count toward uniqueness constraints (archived plans can have duplicate names)
    - Validation occurs on create and update operations (for ACTIVE plans only)
 
+   **Database Constraint Limitation:**
+   - The database unique constraint `@@unique([tenantId, branchId, name])` does NOT enforce TENANT-scope uniqueness
+   - Reason: For TENANT-scoped plans, `branchId` is NULL, and PostgreSQL allows multiple NULL values in UNIQUE indexes
+   - This means multiple TENANT-scoped plans with the same name can exist at the database level
+   - Application-level validation is required to enforce TENANT-scope uniqueness
+
+   **Race Condition Note:**
+   - Application-level validation alone can allow duplicates under concurrent requests
+   - Two simultaneous requests creating plans with the same name can both pass validation before either is committed
+   - This is a known limitation of application-level validation without proper transaction handling
+
+   **Uniqueness Enforcement Decision:**
+   - **Approach Chosen: Strong Guarantee (scopeKey computed column)**
+   - **Rationale:** Provides database-level enforcement for both scopes, preventing race conditions and ensuring data integrity
+   - **Implementation:** Introduce a computed column `scopeKey` where:
+     - `scopeKey = "TENANT"` for TENANT scope plans (constant string)
+     - `scopeKey = branchId` for BRANCH scope plans (actual branch ID)
+   - **Database Constraint:** `@@unique([tenantId, scope, scopeKey, name])`
+   - This ensures:
+     - TENANT scope: Unique per tenant (scopeKey="TENANT" + tenantId + name)
+     - BRANCH scope: Unique per branch (scopeKey=branchId + tenantId + name)
+     - Database-level enforcement prevents race conditions
+     - Case-insensitive uniqueness still requires application-level validation (database constraint is case-sensitive)
+
 4. **Plan Duration Validation:**
    - `durationValue` MUST be greater than 0
    - `durationType` MUST be either DAYS or MONTHS
@@ -224,8 +248,8 @@ The Branch-Aware Membership Plans feature will be considered successful when:
    - Filter combinations work correctly (e.g., scope=TENANT + includeArchived=true)
 
 4. **Uniqueness Enforcement:**
-   - Creating two ACTIVE TENANT plans with the same name within a tenant returns 400 Bad Request
-   - Creating two ACTIVE BRANCH plans with the same name within the same branch returns 400 Bad Request
+   - Creating two ACTIVE TENANT plans with the same name within a tenant returns 409 Conflict
+   - Creating two ACTIVE BRANCH plans with the same name within the same branch returns 409 Conflict
    - Creating ACTIVE plans with duplicate names across different branches succeeds (allowed)
    - Creating ACTIVE plans with duplicate names between TENANT and BRANCH scopes succeeds (allowed)
    - Archived plans do not prevent creation of plans with duplicate names
@@ -442,9 +466,10 @@ interface CreatePlanRequest {
 **Status Codes:**
 
 - 201: Created successfully
-- 400: Validation error (including duplicate plan name, invalid scope/branchId combination)
+- 400: Bad Request (invalid input, invalid scope/branchId combination, invalid format)
+- 409: Conflict (duplicate plan name for ACTIVE plan in same scope context)
 - 401: Unauthorized
-- 403: Forbidden (user is not ADMIN, or branchId belongs to different tenant)
+- 403: Forbidden (user is not ADMIN, or branchId belongs to different tenant, or plan belongs to different tenant)
 - 500: Server error
 
 **Validation Rules:**
@@ -547,7 +572,8 @@ interface UpdatePlanRequest {
 **Status Codes:**
 
 - 200: Success
-- 400: Validation error (including duplicate plan name if name changed, or attempting to change scope/branchId)
+- 400: Bad Request (invalid input, attempting to change scope/branchId, invalid format)
+- 409: Conflict (duplicate plan name if name changed and conflicts with existing ACTIVE plan in same scope context)
 - 401: Unauthorized
 - 403: Forbidden (plan belongs to different tenant or user is not ADMIN)
 - 404: Plan not found
@@ -591,8 +617,7 @@ interface ArchivePlanResponse {
 
 **Status Codes:**
 
-- 200: Success
-- 400: Bad request (plan already archived)
+- 200: Success (plan archived, or already archived - idempotent operation)
 - 401: Unauthorized
 - 403: Forbidden (plan belongs to different tenant or user is not ADMIN)
 - 404: Plan not found
@@ -600,7 +625,8 @@ interface ArchivePlanResponse {
 
 **Business Logic:**
 
-- Sets plan `status` to ARCHIVED
+- **Idempotent Behavior:** If plan is already archived, returns 200 OK with unchanged state (no error)
+- Sets plan `status` to ARCHIVED (if not already archived)
 - Plan is no longer selectable for new members
 - Existing members with this plan remain unaffected
 - Returns count of active members (status = ACTIVE AND membershipEndDate >= today) using this plan (informational warning)
@@ -623,8 +649,8 @@ interface ArchivePlanResponse {
 
 **Status Codes:**
 
-- 200: Success
-- 400: Bad request (plan already active, or name conflict with existing ACTIVE plan)
+- 200: Success (plan restored to ACTIVE)
+- 400: Bad Request (plan already active, or name conflict with existing ACTIVE plan in same scope context)
 - 401: Unauthorized
 - 403: Forbidden (plan belongs to different tenant or user is not ADMIN)
 - 404: Plan not found
@@ -632,9 +658,10 @@ interface ArchivePlanResponse {
 
 **Business Logic:**
 
-- Sets plan `status` to ACTIVE
+- If plan is already ACTIVE, returns 400 Bad Request with error message: "Plan is already active"
+- Sets plan `status` to ACTIVE (if currently ARCHIVED)
 - Plan becomes available for selection by new members
-- **Uniqueness Validation:** Before restoring, system checks if restoring would create a name conflict with an existing ACTIVE plan (same scope, same tenant/branch). If a conflict exists, restore is rejected with 400 Bad Request and error message: "Cannot restore plan: an ACTIVE plan with the same name already exists for this scope." The plan remains ARCHIVED.
+- **Uniqueness Validation:** Before restoring, system checks if restoring would create a name conflict with an existing ACTIVE plan in the same scope context (same tenant for TENANT scope, same branch for BRANCH scope). If a conflict exists, restore is rejected with 400 Bad Request and error message: "Cannot restore plan: an ACTIVE plan with the same name already exists for this scope." The plan remains ARCHIVED.
 
 ---
 
@@ -677,8 +704,9 @@ interface ArchivePlanResponse {
 model MembershipPlan {
   id            String       @id @default(cuid())
   tenantId      String       // REQUIRED for tenant scoping
-  scope         String       // "TENANT" or "BRANCH" (enum)
+  scope         PlanScope    // "TENANT" or "BRANCH" (enum)
   branchId      String?      // REQUIRED if scope is BRANCH, null if scope is TENANT
+  scopeKey      String        // Computed: "TENANT" for TENANT scope, branchId for BRANCH scope
   name          String
   description   String?
   durationType  DurationType
@@ -696,9 +724,10 @@ model MembershipPlan {
   branch  Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   members Member[]
 
-  // Uniqueness: TENANT scope - unique per tenant, BRANCH scope - unique per branch
-  // Note: Prisma does not support conditional unique constraints, so we enforce this in application logic
-  @@unique([tenantId, name]) // This will be replaced by application-level validation
+  // Uniqueness: Database-level enforcement using scopeKey
+  // scopeKey = "TENANT" for TENANT scope, scopeKey = branchId for BRANCH scope
+  // This ensures uniqueness per tenant for TENANT scope and per branch for BRANCH scope
+  @@unique([tenantId, scope, scopeKey, name])
   @@index([tenantId])
   @@index([tenantId, scope])
   @@index([tenantId, status])
@@ -725,13 +754,22 @@ enum PlanStatus {
 
 **Note on Uniqueness Constraints:**
 
-Prisma does not support conditional unique constraints (unique per tenant for TENANT scope, unique per branch for BRANCH scope). Therefore, uniqueness validation must be enforced in application logic:
+The database uses a computed `scopeKey` column to enforce uniqueness at the database level:
+- For TENANT scope: `scopeKey = "TENANT"` (constant string)
+- For BRANCH scope: `scopeKey = branchId` (actual branch ID)
+- Database constraint: `@@unique([tenantId, scope, scopeKey, name])`
 
-- For TENANT scope: Check that no ACTIVE plan with the same name exists for the tenant (case-insensitive)
-- For BRANCH scope: Check that no ACTIVE plan with the same name exists for the branch (case-insensitive)
-- Archived plans do not count toward uniqueness constraints
+This approach provides:
+- **Database-level enforcement** for both scopes, preventing race conditions
+- **TENANT scope uniqueness:** Enforced by `(tenantId, scope="TENANT", scopeKey="TENANT", name)`
+- **BRANCH scope uniqueness:** Enforced by `(tenantId, scope="BRANCH", scopeKey=branchId, name)`
+- **Case-insensitive validation:** Still requires application-level validation (database constraint is case-sensitive)
+- **ACTIVE-only uniqueness:** Application-level validation excludes ARCHIVED plans from uniqueness checks
 
-The `@@unique([tenantId, name])` constraint in Prisma schema provides a database-level safeguard but does not fully enforce scope-based uniqueness. Application-level validation is required.
+**Application-Level Validation:**
+- Case-insensitive name comparison (database constraint is case-sensitive)
+- ACTIVE-only uniqueness (archived plans don't count toward uniqueness)
+- Validation occurs in service layer before database operations
 
 ### Migration Considerations
 
@@ -747,9 +785,11 @@ The `@@unique([tenantId, name])` constraint in Prisma schema provides a database
 2. **Data Migration Strategy:**
    - Add `scope` column with default value "TENANT"
    - Add `branchId` column as nullable (default null)
+   - Add `scopeKey` column (computed: "TENANT" for TENANT scope, branchId for BRANCH scope)
    - Add foreign key constraint for `branchId` → `Branch.id`
-   - Update all existing plans: set `scope = "TENANT"` and ensure `branchId = null`
-   - Existing uniqueness constraint `@@unique([tenantId, name])` remains but will be supplemented by application-level validation
+   - Drop existing `@@unique([tenantId, name])` constraint
+   - Add new `@@unique([tenantId, scope, scopeKey, name])` constraint
+   - Update all existing plans: set `scope = "TENANT"`, `branchId = null`, `scopeKey = "TENANT"`
 
 3. **Index Strategy:**
    - `@@index([tenantId])` on MembershipPlan for tenant-scoped queries

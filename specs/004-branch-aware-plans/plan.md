@@ -53,37 +53,45 @@ Before proceeding, verify alignment with core constitutional principles:
 
 ### Uniqueness Constraint Strategy
 
-**Problem:** Prisma does not support conditional unique constraints. We need:
+**Problem:** We need scope-dependent uniqueness:
 - TENANT scope: unique per tenant (`tenantId + name`)
 - BRANCH scope: unique per branch (`tenantId + branchId + name`)
 
-**Solution:** Hybrid approach combining database-level and application-level validation:
+**Critical Limitation:** The database unique constraint `@@unique([tenantId, branchId, name])` does NOT enforce TENANT-scope uniqueness because:
+- For TENANT-scoped plans, `branchId` is NULL
+- PostgreSQL allows multiple NULL values in UNIQUE indexes
+- This means multiple TENANT-scoped plans with the same name can exist at the database level
 
-1. **Remove existing `@@unique([tenantId, name])` constraint** from Prisma schema
-   - Reason: This constraint prevents having the same plan name for TENANT and BRANCH scopes within the same tenant, which is allowed by business rules
-   - Migration: Drop the unique constraint in migration
+**Race Condition Note:** Application-level validation alone can allow duplicates under concurrent requests. Two simultaneous requests creating plans with the same name can both pass validation before either is committed.
 
-2. **Add composite unique constraint for BRANCH scope only:** `@@unique([tenantId, branchId, name])`
-   - This enforces uniqueness for BRANCH-scoped plans per branch
-   - TENANT-scoped plans (where branchId is null) are NOT covered by this constraint
+**Solution: Strong Guarantee (scopeKey computed column)**
 
-3. **Application-level validation for TENANT scope:**
-   - Service layer checks uniqueness for TENANT-scoped plans (tenantId + name, case-insensitive, ACTIVE only)
-   - This validation runs before database insert/update operations
+**Decision:** Use a computed `scopeKey` column to provide database-level enforcement for both scopes, preventing race conditions and ensuring data integrity.
 
-4. **Application-level validation for BRANCH scope:**
-   - Service layer validates uniqueness for BRANCH-scoped plans (tenantId + branchId + name, case-insensitive, ACTIVE only)
-   - Database constraint `@@unique([tenantId, branchId, name])` provides additional safeguard
-   - Note: Database constraint is case-sensitive, so application-level validation handles case-insensitivity
+**Implementation:**
+1. **Add `scopeKey` computed column:**
+   - For TENANT scope: `scopeKey = "TENANT"` (constant string)
+   - For BRANCH scope: `scopeKey = branchId` (actual branch ID)
+
+2. **Database constraint:** `@@unique([tenantId, scope, scopeKey, name])`
+   - TENANT scope: Enforced by `(tenantId, scope="TENANT", scopeKey="TENANT", name)`
+   - BRANCH scope: Enforced by `(tenantId, scope="BRANCH", scopeKey=branchId, name)`
+
+3. **Application-level validation:**
+   - Case-insensitive name comparison (database constraint is case-sensitive)
+   - ACTIVE-only uniqueness (archived plans don't count toward uniqueness)
+   - Validation occurs in service layer before database operations
 
 **Why This Approach:**
-- Database constraints provide data integrity at the lowest level
-- Application-level validation provides business rule enforcement (case-insensitive, ACTIVE-only)
+- Database-level enforcement prevents race conditions
+- Strong guarantee: Both scopes have database-level uniqueness constraints
+- Case-insensitive and ACTIVE-only rules enforced in application layer
 - Allows TENANT and BRANCH scopes to coexist with same name (business requirement)
-- Prevents conflicts between scopes while maintaining data integrity
 
 **Validation Logic:**
 ```typescript
+// Database constraint: @@unique([tenantId, scope, scopeKey, name])
+// Application validation: Case-insensitive, ACTIVE-only
 // For TENANT scope: Check tenantId + name (case-insensitive, ACTIVE only)
 // For BRANCH scope: Check tenantId + branchId + name (case-insensitive, ACTIVE only)
 // Archived plans do not count toward uniqueness
@@ -113,7 +121,7 @@ Before proceeding, verify alignment with core constitutional principles:
    - **Decision:** Use hybrid approach (database + application validation)
 
 2. [x] Clarify uniqueness constraint strategy
-   - **Decision:** Remove `@@unique([tenantId, name])`, add `@@unique([tenantId, branchId, name])` for BRANCH scope, application-level validation for both scopes
+   - **Decision:** Use scopeKey computed column approach: `@@unique([tenantId, scope, scopeKey, name])` where scopeKey="TENANT" for TENANT scope and scopeKey=branchId for BRANCH scope
 
 3. [x] Review migration strategy for existing plans
    - **Decision:** Set all existing plans to scope=TENANT, branchId=null
@@ -139,9 +147,10 @@ Before proceeding, verify alignment with core constitutional principles:
    - Files affected: `backend/prisma/schema.prisma`
    - Add `scope` field (enum PlanScope: TENANT | BRANCH)
    - Add `branchId` field (nullable String)
+   - Add `scopeKey` field (computed: "TENANT" for TENANT scope, branchId for BRANCH scope)
    - Add `branch` relation to Branch model
    - **Remove** `@@unique([tenantId, name])` constraint
-   - **Add** `@@unique([tenantId, branchId, name])` constraint (for BRANCH scope)
+   - **Add** `@@unique([tenantId, scope, scopeKey, name])` constraint (enforces uniqueness for both scopes)
    - Add indexes: `[tenantId, scope]`, `[tenantId, scope, status]`, `[tenantId, branchId]`, `[branchId]`
 
 2. [ ] Create migration
@@ -150,10 +159,11 @@ Before proceeding, verify alignment with core constitutional principles:
    - Files affected: `backend/prisma/migrations/`
    - Add `scope` column with default "TENANT"
    - Add `branchId` column (nullable)
+   - Add `scopeKey` column (computed: "TENANT" for TENANT scope, branchId for BRANCH scope)
    - Add foreign key constraint for `branchId → Branch.id`
    - Drop existing `@@unique([tenantId, name])` constraint
-   - Add new `@@unique([tenantId, branchId, name])` constraint
-   - Update all existing plans: set `scope = "TENANT"`, ensure `branchId = null`
+   - Add new `@@unique([tenantId, scope, scopeKey, name])` constraint
+   - Update all existing plans: set `scope = "TENANT"`, `branchId = null`, `scopeKey = "TENANT"`
    - Add indexes
 
 3. [ ] Test migration on development database
@@ -376,9 +386,10 @@ Before proceeding, verify alignment with core constitutional principles:
 **MembershipPlan Model:**
 - Add `scope` field: `PlanScope` enum (TENANT | BRANCH), NOT NULL, default "TENANT"
 - Add `branchId` field: `String?` (nullable), foreign key to Branch.id
+- Add `scopeKey` field: `String` (computed: "TENANT" for TENANT scope, branchId for BRANCH scope)
 - Add `branch` relation: `Branch?` (optional)
 - **Remove** `@@unique([tenantId, name])` constraint
-- **Add** `@@unique([tenantId, branchId, name])` constraint (for BRANCH scope uniqueness)
+- **Add** `@@unique([tenantId, scope, scopeKey, name])` constraint (enforces uniqueness for both scopes)
 
 **New Enum:**
 - `PlanScope` enum: TENANT, BRANCH
@@ -413,21 +424,28 @@ Before proceeding, verify alignment with core constitutional principles:
    DROP CONSTRAINT IF EXISTS "MembershipPlan_tenantId_name_key";
    ```
 
-5. **Add new composite unique constraint:**
+5. **Add scopeKey column:**
    ```sql
-   CREATE UNIQUE INDEX "MembershipPlan_tenantId_branchId_name_key" 
-   ON "MembershipPlan"("tenantId", "branchId", "name");
+   ALTER TABLE "MembershipPlan" 
+   ADD COLUMN "scopeKey" TEXT NOT NULL DEFAULT 'TENANT';
    ```
-   Note: This constraint allows NULL branchId (for TENANT scope), so multiple TENANT plans can have the same name. Application-level validation enforces TENANT scope uniqueness.
+   Note: For existing TENANT plans, scopeKey will be set to 'TENANT'. For new BRANCH plans, scopeKey will be set to branchId.
 
-6. **Update existing plans:**
+6. **Add new composite unique constraint:**
+   ```sql
+   CREATE UNIQUE INDEX "MembershipPlan_tenantId_scope_scopeKey_name_key" 
+   ON "MembershipPlan"("tenantId", "scope", "scopeKey", "name");
+   ```
+   Note: This constraint enforces uniqueness for both TENANT scope (scopeKey="TENANT") and BRANCH scope (scopeKey=branchId).
+
+7. **Update existing plans:**
    ```sql
    UPDATE "MembershipPlan" 
-   SET "scope" = 'TENANT', "branchId" = NULL 
+   SET "scope" = 'TENANT', "branchId" = NULL, "scopeKey" = 'TENANT'
    WHERE "branchId" IS NULL;
    ```
 
-7. **Add indexes:**
+8. **Add indexes:**
    ```sql
    CREATE INDEX "MembershipPlan_tenantId_scope_idx" ON "MembershipPlan"("tenantId", "scope");
    CREATE INDEX "MembershipPlan_tenantId_scope_status_idx" ON "MembershipPlan"("tenantId", "scope", "status");
@@ -450,7 +468,7 @@ Required indexes and rationale:
 - `MembershipPlan(tenantId, scope, status)`: Filter active plans by scope
 - `MembershipPlan(tenantId, branchId)`: Filter BRANCH-scoped plans by branch
 - `MembershipPlan(branchId)`: Branch-scoped plan queries
-- `MembershipPlan(tenantId, branchId, name)`: Unique constraint for BRANCH scope (composite unique index)
+- `MembershipPlan(tenantId, scope, scopeKey, name)`: Unique constraint for both scopes (composite unique index)
 - `MembershipPlan(tenantId, status)`: Filter active plans (existing)
 - `MembershipPlan(tenantId, sortOrder)`: Ordered plan lists (existing)
 
@@ -546,8 +564,8 @@ Required indexes and rationale:
 - Create TENANT plan with branchId (400 Bad Request)
 - Create BRANCH plan without branchId (400 Bad Request)
 - Create BRANCH plan with branchId from different tenant (403 Forbidden)
-- Create duplicate TENANT plan name (400 Conflict)
-- Create duplicate BRANCH plan name within branch (400 Conflict)
+- Create duplicate TENANT plan name (409 Conflict)
+- Create duplicate BRANCH plan name within branch (409 Conflict)
 - Create duplicate names across branches (200 Success)
 - Create duplicate names between TENANT and BRANCH scopes (200 Success)
 

@@ -25,6 +25,7 @@ Represents a membership plan that can be defined either globally for a tenant (T
 | `tenantId` | String (CUID) | FOREIGN KEY, NOT NULL | Reference to tenant (required for tenant isolation) |
 | `scope` | PlanScope enum | NOT NULL, DEFAULT TENANT | Plan scope: TENANT or BRANCH |
 | `branchId` | String (CUID) | FOREIGN KEY, NULLABLE | Reference to branch (required if scope=BRANCH, null if scope=TENANT) |
+| `scopeKey` | String | NOT NULL | Computed: "TENANT" for TENANT scope, branchId for BRANCH scope |
 | `name` | String | NOT NULL, 1-100 chars | Plan name, unique per tenant (TENANT scope) or per branch (BRANCH scope) |
 | `description` | String | NULLABLE, max 1000 chars | Optional plan description |
 | `durationType` | DurationType enum | NOT NULL | Duration unit: DAYS or MONTHS |
@@ -67,6 +68,13 @@ Represents a membership plan that can be defined either globally for a tenant (T
 - Immutable after plan creation (cannot change branchId)
 - Foreign key constraint: `ON DELETE RESTRICT` (prevents deleting branch with plans)
 
+**scopeKey:**
+- Required, computed column
+- For TENANT scope: `scopeKey = "TENANT"` (constant string)
+- For BRANCH scope: `scopeKey = branchId` (actual branch ID)
+- Used in database unique constraint: `@@unique([tenantId, scope, scopeKey, name])`
+- Ensures database-level uniqueness enforcement for both scopes
+
 **name:**
 - Required, 1-100 characters (trimmed)
 - Uniqueness rules:
@@ -75,6 +83,8 @@ Represents a membership plan that can be defined either globally for a tenant (T
   - Duplicate names allowed across different branches (even within same tenant)
   - Duplicate names allowed between TENANT and BRANCH scopes (same tenant can have "Premium" as both TENANT and BRANCH plan)
   - Archived plans do not count toward uniqueness constraints
+  - **Database constraint:** `@@unique([tenantId, scope, scopeKey, name])` provides database-level enforcement
+  - **Application validation:** Case-insensitive comparison and ACTIVE-only checks
 
 **description:**
 - Optional, max 1000 characters (trimmed)
@@ -148,9 +158,11 @@ MembershipPlan (1) ──< (many) Member
 - `INDEX (tenantId, sortOrder)` - Ordered plan lists
 
 **Uniqueness Constraints:**
-- `UNIQUE (tenantId, branchId, name)` - Enforces uniqueness for BRANCH scope
-  - Note: This constraint allows NULL branchId (for TENANT scope), so multiple TENANT plans can have the same name at database level
-  - Application-level validation enforces TENANT scope uniqueness (case-insensitive, ACTIVE only)
+- `UNIQUE (tenantId, scope, scopeKey, name)` - Enforces uniqueness for both scopes
+  - **TENANT scope:** Enforced by `(tenantId, scope="TENANT", scopeKey="TENANT", name)`
+  - **BRANCH scope:** Enforced by `(tenantId, scope="BRANCH", scopeKey=branchId, name)`
+  - Database-level enforcement prevents race conditions
+  - Application-level validation enforces case-insensitive comparison and ACTIVE-only checks
 
 ### State Transitions
 
@@ -171,9 +183,11 @@ MembershipPlan (1) ──< (many) Member
 4. Archived plans do not count toward uniqueness constraints
 
 **Plan Restoration:**
-1. `status` changes from ARCHIVED → ACTIVE
-2. Name uniqueness validated before restoration (must not conflict with existing ACTIVE plan)
-3. Plan becomes available for selection by new members
+1. If plan is already ACTIVE, returns 400 Bad Request
+2. Name uniqueness validated before restoration (must not conflict with existing ACTIVE plan in same scope context)
+3. If conflict exists, restore is rejected with 400 Bad Request: "Cannot restore plan: an ACTIVE plan with the same name already exists for this scope."
+4. If no conflict, `status` changes from ARCHIVED → ACTIVE
+5. Plan becomes available for selection by new members
 
 **Plan Deletion:**
 - Hard delete only allowed if plan has zero members (any status)
@@ -256,6 +270,7 @@ model MembershipPlan {
   tenantId      String       // REQUIRED for tenant scoping
   scope         PlanScope    @default(TENANT) // TENANT or BRANCH
   branchId      String?      // REQUIRED if scope is BRANCH, null if scope is TENANT
+  scopeKey      String        // Computed: "TENANT" for TENANT scope, branchId for BRANCH scope
   name          String
   description   String?
   durationType  DurationType
@@ -273,9 +288,10 @@ model MembershipPlan {
   branch  Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   members Member[]
 
-  // Uniqueness: BRANCH scope - unique per branch (database constraint)
-  // TENANT scope uniqueness enforced in application layer (case-insensitive, ACTIVE only)
-  @@unique([tenantId, branchId, name])
+  // Uniqueness: Database-level enforcement using scopeKey
+  // scopeKey = "TENANT" for TENANT scope, scopeKey = branchId for BRANCH scope
+  // This ensures uniqueness per tenant for TENANT scope and per branch for BRANCH scope
+  @@unique([tenantId, scope, scopeKey, name])
   @@index([tenantId])
   @@index([tenantId, scope])
   @@index([tenantId, status])
@@ -308,8 +324,9 @@ enum PlanStatus {
 ### Existing Plans Migration
 - All existing plans are migrated to `scope = TENANT`
 - All existing plans have `branchId = null` (already the case)
+- All existing plans have `scopeKey = "TENANT"` (computed)
 - Existing unique constraint `@@unique([tenantId, name])` is removed
-- New constraint `@@unique([tenantId, branchId, name])` is added
+- New constraint `@@unique([tenantId, scope, scopeKey, name])` is added
 
 ### Backward Compatibility
 - Migration is backward compatible (adds nullable columns with defaults)

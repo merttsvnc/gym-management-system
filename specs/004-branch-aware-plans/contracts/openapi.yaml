@@ -122,7 +122,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/MembershipPlan'
         '400':
-          description: Validation error (including duplicate plan name, invalid scope/branchId combination)
+          description: Bad Request (invalid input, invalid scope/branchId combination, invalid format)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (duplicate plan name for ACTIVE plan in same scope context)
           content:
             application/json:
               schema:
@@ -134,7 +140,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden (user is not ADMIN, or branchId belongs to different tenant)
+          description: Forbidden (user is not ADMIN, or branchId belongs to different tenant, or plan belongs to different tenant)
           content:
             application/json:
               schema:
@@ -277,7 +283,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/MembershipPlan'
         '400':
-          description: Validation error (including duplicate plan name if name changed, or attempting to change scope/branchId)
+          description: Bad Request (invalid input, attempting to change scope/branchId, invalid format)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (duplicate plan name if name changed and conflicts with existing ACTIVE plan in same scope context)
           content:
             application/json:
               schema:
@@ -368,6 +380,7 @@ paths:
         Sets plan status to ARCHIVED.
         Plan is no longer selectable for new members.
         Returns count of active members using this plan (informational warning).
+        This endpoint is idempotent: if plan is already archived, returns 200 OK with unchanged state.
       operationId: archivePlan
       security:
         - bearerAuth: []
@@ -380,17 +393,11 @@ paths:
             type: string
       responses:
         '200':
-          description: Success
+          description: Success (plan archived, or already archived - idempotent operation)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArchivePlanResponse'
-        '400':
-          description: Bad request (plan already archived)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
@@ -423,8 +430,9 @@ paths:
       summary: Restore archived plan
       description: |
         Restore an archived plan to ACTIVE status.
-        Before restoring, system checks if restoring would create a name conflict with an existing ACTIVE plan.
-        If conflict exists, restore is rejected with 400 Bad Request.
+        Before restoring, system checks if restoring would create a name conflict with an existing ACTIVE plan in the same scope context (same tenant for TENANT scope, same branch for BRANCH scope).
+        If conflict exists, restore is rejected with 400 Bad Request: "Cannot restore plan: an ACTIVE plan with the same name already exists for this scope."
+        If plan is already ACTIVE, returns 400 Bad Request: "Plan is already active."
       operationId: restorePlan
       security:
         - bearerAuth: []
@@ -443,7 +451,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/MembershipPlan'
         '400':
-          description: Bad request (plan already active, or name conflict with existing ACTIVE plan)
+          description: Bad request (plan already active, or name conflict with existing ACTIVE plan in same scope context)
           content:
             application/json:
               schema:
