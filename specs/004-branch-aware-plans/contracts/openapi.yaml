@@ -1,0 +1,753 @@
+openapi: 3.0.3
+info:
+  title: Branch-Aware Membership Plan Management API
+  version: 1.0.0
+  description: |
+    API for managing branch-aware membership plans in the Gym Management System.
+    Plans can be defined either globally for a tenant (TENANT scope) or specifically for a single branch (BRANCH scope).
+  contact:
+    name: API Support
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Membership Plans
+    description: Branch-aware membership plan management operations
+
+paths:
+  /membership-plans:
+    get:
+      tags:
+        - Membership Plans
+      summary: List membership plans
+      description: |
+        List all membership plans for the current tenant with filtering and pagination.
+        Supports filtering by scope (TENANT | BRANCH) and branchId.
+      operationId: listPlans
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page (default: 20, max: 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: scope
+          in: query
+          description: Filter by scope (TENANT | BRANCH)
+          schema:
+            $ref: '#/components/schemas/PlanScope'
+        - name: branchId
+          in: query
+          description: Filter by branchId (returns BRANCH-scoped plans for that branch)
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: Search by plan name (partial match, case-insensitive)
+          schema:
+            type: string
+        - name: includeArchived
+          in: query
+          description: Include archived plans (default: false)
+          schema:
+            type: boolean
+            default: false
+        - name: includeMemberCount
+          in: query
+          description: Include activeMemberCount field (default: false)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanListResponse'
+        '400':
+          description: Invalid query parameters (e.g., invalid scope value, invalid branchId format, branchId doesn't exist, branchId belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Membership Plans
+      summary: Create membership plan
+      description: |
+        Create a new membership plan for the current tenant.
+        Requires ADMIN role.
+        Supports both TENANT-scoped and BRANCH-scoped plans.
+      operationId: createPlan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlanRequest'
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '400':
+          description: Validation error (including duplicate plan name, invalid scope/branchId combination)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (user is not ADMIN, or branchId belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/active:
+    get:
+      tags:
+        - Membership Plans
+      summary: Get active plans
+      description: |
+        Get all ACTIVE plans for the current tenant (for dropdown selection).
+        If branchId is provided, returns TENANT-scoped plans + BRANCH-scoped plans for that branch.
+        If branchId is not provided, returns only TENANT-scoped plans.
+      operationId: getActivePlans
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: branchId
+          in: query
+          description: Filter plans available to a specific branch
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MembershipPlan'
+        '400':
+          description: Invalid branchId format, branchId doesn't exist, or branchId belongs to different tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/{id}:
+    get:
+      tags:
+        - Membership Plans
+      summary: Get plan by ID
+      description: Get details of a specific membership plan
+      operationId: getPlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+        - name: includeMemberCount
+          in: query
+          description: Include activeMemberCount field (default: false)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags:
+        - Membership Plans
+      summary: Update plan
+      description: |
+        Update an existing membership plan.
+        Scope and branchId are immutable and cannot be changed.
+      operationId: updatePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlanRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '400':
+          description: Validation error (including duplicate plan name if name changed, or attempting to change scope/branchId)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Membership Plans
+      summary: Delete plan
+      description: |
+        Hard delete a membership plan (only allowed if plan has no members).
+        If plan has any members, returns 400 with message to archive instead.
+      operationId: deletePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Successfully deleted
+        '400':
+          description: Bad request (plan has members, cannot delete - must archive instead)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/{id}/archive:
+    post:
+      tags:
+        - Membership Plans
+      summary: Archive plan
+      description: |
+        Archive a membership plan (soft delete).
+        Sets plan status to ARCHIVED.
+        Plan is no longer selectable for new members.
+        Returns count of active members using this plan (informational warning).
+      operationId: archivePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchivePlanResponse'
+        '400':
+          description: Bad request (plan already archived)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /membership-plans/{id}/restore:
+    post:
+      tags:
+        - Membership Plans
+      summary: Restore archived plan
+      description: |
+        Restore an archived plan to ACTIVE status.
+        Before restoring, system checks if restoring would create a name conflict with an existing ACTIVE plan.
+        If conflict exists, restore is rejected with 400 Bad Request.
+      operationId: restorePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Plan ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPlan'
+        '400':
+          description: Bad request (plan already active, or name conflict with existing ACTIVE plan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (plan belongs to different tenant or user is not ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PlanScope:
+      type: string
+      enum:
+        - TENANT
+        - BRANCH
+      description: Plan scope - TENANT applies to all branches, BRANCH applies to specific branch
+
+    DurationType:
+      type: string
+      enum:
+        - DAYS
+        - MONTHS
+      description: Duration type for membership plans
+
+    PlanStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - ARCHIVED
+      description: Status of a membership plan
+
+    MembershipPlan:
+      type: object
+      required:
+        - id
+        - tenantId
+        - scope
+        - branchId
+        - name
+        - durationType
+        - durationValue
+        - price
+        - currency
+        - autoRenew
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: Plan ID (CUID)
+        tenantId:
+          type: string
+          description: Tenant ID this plan belongs to
+        scope:
+          $ref: '#/components/schemas/PlanScope'
+          description: Plan scope (TENANT or BRANCH)
+        branchId:
+          type: string
+          nullable: true
+          description: Branch ID (null for TENANT scope, branch ID for BRANCH scope)
+        name:
+          type: string
+          description: Plan name, unique per tenant (TENANT scope) or per branch (BRANCH scope)
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Optional plan description
+          maxLength: 1000
+        durationType:
+          $ref: '#/components/schemas/DurationType'
+        durationValue:
+          type: integer
+          description: Duration value (1-730 for DAYS, 1-24 for MONTHS)
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          description: Price >= 0
+          minimum: 0
+        currency:
+          type: string
+          description: ISO 4217 currency code (3 uppercase letters)
+          pattern: '^[A-Z]{3}$'
+        maxFreezeDays:
+          type: integer
+          nullable: true
+          description: Maximum freeze days allowed (null means no freeze)
+          minimum: 0
+        autoRenew:
+          type: boolean
+          description: Whether membership should auto-renew
+        status:
+          $ref: '#/components/schemas/PlanStatus'
+        sortOrder:
+          type: integer
+          nullable: true
+          description: Sort order for UI display (lower numbers appear first)
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 datetime of plan creation
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 datetime of last update
+        activeMemberCount:
+          type: integer
+          description: Number of active members using this plan (computed field, optional)
+
+    CreatePlanRequest:
+      type: object
+      required:
+        - scope
+        - name
+        - durationType
+        - durationValue
+        - price
+        - currency
+      properties:
+        scope:
+          $ref: '#/components/schemas/PlanScope'
+          description: Plan scope (TENANT or BRANCH)
+        branchId:
+          type: string
+          description: Branch ID (required if scope is BRANCH, must be omitted or null if scope is TENANT)
+        name:
+          type: string
+          description: Plan name, unique per tenant (TENANT scope) or per branch (BRANCH scope)
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Optional plan description
+          maxLength: 1000
+        durationType:
+          $ref: '#/components/schemas/DurationType'
+        durationValue:
+          type: integer
+          description: Duration value (1-730 for DAYS, 1-24 for MONTHS)
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          description: Price >= 0
+          minimum: 0
+        currency:
+          type: string
+          description: ISO 4217 currency code (3 uppercase letters)
+          pattern: '^[A-Z]{3}$'
+        maxFreezeDays:
+          type: integer
+          nullable: true
+          description: Maximum freeze days allowed (null means no freeze)
+          minimum: 0
+        autoRenew:
+          type: boolean
+          description: Whether membership should auto-renew (default: false)
+          default: false
+        sortOrder:
+          type: integer
+          nullable: true
+          description: Sort order for UI display
+
+    UpdatePlanRequest:
+      type: object
+      description: |
+        Update plan request. Note: scope and branchId are immutable and cannot be changed.
+      properties:
+        name:
+          type: string
+          description: Update plan name
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Update description
+          maxLength: 1000
+        durationType:
+          $ref: '#/components/schemas/DurationType'
+          description: Update duration type (immutable, but allowed for validation)
+        durationValue:
+          type: integer
+          description: Update duration value (immutable, but allowed for validation)
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          description: Update price
+          minimum: 0
+        currency:
+          type: string
+          description: Update currency
+          pattern: '^[A-Z]{3}$'
+        maxFreezeDays:
+          type: integer
+          nullable: true
+          description: Update freeze days (null to remove)
+          minimum: 0
+        autoRenew:
+          type: boolean
+          description: Update auto-renew flag
+        sortOrder:
+          type: integer
+          nullable: true
+          description: Update sort order
+        status:
+          $ref: '#/components/schemas/PlanStatus'
+          description: Update status (ACTIVE/ARCHIVED)
+
+    PlanListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipPlan'
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+    ArchivePlanResponse:
+      type: object
+      required:
+        - id
+        - status
+        - message
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - ARCHIVED
+        message:
+          type: string
+        activeMemberCount:
+          type: integer
+          description: Number of active members using this plan (if any)
+
+    ErrorResponse:
+      type: object
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+              - field
+              - message
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
