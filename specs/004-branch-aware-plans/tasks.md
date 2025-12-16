@@ -46,7 +46,7 @@ This document contains the consolidated task list for implementing Branch-Aware 
 
 **Goal:** Update Prisma schema and create migration with scopeKey computation
 
-### Task 1.1: Update Prisma Schema
+### Task 1.1: Update Prisma Schema ✅
 
 **Files:**
 - `backend/prisma/schema.prisma`
@@ -55,15 +55,15 @@ This document contains the consolidated task list for implementing Branch-Aware 
 Add PlanScope enum and update MembershipPlan model with scope, branchId, scopeKey fields, branch relation, new uniqueness constraint, and required indexes.
 
 **Acceptance Criteria:**
-- PlanScope enum added (TENANT, BRANCH)
-- MembershipPlan.scope field added (PlanScope, NOT NULL, default TENANT)
-- MembershipPlan.branchId field added (String?, nullable, foreign key to Branch.id)
-- MembershipPlan.scopeKey field added (String, NOT NULL)
-- MembershipPlan.branch relation added (Branch?, optional, onDelete: Restrict)
-- Old constraint `@@unique([tenantId, name])` removed
-- New constraint `@@unique([tenantId, scope, scopeKey, name])` added
-- Indexes added: `[tenantId, scope]`, `[tenantId, scope, status]`, `[tenantId, branchId]`, `[branchId]`
-- Schema validates without errors
+- ✅ PlanScope enum added (TENANT, BRANCH)
+- ✅ MembershipPlan.scope field added (PlanScope, NOT NULL, default TENANT)
+- ✅ MembershipPlan.branchId field added (String?, nullable, foreign key to Branch.id)
+- ✅ MembershipPlan.scopeKey field added (String, NOT NULL)
+- ✅ MembershipPlan.branch relation added (Branch?, optional, onDelete: Restrict)
+- ✅ Old constraint `@@unique([tenantId, name])` removed
+- ✅ New constraint `@@unique([tenantId, scope, scopeKey, name])` added
+- ✅ Indexes added: `[tenantId, scope]`, `[tenantId, scope, status]`, `[tenantId, branchId]`, `[branchId]`
+- ✅ Schema validates without errors
 
 **Dependencies:** None
 
@@ -71,25 +71,25 @@ Add PlanScope enum and update MembershipPlan model with scope, branchId, scopeKe
 
 ---
 
-### Task 1.2: Create and Configure Migration
+### Task 1.2: Create and Configure Migration ✅
 
 **Files:**
-- `backend/prisma/migrations/[timestamp]_add_branch_aware_plans/migration.sql`
+- `backend/prisma/migrations/20251216212504_add_branch_aware_plans/migration.sql`
 
 **Description:**
 Generate Prisma migration and update SQL to add scope, branchId, scopeKey columns, foreign key constraint, new uniqueness constraint, migrate existing data, and add indexes.
 
 **Acceptance Criteria:**
-- Migration file generated via `npx prisma migrate dev --name add_branch_aware_plans`
-- SQL adds `scope` column with default 'TENANT'
-- SQL adds `branchId` column (nullable)
-- SQL adds foreign key constraint `branchId → Branch.id` with ON DELETE RESTRICT
-- SQL adds `scopeKey` column with default 'TENANT'
-- SQL drops existing `@@unique([tenantId, name])` constraint
-- SQL adds new `@@unique([tenantId, scope, scopeKey, name])` constraint
-- SQL updates all existing plans: SET `scope = 'TENANT'`, `branchId = NULL`, `scopeKey = 'TENANT'`
-- SQL adds indexes: `[tenantId, scope]`, `[tenantId, scope, status]`, `[tenantId, branchId]`, `[branchId]`
-- Migration SQL is syntactically correct and reversible
+- ✅ Migration file created: `20251216212504_add_branch_aware_plans/migration.sql`
+- ✅ SQL adds `scope` column with default 'TENANT'
+- ✅ SQL adds `branchId` column (nullable)
+- ✅ SQL adds foreign key constraint `branchId → Branch.id` with ON DELETE RESTRICT
+- ✅ SQL adds `scopeKey` column with default 'TENANT'
+- ✅ SQL drops existing `@@unique([tenantId, name])` constraint
+- ✅ SQL adds new `@@unique([tenantId, scope, scopeKey, name])` constraint
+- ✅ SQL updates all existing plans: SET `scope = 'TENANT'`, `branchId = NULL`, `scopeKey = 'TENANT'`
+- ✅ SQL adds indexes: `[tenantId, scope]`, `[tenantId, scope, status]`, `[tenantId, branchId]`, `[branchId]`
+- ✅ Migration SQL is syntactically correct
 
 **Dependencies:** Task 1.1
 
