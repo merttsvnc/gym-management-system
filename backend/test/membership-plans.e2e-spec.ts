@@ -2577,14 +2577,20 @@ describe('MembershipPlans E2E Tests', () => {
         // Assertions:
         // - One request returns 201 Created
         expect(successResponse.status).toBe(201);
-        expect(successResponse.body).toHaveProperty('id');
-        expect(successResponse.body.name).toBe('Concurrent Plan');
-        expect(successResponse.body.scope).toBe('TENANT');
+        if ('body' in successResponse) {
+          const body: any = successResponse.body;
+          expect(body).toHaveProperty('id');
+          expect(body.name).toBe('Concurrent Plan');
+          expect(body.scope).toBe('TENANT');
+        }
 
         // - The other returns 409 Conflict (database constraint violation)
         expect(failureResponse.status).toBe(409);
-        expect(failureResponse.body).toHaveProperty('message');
-        expect(failureResponse.body.message).toBeDefined();
+        if ('body' in failureResponse) {
+          const body: any = failureResponse.body;
+          expect(body).toHaveProperty('message');
+          expect(body.message).toBeDefined();
+        }
 
         // - Exactly one record exists in DB for that tenant+name
         const plans = await prisma.membershipPlan.findMany({
@@ -2597,7 +2603,10 @@ describe('MembershipPlans E2E Tests', () => {
         });
 
         expect(plans).toHaveLength(1);
-        expect(plans[0].id).toBe(successResponse.body.id);
+        if ('body' in successResponse) {
+          const body: any = successResponse.body;
+          expect(plans[0].id).toBe(body.id);
+        }
       });
 
       it('should prevent duplicate BRANCH plans under concurrent requests (DB constraint)', async () => {
@@ -2634,16 +2643,22 @@ describe('MembershipPlans E2E Tests', () => {
         // Assertions:
         // - One request returns 201 Created
         expect(successResponse.status).toBe(201);
-        expect(successResponse.body).toHaveProperty('id');
-        expect(successResponse.body.name).toBe('Concurrent Branch Plan');
-        expect(successResponse.body.scope).toBe('BRANCH');
-        expect(successResponse.body.branchId).toBe(branch1.id);
-        expect(successResponse.body.scopeKey).toBe(branch1.id);
+        if ('body' in successResponse) {
+          const body: any = successResponse.body;
+          expect(body).toHaveProperty('id');
+          expect(body.name).toBe('Concurrent Branch Plan');
+          expect(body.scope).toBe('BRANCH');
+          expect(body.branchId).toBe(branch1.id);
+          expect(body.scopeKey).toBe(branch1.id);
+        }
 
         // - The other returns 409 Conflict (database constraint violation)
         expect(failureResponse.status).toBe(409);
-        expect(failureResponse.body).toHaveProperty('message');
-        expect(failureResponse.body.message).toBeDefined();
+        if ('body' in failureResponse) {
+          const body: any = failureResponse.body;
+          expect(body).toHaveProperty('message');
+          expect(body.message).toBeDefined();
+        }
 
         // - Exactly one record exists in DB for that tenant+branch+name
         const plans = await prisma.membershipPlan.findMany({
@@ -2657,7 +2672,10 @@ describe('MembershipPlans E2E Tests', () => {
         });
 
         expect(plans).toHaveLength(1);
-        expect(plans[0].id).toBe(successResponse.body.id);
+        if ('body' in successResponse) {
+          const body: any = successResponse.body;
+          expect(plans[0].id).toBe(body.id);
+        }
       });
 
       it('should verify database constraint works independently of application-level validation', async () => {
@@ -2741,7 +2759,10 @@ describe('MembershipPlans E2E Tests', () => {
         });
 
         expect(plans).toHaveLength(1);
-        expect(plans[0].id).toBe(successes[0].body.id);
+        if ('body' in successes[0]) {
+          const body: any = successes[0].body;
+          expect(plans[0].id).toBe(body.id);
+        }
       });
     });
   });
