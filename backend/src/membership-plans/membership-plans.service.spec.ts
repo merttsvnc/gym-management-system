@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import {
@@ -1518,53 +1517,10 @@ describe('MembershipPlansService', () => {
   // PR5 - Task 4.3: Unit Tests - Immutability and Archive/Restore
   describe('PR5 - Immutability and Archive/Restore', () => {
     describe('updatePlanForTenant - Immutability', () => {
-      it('should reject scope change (400 Bad Request)', async () => {
-        const existingPlan = {
-          ...mockPlan,
-          scope: PlanScope.TENANT,
-          branchId: undefined,
-        };
-        const updateInput = {
-          scope: PlanScope.BRANCH,
-        } as any; // Testing that scope cannot be changed
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
-          existingPlan,
-        );
-
-        await expect(
-          service.updatePlanForTenant(tenantId, planId, updateInput),
-        ).rejects.toThrow(BadRequestException);
-        await expect(
-          service.updatePlanForTenant(tenantId, planId, updateInput),
-        ).rejects.toThrow(
-          'Plan kapsamı (scope) değiştirilemez. Plan oluşturulduktan sonra kapsam değiştirilemez.',
-        );
-        expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
-      });
-
-      it('should reject branchId change (400 Bad Request)', async () => {
-        const existingPlan = {
-          ...mockPlan,
-          scope: PlanScope.BRANCH,
-          branchId: branchId,
-        };
-        const updateInput = {
-          branchId: otherBranchId,
-        } as any; // Testing that branchId cannot be changed
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
-          existingPlan,
-        );
-
-        await expect(
-          service.updatePlanForTenant(tenantId, planId, updateInput),
-        ).rejects.toThrow(BadRequestException);
-        await expect(
-          service.updatePlanForTenant(tenantId, planId, updateInput),
-        ).rejects.toThrow(
-          'Plan şubesi (branchId) değiştirilemez. Plan oluşturulduktan sonra şube değiştirilemez.',
-        );
-        expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
-      });
+      // Note: scope and branchId immutability is now enforced at the DTO/ValidationPipe layer.
+      // UpdatePlanDto does not include scope/branchId fields, and ValidationPipe with
+      // forbidNonWhitelisted=true rejects requests containing these fields with 400 Bad Request.
+      // Service no longer needs to check for these fields.
 
       it('should allow updating other fields while preserving scope and branchId', async () => {
         const existingPlan = {

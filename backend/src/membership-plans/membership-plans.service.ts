@@ -29,8 +29,6 @@ export interface CreatePlanInput {
 }
 
 export interface UpdatePlanInput {
-  scope?: PlanScope;
-  branchId?: string;
   name?: string;
   description?: string;
   durationType?: DurationType;
@@ -301,18 +299,9 @@ export class MembershipPlansService {
   ): Promise<MembershipPlan> {
     const existingPlan = await this.getPlanByIdForTenant(tenantId, planId);
 
-    // Enforce immutability: scope and branchId cannot be changed after creation
-    // Check if input contains scope or branchId (defensive check, even though TypeScript prevents it)
-    if ('scope' in input && input.scope !== undefined) {
-      throw new BadRequestException(
-        'Plan kapsamı (scope) değiştirilemez. Plan oluşturulduktan sonra kapsam değiştirilemez.',
-      );
-    }
-    if ('branchId' in input && input.branchId !== undefined) {
-      throw new BadRequestException(
-        'Plan şubesi (branchId) değiştirilemez. Plan oluşturulduktan sonra şube değiştirilemez.',
-      );
-    }
+    // Note: scope and branchId are immutable after creation.
+    // Immutability is enforced at the DTO/controller layer (fields not in UpdatePlanDto).
+    // ValidationPipe with forbidNonWhitelisted=true rejects requests with these fields.
 
     // Validate duration value if being updated
     if (input.durationType && input.durationValue !== undefined) {

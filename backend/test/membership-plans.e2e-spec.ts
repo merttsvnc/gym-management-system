@@ -39,7 +39,7 @@ describe('MembershipPlans E2E Tests', () => {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
       }),
     );
@@ -1945,7 +1945,7 @@ describe('MembershipPlans E2E Tests', () => {
       it('should NOT allow scopeKey in request body (backend-derived only)', async () => {
         const createDto = {
           scope: 'TENANT',
-          scopeKey: 'HACKED_VALUE', // Should be ignored/rejected
+          scopeKey: 'HACKED_VALUE', // Non-whitelisted property - rejected by ValidationPipe
           name: 'Test Plan',
           durationType: DurationType.MONTHS,
           durationValue: 1,
@@ -1957,17 +1957,13 @@ describe('MembershipPlans E2E Tests', () => {
           .post('/api/v1/membership-plans')
           .set('Authorization', `Bearer ${token1}`)
           .send(createDto)
-          .expect(201);
+          .expect(400);
 
-        // Verify scopeKey is computed by backend, not user-provided
-        expect(response.body.scopeKey).toBe('TENANT');
-        expect(response.body.scopeKey).not.toBe('HACKED_VALUE');
-
-        // Verify in database
-        const plan = await prisma.membershipPlan.findUnique({
-          where: { id: response.body.id },
-        });
-        expect(plan?.scopeKey).toBe('TENANT');
+        // ValidationPipe with forbidNonWhitelisted=true rejects unknown properties
+        expect(response.body.message).toBeDefined();
+        expect(response.body.message).toContain(
+          'property scopeKey should not exist',
+        );
       });
     });
 
@@ -2020,7 +2016,7 @@ describe('MembershipPlans E2E Tests', () => {
 
       it('should reject scope change (400 Bad Request)', async () => {
         const updateDto = {
-          scope: 'BRANCH', // Trying to change from TENANT to BRANCH
+          scope: 'BRANCH', // Non-whitelisted property - rejected by ValidationPipe
         };
 
         const response = await request(app.getHttpServer())
@@ -2029,8 +2025,11 @@ describe('MembershipPlans E2E Tests', () => {
           .send(updateDto)
           .expect(400);
 
+        // ValidationPipe with forbidNonWhitelisted=true rejects unknown properties
         expect(response.body.message).toBeDefined();
-        expect(response.body.message).toContain('scope');
+        expect(response.body.message).toContain(
+          'property scope should not exist',
+        );
 
         // Verify scope unchanged in database
         const unchangedPlan = await prisma.membershipPlan.findUnique({
@@ -2041,7 +2040,7 @@ describe('MembershipPlans E2E Tests', () => {
 
       it('should reject branchId change (400 Bad Request)', async () => {
         const updateDto = {
-          branchId: branch2.id, // Trying to change branchId
+          branchId: branch2.id, // Non-whitelisted property - rejected by ValidationPipe
         };
 
         const response = await request(app.getHttpServer())
@@ -2050,8 +2049,11 @@ describe('MembershipPlans E2E Tests', () => {
           .send(updateDto)
           .expect(400);
 
+        // ValidationPipe with forbidNonWhitelisted=true rejects unknown properties
         expect(response.body.message).toBeDefined();
-        expect(response.body.message).toContain('branchId');
+        expect(response.body.message).toContain(
+          'property branchId should not exist',
+        );
 
         // Verify branchId unchanged in database
         const unchangedPlan = await prisma.membershipPlan.findUnique({

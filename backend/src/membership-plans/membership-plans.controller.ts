@@ -160,8 +160,6 @@ export class MembershipPlansController {
     @Body() dto: UpdatePlanDto,
   ) {
     return this.membershipPlansService.updatePlanForTenant(tenantId, id, {
-      scope: dto.scope,
-      branchId: dto.branchId,
       name: dto.name,
       description: dto.description,
       durationType: dto.durationType,

@@ -10,19 +10,9 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { DurationType, PlanStatus, PlanScope } from '@prisma/client';
+import { DurationType, PlanStatus } from '@prisma/client';
 
 export class UpdatePlanDto {
-  @IsOptional()
-  @IsEnum(PlanScope, {
-    message: 'Kapsam TENANT veya BRANCH olmalıdır',
-  })
-  scope?: PlanScope;
-
-  @IsOptional()
-  @IsString({ message: 'Şube kimliği metin olmalıdır' })
-  branchId?: string;
-
   @IsOptional()
   @IsString({ message: 'Plan adı metin olmalıdır' })
   @MaxLength(100, { message: 'Plan adı en fazla 100 karakter olabilir' })
