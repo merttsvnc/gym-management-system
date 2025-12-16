@@ -6,10 +6,11 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { MembershipPlansService } from './membership-plans.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { DurationType, PlanStatus } from '@prisma/client';
+import { DurationType, PlanStatus, PlanScope } from '@prisma/client';
 
 describe('MembershipPlansService', () => {
   let service: MembershipPlansService;
@@ -27,6 +28,9 @@ describe('MembershipPlansService', () => {
     },
     member: {
       count: jest.fn(),
+    },
+    branch: {
+      findUnique: jest.fn(),
     },
   };
 
@@ -50,10 +54,16 @@ describe('MembershipPlansService', () => {
   });
 
   const tenantId = 'tenant-123';
+  const otherTenantId = 'tenant-456';
   const planId = 'plan-123';
+  const branchId = 'branch-123';
+  const otherBranchId = 'branch-456';
   const mockPlan = {
     id: planId,
     tenantId,
+    scope: PlanScope.TENANT,
+    branchId: null,
+    scopeKey: 'TENANT',
     name: 'Basic Plan',
     description: 'A basic membership plan',
     durationType: DurationType.MONTHS,
@@ -63,14 +73,28 @@ describe('MembershipPlansService', () => {
     maxFreezeDays: 15,
     autoRenew: false,
     status: PlanStatus.ACTIVE,
+    archivedAt: null,
     sortOrder: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
+  };
+  const mockBranch = {
+    id: branchId,
+    tenantId,
+    name: 'Test Branch',
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  const mockArchivedBranch = {
+    ...mockBranch,
+    isActive: false,
   };
 
   // T118: CRUD operations tests
   describe('createPlanForTenant', () => {
     const createInput = {
+      scope: PlanScope.TENANT,
       name: 'Premium Plan',
       description: 'Premium membership',
       durationType: DurationType.MONTHS,
@@ -91,8 +115,11 @@ describe('MembershipPlansService', () => {
 
       expect(result).toEqual(createdPlan);
       expect(prismaService.membershipPlan.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           tenantId,
+          scope: PlanScope.TENANT,
+          branchId: null,
+          scopeKey: 'TENANT',
           name: 'Premium Plan',
           description: 'Premium membership',
           durationType: DurationType.MONTHS,
@@ -103,7 +130,7 @@ describe('MembershipPlansService', () => {
           autoRenew: true,
           status: PlanStatus.ACTIVE,
           sortOrder: 1,
-        },
+        }),
       });
     });
 
@@ -191,7 +218,10 @@ describe('MembershipPlansService', () => {
         totalPages: 1,
       });
       expect(prismaService.membershipPlan.findMany).toHaveBeenCalledWith({
-        where: { tenantId },
+        where: expect.objectContaining({
+          tenantId,
+          archivedAt: null,
+        }),
         skip: 0,
         take: 20,
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -265,7 +295,8 @@ describe('MembershipPlansService', () => {
       expect(prismaService.membershipPlan.findMany).toHaveBeenCalledWith({
         where: {
           tenantId,
-          status: PlanStatus.ACTIVE,
+          archivedAt: null,
+          scope: PlanScope.TENANT,
         },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       });
@@ -410,23 +441,31 @@ describe('MembershipPlansService', () => {
 
   describe('archivePlanForTenant', () => {
     it('should archive a plan and return active member count', async () => {
-      const archivedPlan = { ...mockPlan, status: PlanStatus.ARCHIVED };
+      const archivedPlan = {
+        ...mockPlan,
+        archivedAt: new Date(),
+      };
       mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
       mockPrismaService.member.count.mockResolvedValue(5); // 5 active members
       mockPrismaService.membershipPlan.update.mockResolvedValue(archivedPlan);
 
       const result = await service.archivePlanForTenant(tenantId, planId);
 
-      expect(result.plan.status).toBe(PlanStatus.ARCHIVED);
+      expect((result.plan as any).archivedAt).not.toBeNull();
       expect(result.activeMemberCount).toBe(5);
       expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
         where: { id: planId },
-        data: { status: PlanStatus.ARCHIVED },
+        data: {
+          archivedAt: expect.any(Date),
+        },
       });
     });
 
     it('should return plan as-is if already archived', async () => {
-      const archivedPlan = { ...mockPlan, status: PlanStatus.ARCHIVED };
+      const archivedPlan = {
+        ...mockPlan,
+        archivedAt: new Date('2024-01-01'),
+      };
       mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
         archivedPlan,
       );
@@ -441,42 +480,56 @@ describe('MembershipPlansService', () => {
 
     // T123: Archival protection logic - verify it returns count correctly
     it('should archive plan even with active members and return warning count', async () => {
-      const archivedPlan = { ...mockPlan, status: PlanStatus.ARCHIVED };
+      const archivedPlan = {
+        ...mockPlan,
+        archivedAt: new Date(),
+      };
       mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
       mockPrismaService.member.count.mockResolvedValue(10); // 10 active members
       mockPrismaService.membershipPlan.update.mockResolvedValue(archivedPlan);
 
       const result = await service.archivePlanForTenant(tenantId, planId);
 
-      expect(result.plan.status).toBe(PlanStatus.ARCHIVED);
+      expect((result.plan as any).archivedAt).not.toBeNull();
       expect(result.activeMemberCount).toBe(10); // Count returned for warning
     });
   });
 
   describe('restorePlanForTenant', () => {
     it('should restore archived plan to active status', async () => {
-      const archivedPlan = { ...mockPlan, status: PlanStatus.ARCHIVED };
-      const restoredPlan = { ...mockPlan, status: PlanStatus.ACTIVE };
+      const archivedPlan = {
+        ...mockPlan,
+        archivedAt: new Date('2024-01-01'),
+      };
+      const restoredPlan = {
+        ...mockPlan,
+        archivedAt: null,
+        scopeKey: 'TENANT',
+      };
       mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
         archivedPlan,
       );
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
       mockPrismaService.membershipPlan.update.mockResolvedValue(restoredPlan);
 
       const result = await service.restorePlanForTenant(tenantId, planId);
 
-      expect(result.status).toBe(PlanStatus.ACTIVE);
+      expect((result as any).archivedAt).toBeNull();
       expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
         where: { id: planId },
-        data: { status: PlanStatus.ACTIVE },
+        data: {
+          archivedAt: null,
+          scopeKey: 'TENANT',
+        },
       });
     });
 
     it('should return plan as-is if already active', async () => {
       mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
 
-      const result = await service.restorePlanForTenant(tenantId, planId);
-
-      expect(result).toEqual(mockPlan);
+      await expect(
+        service.restorePlanForTenant(tenantId, planId),
+      ).rejects.toThrow(BadRequestException);
       expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
     });
   });
@@ -567,6 +620,7 @@ describe('MembershipPlansService', () => {
 
     it('should scope createPlanForTenant to tenant', async () => {
       const createInput = {
+        scope: PlanScope.TENANT,
         name: 'Test Plan',
         durationType: DurationType.MONTHS,
         durationValue: 1,
@@ -596,7 +650,13 @@ describe('MembershipPlansService', () => {
       // };
       mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
 
-      await service['checkNameUniqueness'](tenantId, 'Duplicate Plan', null);
+      await service['checkNameUniqueness'](
+        tenantId,
+        'Duplicate Plan',
+        null,
+        PlanScope.TENANT,
+        null,
+      );
 
       expect(prismaService.membershipPlan.findFirst).toHaveBeenCalledWith({
         where: expect.objectContaining({ tenantId }),
@@ -608,6 +668,7 @@ describe('MembershipPlansService', () => {
   describe('Plan name uniqueness', () => {
     it('should throw ConflictException for duplicate name in same tenant', async () => {
       const createInput = {
+        scope: PlanScope.TENANT,
         name: 'Existing Plan',
         durationType: DurationType.MONTHS,
         durationValue: 1,
@@ -632,15 +693,24 @@ describe('MembershipPlansService', () => {
     it('should check name uniqueness case-insensitively', async () => {
       mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
 
-      await service['checkNameUniqueness'](tenantId, 'Test Plan', null);
+      await service['checkNameUniqueness'](
+        tenantId,
+        'Test Plan',
+        null,
+        PlanScope.TENANT,
+        null,
+      );
 
       expect(prismaService.membershipPlan.findFirst).toHaveBeenCalledWith({
         where: {
           tenantId,
+          scope: PlanScope.TENANT,
+          branchId: null,
           name: {
             equals: 'Test Plan',
             mode: 'insensitive',
           },
+          archivedAt: null,
         },
       });
     });
@@ -649,6 +719,7 @@ describe('MembershipPlansService', () => {
       const tenant1 = 'tenant-1';
       const tenant2 = 'tenant-2';
       const createInput = {
+        scope: PlanScope.TENANT,
         name: 'Common Plan',
         durationType: DurationType.MONTHS,
         durationValue: 1,
@@ -697,6 +768,7 @@ describe('MembershipPlansService', () => {
     describe('DAYS duration', () => {
       it('should accept valid DAYS duration (1-730)', async () => {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: 'Valid Days Plan',
           durationType: DurationType.DAYS,
           durationValue: 30,
@@ -713,6 +785,7 @@ describe('MembershipPlansService', () => {
 
       it('should reject DAYS duration < 1', async () => {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: 'Invalid Days Plan',
           durationType: DurationType.DAYS,
           durationValue: 0,
@@ -730,6 +803,7 @@ describe('MembershipPlansService', () => {
 
       it('should reject DAYS duration > 730', async () => {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: 'Invalid Days Plan',
           durationType: DurationType.DAYS,
           durationValue: 731,
@@ -747,6 +821,7 @@ describe('MembershipPlansService', () => {
 
       it('should accept boundary values (1 and 730 days)', async () => {
         const createInput1 = {
+          scope: PlanScope.TENANT,
           name: 'Min Days Plan',
           durationType: DurationType.DAYS,
           durationValue: 1,
@@ -754,6 +829,7 @@ describe('MembershipPlansService', () => {
           currency: 'TRY',
         };
         const createInput2 = {
+          scope: PlanScope.TENANT,
           name: 'Max Days Plan',
           durationType: DurationType.DAYS,
           durationValue: 730,
@@ -775,6 +851,7 @@ describe('MembershipPlansService', () => {
     describe('MONTHS duration', () => {
       it('should accept valid MONTHS duration (1-24)', async () => {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: 'Valid Months Plan',
           durationType: DurationType.MONTHS,
           durationValue: 12,
@@ -791,6 +868,7 @@ describe('MembershipPlansService', () => {
 
       it('should reject MONTHS duration < 1', async () => {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: 'Invalid Months Plan',
           durationType: DurationType.MONTHS,
           durationValue: 0,
@@ -808,6 +886,7 @@ describe('MembershipPlansService', () => {
 
       it('should reject MONTHS duration > 24', async () => {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: 'Invalid Months Plan',
           durationType: DurationType.MONTHS,
           durationValue: 25,
@@ -825,6 +904,7 @@ describe('MembershipPlansService', () => {
 
       it('should accept boundary values (1 and 24 months)', async () => {
         const createInput1 = {
+          scope: PlanScope.TENANT,
           name: 'Min Months Plan',
           durationType: DurationType.MONTHS,
           durationValue: 1,
@@ -832,6 +912,7 @@ describe('MembershipPlansService', () => {
           currency: 'TRY',
         };
         const createInput2 = {
+          scope: PlanScope.TENANT,
           name: 'Max Months Plan',
           durationType: DurationType.MONTHS,
           durationValue: 24,
@@ -858,6 +939,7 @@ describe('MembershipPlansService', () => {
 
       for (const currency of validCurrencies) {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: `Plan ${currency}`,
           durationType: DurationType.MONTHS,
           durationValue: 1,
@@ -875,6 +957,7 @@ describe('MembershipPlansService', () => {
 
     it('should reject lowercase currency codes', async () => {
       const createInput = {
+        scope: PlanScope.TENANT,
         name: 'Invalid Currency Plan',
         durationType: DurationType.MONTHS,
         durationValue: 1,
@@ -894,6 +977,7 @@ describe('MembershipPlansService', () => {
 
     it('should reject mixed case currency codes', async () => {
       const createInput = {
+        scope: PlanScope.TENANT,
         name: 'Invalid Currency Plan',
         durationType: DurationType.MONTHS,
         durationValue: 1,
@@ -911,6 +995,7 @@ describe('MembershipPlansService', () => {
 
       for (const currency of invalidCurrencies) {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: `Invalid Plan ${currency}`,
           durationType: DurationType.MONTHS,
           durationValue: 1,
@@ -934,6 +1019,7 @@ describe('MembershipPlansService', () => {
 
       for (const currency of invalidCurrencies) {
         const createInput = {
+          scope: PlanScope.TENANT,
           name: `Invalid Plan ${currency}`,
           durationType: DurationType.MONTHS,
           durationValue: 1,
@@ -945,6 +1031,779 @@ describe('MembershipPlansService', () => {
           service.createPlanForTenant(tenantId, createInput),
         ).rejects.toThrow(BadRequestException);
       }
+    });
+  });
+
+  // PR5 - Task 4.1: Unit Tests - Scope Validation and scopeKey Derivation
+  describe('PR5 - Scope Validation and scopeKey Derivation', () => {
+    const baseCreateInput = {
+      name: 'Test Plan',
+      durationType: DurationType.MONTHS,
+      durationValue: 1,
+      price: 100,
+      currency: 'TRY',
+    };
+
+    describe('createPlanForTenant - Scope validation', () => {
+      it('should create TENANT scope plan with null branchId successfully', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+        };
+        const createdPlan = {
+          ...mockPlan,
+          ...createInput,
+          scopeKey: 'TENANT',
+          id: 'new-plan-id',
+        };
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
+
+        const result = await service.createPlanForTenant(tenantId, createInput);
+
+        expect(result).toEqual(createdPlan);
+        expect(prismaService.membershipPlan.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            tenantId,
+            scope: PlanScope.TENANT,
+            branchId: null,
+            scopeKey: 'TENANT',
+          }),
+        });
+      });
+
+      it('should reject TENANT scope with branchId (400 Bad Request)', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: branchId, // Should be null for TENANT scope
+        };
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(
+          'TENANT kapsamındaki planlar için branchId belirtilmemelidir',
+        );
+        expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
+      });
+
+      it('should reject BRANCH scope without branchId (400 Bad Request)', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: undefined, // Missing branchId
+        };
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow('BRANCH kapsamındaki planlar için branchId gereklidir');
+        expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
+      });
+
+      it('should reject BRANCH scope with empty branchId (400 Bad Request)', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: '   ', // Empty string after trim
+        };
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(BadRequestException);
+        expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
+      });
+
+      it('should reject BRANCH scope with branchId from different tenant (403 Forbidden)', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+        };
+        const branchFromOtherTenant = {
+          ...mockBranch,
+          tenantId: otherTenantId,
+        };
+        mockPrismaService.branch.findUnique.mockResolvedValue(
+          branchFromOtherTenant,
+        );
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(ForbiddenException);
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow('Bu işlem için yetkiniz bulunmamaktadır');
+        expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
+      });
+
+      it('should reject BRANCH scope with archived branch (400 Bad Request)', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+        };
+        mockPrismaService.branch.findUnique.mockResolvedValue(
+          mockArchivedBranch,
+        );
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow('Arşivlenmiş şubeler için plan oluşturulamaz');
+        expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
+      });
+
+      it('should create BRANCH scope plan with valid branchId successfully', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+        };
+        const createdPlan = {
+          ...mockPlan,
+          ...createInput,
+          scopeKey: branchId,
+          id: 'new-branch-plan-id',
+        };
+        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
+
+        const result = await service.createPlanForTenant(tenantId, createInput);
+
+        expect(result).toEqual(createdPlan);
+        expect(prismaService.membershipPlan.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            tenantId,
+            scope: PlanScope.BRANCH,
+            branchId: branchId,
+            scopeKey: branchId, // scopeKey = branchId for BRANCH scope
+          }),
+        });
+      });
+    });
+
+    describe('computeScopeKey - scopeKey derivation', () => {
+      it('should return "TENANT" for TENANT scope', () => {
+        const scopeKey = service['computeScopeKey'](PlanScope.TENANT, null);
+        expect(scopeKey).toBe('TENANT');
+      });
+
+      it('should return branchId for BRANCH scope', () => {
+        const scopeKey = service['computeScopeKey'](
+          PlanScope.BRANCH,
+          branchId,
+        );
+        expect(scopeKey).toBe(branchId);
+      });
+
+      it('should set scopeKey correctly for TENANT scope during create', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+        };
+        const createdPlan = {
+          ...mockPlan,
+          ...createInput,
+          scopeKey: 'TENANT',
+          id: 'new-plan-id',
+        };
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
+
+        await service.createPlanForTenant(tenantId, createInput);
+
+        expect(prismaService.membershipPlan.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            scopeKey: 'TENANT',
+          }),
+        });
+      });
+
+      it('should set scopeKey correctly for BRANCH scope during create', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+        };
+        const createdPlan = {
+          ...mockPlan,
+          ...createInput,
+          scopeKey: branchId,
+          id: 'new-branch-plan-id',
+        };
+        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
+
+        await service.createPlanForTenant(tenantId, createInput);
+
+        expect(prismaService.membershipPlan.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            scopeKey: branchId,
+          }),
+        });
+      });
+
+      it('should ensure scopeKey is never user-provided (DTO has no scopeKey)', async () => {
+        // This test verifies that scopeKey is computed internally
+        // If someone tries to pass scopeKey in the input, it should be ignored
+        // The service computes it internally, so even if TypeScript allows it,
+        // the service will override it
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+        };
+        const createdPlan = {
+          ...mockPlan,
+          ...createInput,
+          scopeKey: 'TENANT', // Service computes this, not from input
+          id: 'new-plan-id',
+        };
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
+
+        await service.createPlanForTenant(tenantId, createInput);
+
+        // Verify scopeKey is computed, not taken from input
+        expect(prismaService.membershipPlan.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            scopeKey: 'TENANT', // Computed value, not from DTO
+          }),
+        });
+        // Verify the input object doesn't have scopeKey (it's not in CreatePlanInput interface)
+        expect(createInput).not.toHaveProperty('scopeKey');
+      });
+    });
+  });
+
+  // PR5 - Task 4.2: Unit Tests - Uniqueness Validation
+  describe('PR5 - Uniqueness Validation', () => {
+    const baseCreateInput = {
+      name: 'Premium Plan',
+      durationType: DurationType.MONTHS,
+      durationValue: 1,
+      price: 100,
+      currency: 'TRY',
+    };
+
+    describe('checkNameUniqueness - TENANT scope', () => {
+      it('should reject duplicate TENANT scope plan name (case-insensitive)', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          name: 'Premium Plan',
+        };
+        const existingPlan = {
+          ...mockPlan,
+          name: 'premium plan', // Different case
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          archivedAt: null,
+        };
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
+          existingPlan,
+        );
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(ConflictException);
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(
+          'Bu plan adı zaten kullanılıyor. Lütfen farklı bir ad seçiniz.',
+        );
+      });
+
+      it('should allow duplicate names across different branches (BRANCH scope)', async () => {
+        const createInput1 = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+          name: 'Premium Plan',
+        };
+        const createInput2 = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: otherBranchId, // Different branch
+          name: 'Premium Plan', // Same name
+        };
+        const createdPlan1 = {
+          ...mockPlan,
+          ...createInput1,
+          scopeKey: branchId,
+          id: 'plan-1',
+        };
+        const createdPlan2 = {
+          ...mockPlan,
+          ...createInput2,
+          scopeKey: otherBranchId,
+          id: 'plan-2',
+        };
+
+        // First plan creation
+        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan1);
+        await service.createPlanForTenant(tenantId, createInput1);
+
+        // Second plan creation with same name but different branch - should succeed
+        const otherBranch = { ...mockBranch, id: otherBranchId };
+        mockPrismaService.branch.findUnique.mockResolvedValue(otherBranch);
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null); // No duplicate in this branch
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan2);
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput2),
+        ).resolves.toBeDefined();
+      });
+
+      it('should allow duplicate names between TENANT and BRANCH scopes', async () => {
+        const tenantPlanInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          name: 'Premium Plan',
+        };
+        const branchPlanInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+          name: 'Premium Plan', // Same name, different scope
+        };
+        const tenantPlan = {
+          ...mockPlan,
+          ...tenantPlanInput,
+          scopeKey: 'TENANT',
+          id: 'tenant-plan-id',
+        };
+        const branchPlan = {
+          ...mockPlan,
+          ...branchPlanInput,
+          scopeKey: branchId,
+          id: 'branch-plan-id',
+        };
+
+        // Create TENANT plan
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.create.mockResolvedValue(tenantPlan);
+        await service.createPlanForTenant(tenantId, tenantPlanInput);
+
+        // Create BRANCH plan with same name - should succeed
+        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null); // No duplicate (different scope)
+        mockPrismaService.membershipPlan.create.mockResolvedValue(branchPlan);
+
+        await expect(
+          service.createPlanForTenant(tenantId, branchPlanInput),
+        ).resolves.toBeDefined();
+      });
+
+      it('should exclude archived plans from uniqueness checks', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          name: 'Premium Plan',
+        };
+        const archivedPlan = {
+          ...mockPlan,
+          name: 'Premium Plan',
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          archivedAt: new Date(), // Archived plan
+        };
+        // findFirst returns null because archived plans are excluded
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        const createdPlan = {
+          ...mockPlan,
+          ...createInput,
+          scopeKey: 'TENANT',
+          id: 'new-plan-id',
+        };
+        mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
+
+        // Should succeed because archived plan doesn't count
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).resolves.toBeDefined();
+
+        // Verify findFirst was called with archivedAt: null filter
+        expect(prismaService.membershipPlan.findFirst).toHaveBeenCalledWith({
+          where: expect.objectContaining({
+            archivedAt: null, // Only non-archived plans count
+          }),
+        });
+      });
+
+      it('should enforce case-insensitive uniqueness for TENANT scope', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          name: 'Premium Plan',
+        };
+        const existingPlan = {
+          ...mockPlan,
+          name: 'PREMIUM PLAN', // Uppercase
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          archivedAt: null,
+        };
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
+          existingPlan,
+        );
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(ConflictException);
+
+        // Verify case-insensitive comparison was used
+        expect(prismaService.membershipPlan.findFirst).toHaveBeenCalledWith({
+          where: expect.objectContaining({
+            name: {
+              equals: 'Premium Plan',
+              mode: 'insensitive',
+            },
+          }),
+        });
+      });
+
+      it('should enforce case-insensitive uniqueness for BRANCH scope', async () => {
+        const createInput = {
+          ...baseCreateInput,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+          name: 'Premium Plan',
+        };
+        const existingPlan = {
+          ...mockPlan,
+          name: 'premium plan', // Lowercase
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+          archivedAt: null,
+        };
+        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
+          existingPlan,
+        );
+
+        await expect(
+          service.createPlanForTenant(tenantId, createInput),
+        ).rejects.toThrow(ConflictException);
+
+        // Verify case-insensitive comparison was used
+        expect(prismaService.membershipPlan.findFirst).toHaveBeenCalledWith({
+          where: expect.objectContaining({
+            name: {
+              equals: 'Premium Plan',
+              mode: 'insensitive',
+            },
+            branchId: branchId,
+          }),
+        });
+      });
+    });
+  });
+
+  // PR5 - Task 4.3: Unit Tests - Immutability and Archive/Restore
+  describe('PR5 - Immutability and Archive/Restore', () => {
+    describe('updatePlanForTenant - Immutability', () => {
+      it('should reject scope change (400 Bad Request)', async () => {
+        const existingPlan = {
+          ...mockPlan,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+        };
+        const updateInput = {
+          scope: PlanScope.BRANCH,
+        } as any; // Testing that scope cannot be changed
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          existingPlan,
+        );
+
+        await expect(
+          service.updatePlanForTenant(tenantId, planId, updateInput),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          service.updatePlanForTenant(tenantId, planId, updateInput),
+        ).rejects.toThrow(
+          'Plan kapsamı (scope) değiştirilemez. Plan oluşturulduktan sonra kapsam değiştirilemez.',
+        );
+        expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
+      });
+
+      it('should reject branchId change (400 Bad Request)', async () => {
+        const existingPlan = {
+          ...mockPlan,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+        };
+        const updateInput = {
+          branchId: otherBranchId,
+        } as any; // Testing that branchId cannot be changed
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          existingPlan,
+        );
+
+        await expect(
+          service.updatePlanForTenant(tenantId, planId, updateInput),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          service.updatePlanForTenant(tenantId, planId, updateInput),
+        ).rejects.toThrow(
+          'Plan şubesi (branchId) değiştirilemez. Plan oluşturulduktan sonra şube değiştirilemez.',
+        );
+        expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
+      });
+
+      it('should allow updating other fields while preserving scope and branchId', async () => {
+        const existingPlan = {
+          ...mockPlan,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+        };
+        const updateInput = {
+          name: 'Updated Name',
+          price: 200,
+        };
+        const updatedPlan = {
+          ...existingPlan,
+          ...updateInput,
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          existingPlan,
+        );
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.update.mockResolvedValue(updatedPlan);
+
+        const result = await service.updatePlanForTenant(
+          tenantId,
+          planId,
+          updateInput,
+        );
+
+        expect(result).toEqual(updatedPlan);
+        expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
+          where: { id: planId },
+          data: expect.objectContaining({
+            name: 'Updated Name',
+            price: 200,
+            // scope and branchId should NOT be in update data
+          }),
+        });
+        // Verify scope and branchId are not in update data
+        const updateCall = (
+          prismaService.membershipPlan.update as jest.Mock
+        ).mock.calls[0][0];
+        expect(updateCall.data).not.toHaveProperty('scope');
+        expect(updateCall.data).not.toHaveProperty('branchId');
+      });
+    });
+
+    describe('archivePlanForTenant - Idempotency', () => {
+      it('should archive plan successfully', async () => {
+        const existingPlan = {
+          ...mockPlan,
+          archivedAt: null,
+        };
+        const archivedPlan = {
+          ...existingPlan,
+          archivedAt: new Date(),
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          existingPlan,
+        );
+        mockPrismaService.member.count.mockResolvedValue(0);
+        mockPrismaService.membershipPlan.update.mockResolvedValue(
+          archivedPlan,
+        );
+
+        const result = await service.archivePlanForTenant(tenantId, planId);
+
+        expect((result.plan as any).archivedAt).not.toBeNull();
+        expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
+          where: { id: planId },
+          data: {
+            archivedAt: expect.any(Date),
+          },
+        });
+      });
+
+      it('should be idempotent - already archived returns 200 OK', async () => {
+        const alreadyArchivedPlan = {
+          ...mockPlan,
+          archivedAt: new Date('2024-01-01'),
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          alreadyArchivedPlan,
+        );
+        mockPrismaService.member.count.mockResolvedValue(5);
+
+        const result = await service.archivePlanForTenant(tenantId, planId);
+
+        expect(result.plan).toEqual(alreadyArchivedPlan);
+        expect(result.activeMemberCount).toBe(5);
+        // Should not call update if already archived
+        expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('restorePlanForTenant - Restore validation', () => {
+      it('should restore archived plan successfully', async () => {
+        const archivedPlan = {
+          ...mockPlan,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          archivedAt: new Date('2024-01-01'),
+        };
+        const restoredPlan = {
+          ...archivedPlan,
+          archivedAt: null,
+          scopeKey: 'TENANT',
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          archivedPlan,
+        );
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null); // No conflict
+        mockPrismaService.membershipPlan.update.mockResolvedValue(restoredPlan);
+
+        const result = await service.restorePlanForTenant(tenantId, planId);
+
+        expect((result as any).archivedAt).toBeNull();
+        expect(result.scopeKey).toBe('TENANT');
+        expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
+          where: { id: planId },
+          data: {
+            archivedAt: null,
+            scopeKey: 'TENANT', // scopeKey recomputed during restore
+          },
+        });
+      });
+
+      it('should fail if plan already ACTIVE (400 Bad Request)', async () => {
+        const activePlan = {
+          ...mockPlan,
+          archivedAt: null,
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          activePlan,
+        );
+
+        await expect(
+          service.restorePlanForTenant(tenantId, planId),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          service.restorePlanForTenant(tenantId, planId),
+        ).rejects.toThrow(
+          'Plan zaten aktif durumda. Arşivlenmiş planlar geri yüklenebilir.',
+        );
+        expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
+      });
+
+      it('should fail if restore would violate uniqueness (400 Bad Request)', async () => {
+        const archivedPlan = {
+          ...mockPlan,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          name: 'Premium Plan',
+          archivedAt: new Date('2024-01-01'),
+        };
+        const conflictingPlan = {
+          ...mockPlan,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          name: 'Premium Plan', // Same name, same scope
+          archivedAt: null, // Active plan
+          id: 'other-plan-id',
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          archivedPlan,
+        );
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
+          conflictingPlan,
+        );
+
+        await expect(
+          service.restorePlanForTenant(tenantId, planId),
+        ).rejects.toThrow(ConflictException);
+        await expect(
+          service.restorePlanForTenant(tenantId, planId),
+        ).rejects.toThrow(
+          'Bu plan adı zaten kullanılıyor. Lütfen farklı bir ad seçiniz.',
+        );
+        expect(prismaService.membershipPlan.update).not.toHaveBeenCalled();
+      });
+
+      it('should recompute scopeKey during restore for TENANT scope', async () => {
+        const archivedPlan = {
+          ...mockPlan,
+          scope: PlanScope.TENANT,
+          branchId: undefined,
+          archivedAt: new Date('2024-01-01'),
+        };
+        const restoredPlan = {
+          ...archivedPlan,
+          archivedAt: null,
+          scopeKey: 'TENANT',
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          archivedPlan,
+        );
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.update.mockResolvedValue(restoredPlan);
+
+        await service.restorePlanForTenant(tenantId, planId);
+
+        expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
+          where: { id: planId },
+          data: {
+            archivedAt: null,
+            scopeKey: 'TENANT', // Recomputed
+          },
+        });
+      });
+
+      it('should recompute scopeKey during restore for BRANCH scope', async () => {
+        const archivedPlan = {
+          ...mockPlan,
+          scope: PlanScope.BRANCH,
+          branchId: branchId,
+          archivedAt: new Date('2024-01-01'),
+        };
+        const restoredPlan = {
+          ...archivedPlan,
+          archivedAt: null,
+          scopeKey: branchId,
+        };
+        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+          archivedPlan,
+        );
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+        mockPrismaService.membershipPlan.update.mockResolvedValue(restoredPlan);
+
+        await service.restorePlanForTenant(tenantId, planId);
+
+        expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
+          where: { id: planId },
+          data: {
+            archivedAt: null,
+            scopeKey: branchId, // Recomputed from branchId
+          },
+        });
+      });
     });
   });
 });
