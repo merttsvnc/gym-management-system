@@ -184,7 +184,7 @@ Branch (1) ──< (many) Member (existing)
    - When creating/updating a BRANCH-scoped plan, `branchId` MUST reference an existing Branch
    - The Branch MUST belong to the authenticated user's tenant
    - The Branch MUST be active (`isActive = true`) - cannot create plans for archived branches
-   - If a branch is archived after plan creation, the plan remains valid (historical records preserved)
+   - **Archived Branch Behavior:** If a branch is archived after plan creation, BRANCH-scoped plans for that branch remain ACTIVE (status unchanged). Plans are NOT automatically archived when their branch is archived. Admins can manually archive plans if needed. This preserves historical records and allows plans to remain available for existing members even after branch closure.
 
 8. **Plan Listing and Filtering:**
    - All plan queries MUST be scoped to the current tenant
@@ -268,6 +268,7 @@ interface PlanListQuery {
   branchId?: string; // Optional: Filter by branchId (returns BRANCH-scoped plans for that branch)
   q?: string; // Optional: Search by plan name (partial match, case-insensitive)
   includeArchived?: boolean; // Optional: Include archived plans, default: false
+  includeMemberCount?: boolean; // Optional: Include activeMemberCount field, default: false
 }
 ```
 
@@ -301,15 +302,14 @@ interface MembershipPlan {
   sortOrder?: number;
   createdAt: string; // ISO 8601 datetime
   updatedAt: string; // ISO 8601 datetime
-  // Computed field (optional, if requested)
-  activeMemberCount?: number; // Number of active members using this plan
+  activeMemberCount?: number; // Computed field: Number of active members using this plan (included only if includeMemberCount=true query parameter is provided)
 }
 ```
 
 **Status Codes:**
 
 - 200: Success
-- 400: Invalid query parameters (e.g., invalid scope value, invalid branchId format)
+- 400: Invalid query parameters (e.g., invalid scope value, invalid branchId format, branchId doesn't exist, branchId belongs to different tenant)
 - 401: Unauthorized
 - 500: Server error
 
@@ -317,11 +317,22 @@ interface MembershipPlan {
 
 - All plans are automatically filtered by `tenantId` (from authenticated user's JWT)
 - If `scope` is provided, only plans matching that scope are returned
-- If `branchId` is provided, only BRANCH-scoped plans for that branch are returned (TENANT-scoped plans are not returned)
+- **branchId Validation:** If `branchId` is provided, the system validates that:
+  - The branch exists
+  - The branch belongs to the authenticated user's tenant
+  - If validation fails (branch doesn't exist or belongs to different tenant), returns 400 Bad Request with error message: "Invalid branchId: branch not found or access denied"
+- If `branchId` is valid, only BRANCH-scoped plans for that branch are returned (TENANT-scoped plans are not returned)
 - If `q` is provided, plans matching the name substring are returned (case-insensitive)
 - If `includeArchived` is false (default), only ACTIVE plans are returned
 - If `includeArchived` is true, both ACTIVE and ARCHIVED plans are returned
+- If `includeMemberCount` is true, each plan includes `activeMemberCount` field (number of active members using the plan). Default: false (field omitted for performance)
 - Filter combinations are ANDed together (e.g., scope=TENANT + includeArchived=true returns archived TENANT plans)
+
+**Empty Results:**
+
+- When filters return zero matching plans, the endpoint returns 200 OK with an empty array and pagination metadata indicating `total: 0` and `totalPages: 0`
+- Empty results are NOT treated as errors (no 404 response)
+- Example empty response: `{ data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } }`
 
 **Sorting:**
 
@@ -351,19 +362,21 @@ interface ActivePlansQuery {
 **Status Codes:**
 
 - 200: Success
-- 400: Invalid branchId format
+- 400: Invalid branchId format, branchId doesn't exist, or branchId belongs to different tenant
 - 401: Unauthorized
-- 403: Forbidden (branchId belongs to different tenant)
 - 500: Server error
 
 **Use Case:** This endpoint is optimized for plan selection dropdowns in member creation forms. Returns ACTIVE plans without pagination (typically < 50 plans per tenant).
 
 **Filtering Logic:**
 
-- If `branchId` is provided:
+- **branchId Validation:** If `branchId` is provided, the system validates that:
+  - The branch exists
+  - The branch belongs to the authenticated user's tenant
+  - If validation fails (branch doesn't exist or belongs to different tenant), returns 400 Bad Request with error message: "Invalid branchId: branch not found or access denied"
+- If `branchId` is valid:
   - Returns all TENANT-scoped ACTIVE plans (available to all branches)
   - Plus all BRANCH-scoped ACTIVE plans for the specified branch
-  - Validates that branchId belongs to the current tenant
 - If `branchId` is not provided:
   - Returns all TENANT-scoped ACTIVE plans only
   - BRANCH-scoped plans are not returned (they require a branchId context)
@@ -379,6 +392,14 @@ interface ActivePlansQuery {
 **URL Parameters:**
 
 - `id`: Plan ID (CUID)
+
+**Query Parameters:**
+
+```typescript
+interface PlanDetailQuery {
+  includeMemberCount?: boolean; // Optional: Include activeMemberCount field, default: false
+}
+```
 
 **Response:** Single `MembershipPlan` object
 
@@ -603,7 +624,7 @@ interface ArchivePlanResponse {
 **Status Codes:**
 
 - 200: Success
-- 400: Bad request (plan already active)
+- 400: Bad request (plan already active, or name conflict with existing ACTIVE plan)
 - 401: Unauthorized
 - 403: Forbidden (plan belongs to different tenant or user is not ADMIN)
 - 404: Plan not found
@@ -613,7 +634,7 @@ interface ArchivePlanResponse {
 
 - Sets plan `status` to ACTIVE
 - Plan becomes available for selection by new members
-- Uniqueness validation runs when restoring (must not conflict with existing ACTIVE plans)
+- **Uniqueness Validation:** Before restoring, system checks if restoring would create a name conflict with an existing ACTIVE plan (same scope, same tenant/branch). If a conflict exists, restore is rejected with 400 Bad Request and error message: "Cannot restore plan: an ACTIVE plan with the same name already exists for this scope." The plan remains ARCHIVED.
 
 ---
 
