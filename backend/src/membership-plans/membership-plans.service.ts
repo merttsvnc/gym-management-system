@@ -29,6 +29,8 @@ export interface CreatePlanInput {
 }
 
 export interface UpdatePlanInput {
+  scope?: PlanScope;
+  branchId?: string;
   name?: string;
   description?: string;
   durationType?: DurationType;
@@ -75,10 +77,7 @@ export class MembershipPlansService {
 
     // Validate branch belongs to tenant (if BRANCH scope)
     if (input.scope === PlanScope.BRANCH) {
-      await this.validateBranchBelongsToTenant(
-        tenantId,
-        input.branchId || '',
-      );
+      await this.validateBranchBelongsToTenant(tenantId, input.branchId || '');
     }
 
     // Validate duration value
@@ -93,10 +92,7 @@ export class MembershipPlansService {
     }
 
     // Compute scopeKey internally (never user-provided)
-    const scopeKey = this.computeScopeKey(
-      input.scope,
-      input.branchId || null,
-    );
+    const scopeKey = this.computeScopeKey(input.scope, input.branchId || null);
 
     // Check name uniqueness (case-insensitive, ACTIVE only, scope-aware)
     await this.checkNameUniqueness(
@@ -409,11 +405,12 @@ export class MembershipPlansService {
 
     const activeMemberCount = await this.countActiveMembersForPlan(planId);
 
-    // Soft delete by setting archivedAt = now
+    // Soft delete by setting archivedAt = now and status = ARCHIVED
     const archivedPlan = await this.prisma.membershipPlan.update({
       where: { id: planId },
       data: {
         archivedAt: new Date(),
+        status: PlanStatus.ARCHIVED,
       },
     });
 
@@ -455,11 +452,12 @@ export class MembershipPlansService {
     // Recompute scopeKey during restore
     const scopeKey = this.computeScopeKey(plan.scope, plan.branchId);
 
-    // Restore by setting archivedAt = null and updating scopeKey
+    // Restore by setting archivedAt = null, status = ACTIVE, and updating scopeKey
     return this.prisma.membershipPlan.update({
       where: { id: planId },
       data: {
         archivedAt: null,
+        status: PlanStatus.ACTIVE,
         scopeKey, // Recompute scopeKey during restore
       },
     });
@@ -649,7 +647,7 @@ export class MembershipPlansService {
       }
       return branchId;
     }
-    throw new BadRequestException(`Geçersiz plan kapsamı: ${scope}`);
+    throw new BadRequestException(`Geçersiz plan kapsamı: ${String(scope)}`);
   }
 
   /**

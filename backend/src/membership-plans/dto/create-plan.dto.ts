@@ -10,7 +10,6 @@ import {
   IsBoolean,
   ValidateIf,
   IsNotEmpty,
-  IsEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DurationType, PlanScope } from '@prisma/client';
@@ -21,7 +20,7 @@ export class CreatePlanDto {
   })
   scope: PlanScope;
 
-  @ValidateIf((o) => o.scope === PlanScope.BRANCH)
+  @ValidateIf((o: CreatePlanDto) => o.scope === PlanScope.BRANCH)
   @IsNotEmpty({ message: 'BRANCH kapsamı için şube ID gereklidir' })
   @IsString({ message: 'Şube ID metin olmalıdır' })
   branchId?: string;

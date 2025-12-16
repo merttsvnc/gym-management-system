@@ -76,17 +76,18 @@ export class MembershipPlansController {
     @Query('includeMemberCount', new ParseBoolPipe({ optional: true }))
     includeMemberCount?: boolean,
   ) {
-    const plans =
-      await this.membershipPlansService.listActivePlansForTenant(
-        tenantId,
-        branchId,
-      );
+    const plans = await this.membershipPlansService.listActivePlansForTenant(
+      tenantId,
+      branchId,
+    );
 
     if (includeMemberCount) {
       const plansWithCounts = await Promise.all(
         plans.map(async (plan) => {
           const count =
-            await this.membershipPlansService.countActiveMembersForPlan(plan.id);
+            await this.membershipPlansService.countActiveMembersForPlan(
+              plan.id,
+            );
           return {
             ...plan,
             activeMemberCount: count,
@@ -159,6 +160,8 @@ export class MembershipPlansController {
     @Body() dto: UpdatePlanDto,
   ) {
     return this.membershipPlansService.updatePlanForTenant(tenantId, id, {
+      scope: dto.scope,
+      branchId: dto.branchId,
       name: dto.name,
       description: dto.description,
       durationType: dto.durationType,

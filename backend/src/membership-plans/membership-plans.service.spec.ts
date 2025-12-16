@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import {
@@ -457,6 +459,7 @@ describe('MembershipPlansService', () => {
         where: { id: planId },
         data: {
           archivedAt: expect.any(Date),
+          status: PlanStatus.ARCHIVED,
         },
       });
     });
@@ -519,6 +522,7 @@ describe('MembershipPlansService', () => {
         where: { id: planId },
         data: {
           archivedAt: null,
+          status: PlanStatus.ACTIVE,
           scopeKey: 'TENANT',
         },
       });
@@ -1103,7 +1107,9 @@ describe('MembershipPlansService', () => {
         ).rejects.toThrow(BadRequestException);
         await expect(
           service.createPlanForTenant(tenantId, createInput),
-        ).rejects.toThrow('BRANCH kapsamındaki planlar için branchId gereklidir');
+        ).rejects.toThrow(
+          'BRANCH kapsamındaki planlar için branchId gereklidir',
+        );
         expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
       });
 
@@ -1199,10 +1205,7 @@ describe('MembershipPlansService', () => {
       });
 
       it('should return branchId for BRANCH scope', () => {
-        const scopeKey = service['computeScopeKey'](
-          PlanScope.BRANCH,
-          branchId,
-        );
+        const scopeKey = service['computeScopeKey'](PlanScope.BRANCH, branchId);
         expect(scopeKey).toBe(branchId);
       });
 
@@ -1418,13 +1421,7 @@ describe('MembershipPlansService', () => {
           branchId: undefined,
           name: 'Premium Plan',
         };
-        const archivedPlan = {
-          ...mockPlan,
-          name: 'Premium Plan',
-          scope: PlanScope.TENANT,
-          branchId: undefined,
-          archivedAt: new Date(), // Archived plan
-        };
+        // Archived plan would have same name but is excluded from uniqueness check
         // findFirst returns null because archived plans are excluded
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
         const createdPlan = {
@@ -1605,9 +1602,8 @@ describe('MembershipPlansService', () => {
           }),
         });
         // Verify scope and branchId are not in update data
-        const updateCall = (
-          prismaService.membershipPlan.update as jest.Mock
-        ).mock.calls[0][0];
+        const updateCall = (prismaService.membershipPlan.update as jest.Mock)
+          .mock.calls[0][0];
         expect(updateCall.data).not.toHaveProperty('scope');
         expect(updateCall.data).not.toHaveProperty('branchId');
       });
@@ -1627,9 +1623,7 @@ describe('MembershipPlansService', () => {
           existingPlan,
         );
         mockPrismaService.member.count.mockResolvedValue(0);
-        mockPrismaService.membershipPlan.update.mockResolvedValue(
-          archivedPlan,
-        );
+        mockPrismaService.membershipPlan.update.mockResolvedValue(archivedPlan);
 
         const result = await service.archivePlanForTenant(tenantId, planId);
 
@@ -1638,6 +1632,7 @@ describe('MembershipPlansService', () => {
           where: { id: planId },
           data: {
             archivedAt: expect.any(Date),
+            status: PlanStatus.ARCHIVED,
           },
         });
       });
@@ -1688,6 +1683,7 @@ describe('MembershipPlansService', () => {
           where: { id: planId },
           data: {
             archivedAt: null,
+            status: PlanStatus.ACTIVE,
             scopeKey: 'TENANT', // scopeKey recomputed during restore
           },
         });
@@ -1771,6 +1767,7 @@ describe('MembershipPlansService', () => {
           where: { id: planId },
           data: {
             archivedAt: null,
+            status: PlanStatus.ACTIVE,
             scopeKey: 'TENANT', // Recomputed
           },
         });
@@ -1800,6 +1797,7 @@ describe('MembershipPlansService', () => {
           where: { id: planId },
           data: {
             archivedAt: null,
+            status: PlanStatus.ACTIVE,
             scopeKey: branchId, // Recomputed from branchId
           },
         });
