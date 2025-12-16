@@ -166,17 +166,18 @@ Branch (1) ──< (many) Member (existing)
    - This means multiple TENANT-scoped plans with the same name can exist at the database level
    - Application-level validation is required to enforce TENANT-scope uniqueness
 
-   **Race Condition Note:**
-   - Application-level validation alone can allow duplicates under concurrent requests
-   - Two simultaneous requests creating plans with the same name can both pass validation before either is committed
-   - This is a known limitation of application-level validation without proper transaction handling
+   **Race Condition Mitigation:**
+   - **Race conditions are NOT acceptable.** The system must prevent duplicate plans even under concurrent requests.
+   - **Selected Mitigation:** The `scopeKey` field combined with the database unique constraint `@@unique([tenantId, scope, scopeKey, name])` prevents duplicates under concurrency.
+   - This approach provides a strong guarantee: database-level enforcement ensures that even if two simultaneous requests both pass application-level validation, only one will succeed at the database level.
 
    **Uniqueness Enforcement Decision:**
    - **Approach Chosen: Strong Guarantee (scopeKey computed column)**
    - **Rationale:** Provides database-level enforcement for both scopes, preventing race conditions and ensuring data integrity
-   - **Implementation:** Introduce a computed column `scopeKey` where:
-     - `scopeKey = "TENANT"` for TENANT scope plans (constant string)
-     - `scopeKey = branchId` for BRANCH scope plans (actual branch ID)
+   - **Where computed:** `scopeKey` is computed in the application/service layer (not user-provided, not a database trigger)
+     - TENANT scope: `scopeKey = "TENANT"` (constant string, computed during plan creation)
+     - BRANCH scope: `scopeKey = branchId` (actual branch ID, computed during plan creation)
+   - **Immutability:** `scopeKey` is immutable after creation (since `scope` and `branchId` are immutable)
    - **Database Constraint:** `@@unique([tenantId, scope, scopeKey, name])`
    - This ensures:
      - TENANT scope: Unique per tenant (scopeKey="TENANT" + tenantId + name)
@@ -755,8 +756,10 @@ enum PlanStatus {
 **Note on Uniqueness Constraints:**
 
 The database uses a computed `scopeKey` column to enforce uniqueness at the database level:
-- For TENANT scope: `scopeKey = "TENANT"` (constant string)
-- For BRANCH scope: `scopeKey = branchId` (actual branch ID)
+- **Where computed:** `scopeKey` is computed in the application/service layer (not user-provided, not a database trigger)
+  - TENANT scope: `scopeKey = "TENANT"` (constant string, computed during plan creation)
+  - BRANCH scope: `scopeKey = branchId` (actual branch ID, computed during plan creation)
+- **Immutability:** `scopeKey` is immutable after creation (since `scope` and `branchId` are immutable)
 - Database constraint: `@@unique([tenantId, scope, scopeKey, name])`
 
 This approach provides:

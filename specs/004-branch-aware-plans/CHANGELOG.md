@@ -151,5 +151,48 @@
 
 ---
 
+### 6. Remediation: Pre-Implementation Documentation Fixes
+
+**Date:** 2025-01-27  
+**Purpose:** Address `/speckit.analyze` findings before implementation
+
+**Files Modified:**
+- `spec.md` - Business Rules section (Race Condition Mitigation, scopeKey computation)
+- `plan.md` - Uniqueness Constraint Strategy section (Race Condition Mitigation, scopeKey computation)
+- `tasks.md` - Task 4.5 (branchId filter error handling), Task 4.8 (DB constraint verification)
+
+**Changes:**
+
+**A1 (HIGH) - DB Constraint Verification Testing:**
+- Added Task 4.8: Database Constraint Verification Tests
+- Explicitly verifies database-level uniqueness constraint `@@unique([tenantId, scope, scopeKey, name])`
+- Acceptance criteria include:
+  - Creating duplicate (tenantId, TENANT, "TENANT", same name) fails at DB level
+  - Creating duplicate (tenantId, BRANCH, scopeKey=branchId, same name) fails at DB level
+  - Clarifies DB unique is case-sensitive; app-level validation covers case-insensitive behavior
+- Implementation hints: E2E test with concurrent creates OR Prisma createMany/transaction approach
+
+**A2 (MEDIUM) - Race Condition Mitigation Clarification:**
+- Updated spec.md and plan.md to explicitly state: "Race conditions are NOT acceptable"
+- Clarified that scopeKey + DB unique constraint is the selected mitigation
+- Made wording consistent with "Strong Guarantee" decision
+- Emphasized that database-level enforcement prevents race conditions even if application-level validation passes
+
+**A3 (MEDIUM) - scopeKey Description Consistency:**
+- Added identical "Where computed" notes in both spec.md and plan.md:
+  - scopeKey is computed in application/service layer (not user-provided, not DB trigger)
+  - TENANT => scopeKey = "TENANT"
+  - BRANCH => scopeKey = branchId
+  - scopeKey is immutable after creation (since scope/branchId immutable)
+- Ensures consistent understanding across all documentation
+
+**A4 (MEDIUM) - branchId Filter Validation Error Handling:**
+- Updated Task 4.5 acceptance criteria to explicitly define error responses:
+  - If branchId doesn't exist OR belongs to another tenant => 400 Bad Request with generic message (no tenant leakage)
+  - Empty results for valid filters => 200 OK with empty data (with pagination metadata)
+- Applied to both GET /membership-plans and GET /membership-plans/active endpoints
+
+---
+
 **End of Changelog**
 

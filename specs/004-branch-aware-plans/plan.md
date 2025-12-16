@@ -68,10 +68,17 @@ Before proceeding, verify alignment with core constitutional principles:
 
 **Decision:** Use a computed `scopeKey` column to provide database-level enforcement for both scopes, preventing race conditions and ensuring data integrity.
 
+**Race Condition Mitigation:**
+- **Race conditions are NOT acceptable.** The system must prevent duplicate plans even under concurrent requests.
+- **Selected Mitigation:** The `scopeKey` field combined with the database unique constraint `@@unique([tenantId, scope, scopeKey, name])` prevents duplicates under concurrency.
+- This approach provides a strong guarantee: database-level enforcement ensures that even if two simultaneous requests both pass application-level validation, only one will succeed at the database level.
+
 **Implementation:**
 1. **Add `scopeKey` computed column:**
-   - For TENANT scope: `scopeKey = "TENANT"` (constant string)
-   - For BRANCH scope: `scopeKey = branchId` (actual branch ID)
+   - **Where computed:** `scopeKey` is computed in the application/service layer (not user-provided, not a database trigger)
+     - TENANT scope: `scopeKey = "TENANT"` (constant string, computed during plan creation)
+     - BRANCH scope: `scopeKey = branchId` (actual branch ID, computed during plan creation)
+   - **Immutability:** `scopeKey` is immutable after creation (since `scope` and `branchId` are immutable)
 
 2. **Database constraint:** `@@unique([tenantId, scope, scopeKey, name])`
    - TENANT scope: Enforced by `(tenantId, scope="TENANT", scopeKey="TENANT", name)`

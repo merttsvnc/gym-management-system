@@ -442,10 +442,12 @@ Write integration tests for GET /membership-plans and GET /membership-plans/acti
 - Test GET /membership-plans: Filter by scope=TENANT returns only TENANT plans
 - Test GET /membership-plans: Filter by scope=BRANCH returns only BRANCH plans
 - Test GET /membership-plans: Filter by branchId returns only BRANCH plans for that branch
-- Test GET /membership-plans: Invalid branchId (wrong tenant) returns 400 Bad Request
+- Test GET /membership-plans: Invalid branchId (doesn't exist OR belongs to different tenant) returns 400 Bad Request with generic error message (no tenant leakage)
+- Test GET /membership-plans: Empty results for valid filters returns 200 OK with empty data array and pagination metadata (total: 0, totalPages: 0)
 - Test GET /membership-plans/active: Returns TENANT plans when branchId not provided
 - Test GET /membership-plans/active: Returns TENANT + BRANCH plans when branchId provided
-- Test GET /membership-plans/active: Invalid branchId returns 400 Bad Request
+- Test GET /membership-plans/active: Invalid branchId (doesn't exist OR belongs to different tenant) returns 400 Bad Request with generic error message (no tenant leakage)
+- Test GET /membership-plans/active: Empty results for valid filters returns 200 OK with empty array
 - All tests verify correct filtering and sorting behavior
 
 **Dependencies:** Task 4.4
@@ -503,15 +505,45 @@ Write integration tests verifying all endpoints return correct HTTP status codes
 
 ---
 
+### Task 4.8: Database Constraint Verification Tests
+
+**Files:**
+- `backend/test/membership-plans.e2e-spec.ts`
+
+**Description:**
+Write explicit tests that verify the database-level uniqueness constraint `@@unique([tenantId, scope, scopeKey, name])` is enforced at the database level, preventing duplicates even under concurrency or direct database operations.
+
+**Acceptance Criteria:**
+- Test database constraint: Attempting to create duplicate (tenantId, TENANT, scopeKey="TENANT", same name) fails at DB level with unique constraint violation
+  - Test approach: Use E2E test that attempts two concurrent creates with same payload and expects one 409 Conflict, OR use low-level Prisma createMany/transaction-based attempt that triggers unique constraint
+  - Verify the error is a database-level unique constraint violation (not application-level validation)
+- Test database constraint: Attempting to create duplicate (tenantId, BRANCH, scopeKey=branchId, same name) fails at DB level with unique constraint violation
+  - Test approach: Same as above, but with BRANCH scope and valid branchId
+  - Verify the error is a database-level unique constraint violation
+- Clarify in test documentation: Database unique constraint is case-sensitive (e.g., "Premium" and "premium" are allowed at DB level)
+- Clarify in test documentation: Application-level validation covers case-insensitive behavior (e.g., "Premium" and "premium" conflict at application level)
+- Test verifies that database constraint prevents race conditions: Two concurrent requests attempting to create plans with identical (tenantId, scope, scopeKey, name) result in one success and one database constraint violation
+
+**Implementation Hint:**
+- Option 1: E2E test using Promise.all() to send two concurrent POST requests with identical payloads, verify one succeeds (201) and one fails (409 Conflict due to DB constraint)
+- Option 2: Low-level test using Prisma createMany() or transaction with duplicate data, verify PrismaUniqueConstraintError is thrown
+- Test should verify the constraint works for both TENANT scope (scopeKey="TENANT") and BRANCH scope (scopeKey=branchId)
+
+**Dependencies:** Task 4.7
+
+**Original Tasks:** New task (A1 remediation)
+
+---
+
 ## Task Summary
 
-**Total Consolidated Tasks:** 18
+**Total Consolidated Tasks:** 19
 
 **By Phase:**
 - Phase 1 (Schema & Migration): 3 tasks
 - Phase 2 (Service Layer): 6 tasks
 - Phase 3 (DTOs & Controller): 2 tasks
-- Phase 4 (Testing): 7 tasks
+- Phase 4 (Testing): 8 tasks
 
 **Critical Requirements Preserved:**
 - ✅ scopeKey derivation (backend-only, never user-provided)
