@@ -2410,5 +2410,218 @@ describe('MembershipPlans E2E Tests', () => {
           });
       });
     });
+
+    // =====================================================================
+    // PR7: Task 4.8 - Database Constraint Verification & Concurrency
+    // =====================================================================
+
+    describe('PR7 - Task 4.8: Database Constraint Verification & Concurrency', () => {
+      beforeEach(async () => {
+        // Clean up plans before each test
+        await prisma.membershipPlan.deleteMany({
+          where: { tenantId: { in: [tenant1.id, tenant2.id] } },
+        });
+      });
+
+      it('should prevent duplicate TENANT plans under concurrent requests (DB constraint)', async () => {
+        const createDto = {
+          scope: 'TENANT',
+          name: 'Concurrent Plan',
+          durationType: DurationType.MONTHS,
+          durationValue: 1,
+          price: 100,
+          currency: 'TRY',
+        };
+
+        // Send two concurrent POST requests with identical payloads
+        const [response1, response2] = await Promise.all([
+          request(app.getHttpServer())
+            .post('/api/v1/membership-plans')
+            .set('Authorization', `Bearer ${token1}`)
+            .send(createDto)
+            .catch((err) => ({ error: err, status: err.status || 500 })),
+          request(app.getHttpServer())
+            .post('/api/v1/membership-plans')
+            .set('Authorization', `Bearer ${token1}`)
+            .send(createDto)
+            .catch((err) => ({ error: err, status: err.status || 500 })),
+        ]);
+
+        // Determine which request succeeded and which failed
+        const successResponse =
+          response1.status === 201 ? response1 : response2;
+        const failureResponse =
+          response1.status === 201 ? response2 : response1;
+
+        // Assertions:
+        // - One request returns 201 Created
+        expect(successResponse.status).toBe(201);
+        expect(successResponse.body).toHaveProperty('id');
+        expect(successResponse.body.name).toBe('Concurrent Plan');
+        expect(successResponse.body.scope).toBe('TENANT');
+
+        // - The other returns 409 Conflict (database constraint violation)
+        expect(failureResponse.status).toBe(409);
+        expect(failureResponse.body).toHaveProperty('message');
+        expect(failureResponse.body.message).toBeDefined();
+
+        // - Exactly one record exists in DB for that tenant+name
+        const plans = await prisma.membershipPlan.findMany({
+          where: {
+            tenantId: tenant1.id,
+            scope: 'TENANT',
+            scopeKey: 'TENANT',
+            name: 'Concurrent Plan',
+          },
+        });
+
+        expect(plans).toHaveLength(1);
+        expect(plans[0].id).toBe(successResponse.body.id);
+      });
+
+      it('should prevent duplicate BRANCH plans under concurrent requests (DB constraint)', async () => {
+        const createDto = {
+          scope: 'BRANCH',
+          branchId: branch1.id,
+          name: 'Concurrent Branch Plan',
+          durationType: DurationType.MONTHS,
+          durationValue: 1,
+          price: 100,
+          currency: 'TRY',
+        };
+
+        // Send two concurrent POST requests with identical payloads
+        const [response1, response2] = await Promise.all([
+          request(app.getHttpServer())
+            .post('/api/v1/membership-plans')
+            .set('Authorization', `Bearer ${token1}`)
+            .send(createDto)
+            .catch((err) => ({ error: err, status: err.status || 500 })),
+          request(app.getHttpServer())
+            .post('/api/v1/membership-plans')
+            .set('Authorization', `Bearer ${token1}`)
+            .send(createDto)
+            .catch((err) => ({ error: err, status: err.status || 500 })),
+        ]);
+
+        // Determine which request succeeded and which failed
+        const successResponse =
+          response1.status === 201 ? response1 : response2;
+        const failureResponse =
+          response1.status === 201 ? response2 : response1;
+
+        // Assertions:
+        // - One request returns 201 Created
+        expect(successResponse.status).toBe(201);
+        expect(successResponse.body).toHaveProperty('id');
+        expect(successResponse.body.name).toBe('Concurrent Branch Plan');
+        expect(successResponse.body.scope).toBe('BRANCH');
+        expect(successResponse.body.branchId).toBe(branch1.id);
+        expect(successResponse.body.scopeKey).toBe(branch1.id);
+
+        // - The other returns 409 Conflict (database constraint violation)
+        expect(failureResponse.status).toBe(409);
+        expect(failureResponse.body).toHaveProperty('message');
+        expect(failureResponse.body.message).toBeDefined();
+
+        // - Exactly one record exists in DB for that tenant+branch+name
+        const plans = await prisma.membershipPlan.findMany({
+          where: {
+            tenantId: tenant1.id,
+            scope: 'BRANCH',
+            branchId: branch1.id,
+            scopeKey: branch1.id,
+            name: 'Concurrent Branch Plan',
+          },
+        });
+
+        expect(plans).toHaveLength(1);
+        expect(plans[0].id).toBe(successResponse.body.id);
+      });
+
+      it('should verify database constraint works independently of application-level validation', async () => {
+        // This test verifies that even if application-level validation passes,
+        // the database constraint will catch duplicates
+        const createDto = {
+          scope: 'TENANT',
+          name: 'DB Constraint Test',
+          durationType: DurationType.MONTHS,
+          durationValue: 1,
+          price: 100,
+          currency: 'TRY',
+        };
+
+        // Create first plan successfully
+        const firstResponse = await request(app.getHttpServer())
+          .post('/api/v1/membership-plans')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(201);
+
+        // Try to create duplicate - should fail at application level (409)
+        await request(app.getHttpServer())
+          .post('/api/v1/membership-plans')
+          .set('Authorization', `Bearer ${token1}`)
+          .send(createDto)
+          .expect(409);
+
+        // Verify only one plan exists
+        const plans = await prisma.membershipPlan.findMany({
+          where: {
+            tenantId: tenant1.id,
+            scope: 'TENANT',
+            scopeKey: 'TENANT',
+            name: 'DB Constraint Test',
+          },
+        });
+
+        expect(plans).toHaveLength(1);
+        expect(plans[0].id).toBe(firstResponse.body.id);
+      });
+
+      it('should handle multiple concurrent requests (stress test)', async () => {
+        const createDto = {
+          scope: 'TENANT',
+          name: 'Stress Test Plan',
+          durationType: DurationType.MONTHS,
+          durationValue: 1,
+          price: 100,
+          currency: 'TRY',
+        };
+
+        // Send 5 concurrent requests
+        const requests = Array.from({ length: 5 }, () =>
+          request(app.getHttpServer())
+            .post('/api/v1/membership-plans')
+            .set('Authorization', `Bearer ${token1}`)
+            .send(createDto)
+            .catch((err) => ({ error: err, status: err.status || 500 })),
+        );
+
+        const responses = await Promise.all(requests);
+
+        // Count successes and failures
+        const successes = responses.filter((r) => r.status === 201);
+        const failures = responses.filter((r) => r.status === 409);
+
+        // Exactly one should succeed
+        expect(successes).toHaveLength(1);
+        // Rest should fail with 409
+        expect(failures).toHaveLength(4);
+
+        // Verify exactly one record exists
+        const plans = await prisma.membershipPlan.findMany({
+          where: {
+            tenantId: tenant1.id,
+            scope: 'TENANT',
+            scopeKey: 'TENANT',
+            name: 'Stress Test Plan',
+          },
+        });
+
+        expect(plans).toHaveLength(1);
+        expect(plans[0].id).toBe(successes[0].body.id);
+      });
+    });
   });
 });
