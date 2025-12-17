@@ -11,6 +11,7 @@ import {
 } from '@/api/membership-plans';
 import type {
   MembershipPlan,
+  MembershipPlanWithCount,
   PlanListQuery,
   PlanListResponse,
   CreatePlanPayload,
@@ -26,8 +27,22 @@ import { toast } from 'sonner';
 const planKeys = {
   list: (tenantId: string, query?: Partial<PlanListQuery>) =>
     ['membership-plans', tenantId, query] as const,
-  active: (tenantId: string) =>
-    ['membership-plans', tenantId, 'active'] as const,
+  active: (
+    tenantId: string,
+    options?: { branchId?: string; includeMemberCount?: boolean },
+  ) => {
+    // Normalize options to avoid cache key differences for undefined/empty/null values
+    const normalizedOptions: Record<string, unknown> = {};
+    if (options?.branchId && options.branchId.trim() !== '') {
+      normalizedOptions.branchId = options.branchId;
+    }
+    if (options?.includeMemberCount === true) {
+      normalizedOptions.includeMemberCount = true;
+    }
+    // Only include options object if it has at least one property
+    const keyOptions = Object.keys(normalizedOptions).length > 0 ? normalizedOptions : undefined;
+    return ['membership-plans', tenantId, 'active', keyOptions] as const;
+  },
   detail: (tenantId: string, planId: string) =>
     ['membership-plans', tenantId, planId] as const,
 };
@@ -51,10 +66,16 @@ export function useMembershipPlans(
  * Hook to fetch active membership plans for dropdowns
  * Automatically disabled if tenantId is not provided
  */
-export function useActivePlans(tenantId: string) {
-  return useQuery<MembershipPlan[], ApiError>({
-    queryKey: planKeys.active(tenantId),
-    queryFn: () => getActivePlans(tenantId),
+export function useActivePlans(
+  tenantId: string,
+  options?: {
+    branchId?: string;
+    includeMemberCount?: boolean;
+  },
+) {
+  return useQuery<MembershipPlan[] | MembershipPlanWithCount[], ApiError>({
+    queryKey: planKeys.active(tenantId, options),
+    queryFn: () => getActivePlans(tenantId, options),
     enabled: !!tenantId,
   });
 }
@@ -88,6 +109,17 @@ export function useCreatePlan(tenantId: string) {
       toast.success('Üyelik planı başarıyla oluşturuldu');
     },
     onError: (error) => {
+      const apiError = error as ApiError;
+      // Handle specific error codes
+      if (apiError.statusCode === 400) {
+        // Validation error - message already shown by global handler
+      } else if (apiError.statusCode === 403) {
+        toast.error('Bu işlem için yetkiniz yok.');
+      } else if (apiError.statusCode === 409) {
+        toast.error('Bu plan adı zaten kullanılıyor.');
+      } else if (apiError.statusCode === 404) {
+        toast.error('Kayıt bulunamadı.');
+      }
       return error;
     },
   });
@@ -116,6 +148,17 @@ export function useUpdatePlan(tenantId: string) {
       toast.success('Üyelik planı başarıyla güncellendi');
     },
     onError: (error) => {
+      const apiError = error as ApiError;
+      // Handle specific error codes
+      if (apiError.statusCode === 400) {
+        // Validation error - message already shown by global handler
+      } else if (apiError.statusCode === 403) {
+        toast.error('Bu işlem için yetkiniz yok.');
+      } else if (apiError.statusCode === 409) {
+        toast.error('Bu plan adı zaten kullanılıyor.');
+      } else if (apiError.statusCode === 404) {
+        toast.error('Kayıt bulunamadı.');
+      }
       return error;
     },
   });
@@ -140,13 +183,23 @@ export function useArchivePlan(tenantId: string) {
         ...data,
         status: data.status,
       });
-      toast.success(
-        data.activeMemberCount
-          ? `Plan arşivlendi. Bu plana bağlı ${data.activeMemberCount} aktif üye bulunmaktadır.`
-          : 'Plan başarıyla arşivlendi',
-      );
+      // Archive is idempotent, so always show success
+      if (data.activeMemberCount && data.activeMemberCount > 0) {
+        toast.success(
+          `Plan arşivlendi. Bu plana bağlı ${data.activeMemberCount} aktif üye bulunmaktadır.`,
+        );
+      } else {
+        toast.success('Plan başarıyla arşivlendi');
+      }
     },
     onError: (error) => {
+      const apiError = error as ApiError;
+      // Handle specific error codes
+      if (apiError.statusCode === 403) {
+        toast.error('Bu işlem için yetkiniz yok.');
+      } else if (apiError.statusCode === 404) {
+        toast.error('Kayıt bulunamadı.');
+      }
       return error;
     },
   });
@@ -171,6 +224,24 @@ export function useRestorePlan(tenantId: string) {
       toast.success('Plan başarıyla geri yüklendi');
     },
     onError: (error) => {
+      const apiError = error as ApiError;
+      // Handle specific error codes
+      if (apiError.statusCode === 400) {
+        // Check if error message mentions conflict or already active
+        const message = apiError.message || '';
+        if (
+          message.toLowerCase().includes('zaten') ||
+          message.toLowerCase().includes('already')
+        ) {
+          toast.error('Plan zaten aktif durumda.');
+        } else {
+          toast.error(message || 'Plan geri yüklenirken bir hata oluştu');
+        }
+      } else if (apiError.statusCode === 403) {
+        toast.error('Bu işlem için yetkiniz yok.');
+      } else if (apiError.statusCode === 404) {
+        toast.error('Kayıt bulunamadı.');
+      }
       return error;
     },
   });
@@ -193,6 +264,32 @@ export function useDeletePlan(tenantId: string) {
       toast.success('Plan başarıyla silindi');
     },
     onError: (error) => {
+      const apiError = error as ApiError;
+      // Mark error as handled to prevent global toast
+      apiError.skipGlobalToast = true;
+      
+      // Handle specific error codes
+      if (apiError.statusCode === 400) {
+        // Check if error message mentions members
+        const message = apiError.message || '';
+        if (
+          message.toLowerCase().includes('üye') ||
+          message.toLowerCase().includes('member')
+        ) {
+          toast.error(
+            'Bu plana bağlı üyeler bulunmaktadır. Lütfen önce planı arşivleyin.',
+          );
+        } else {
+          toast.error(message || 'Plan silinirken bir hata oluştu');
+        }
+      } else if (apiError.statusCode === 403) {
+        toast.error('Bu işlem için yetkiniz yok.');
+      } else if (apiError.statusCode === 404) {
+        toast.error('Kayıt bulunamadı.');
+      } else {
+        // For other errors, show generic message and allow global handler
+        apiError.skipGlobalToast = false;
+      }
       return error;
     },
   });

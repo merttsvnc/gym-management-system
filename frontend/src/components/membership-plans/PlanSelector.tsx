@@ -14,6 +14,8 @@ interface PlanSelectorProps {
   value?: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
+  branchId?: string;
+  requireBranch?: boolean; // If true, disable when branchId is not provided
 }
 
 /**
@@ -44,26 +46,64 @@ function formatPrice(price: number, currency: string): string {
 /**
  * Component for selecting a membership plan
  * Shows only ACTIVE plans with name, duration, and price
+ * Supports branch-aware filtering when branchId is provided
  */
 export function PlanSelector({
   tenantId,
   value,
   onValueChange,
   disabled,
+  branchId,
+  requireBranch = false,
 }: PlanSelectorProps) {
-  const { data: plans, isLoading } = useActivePlans(tenantId);
+  // Fetch plans with branchId if provided
+  const { data: plans, isLoading } = useActivePlans(tenantId, {
+    branchId: branchId || undefined,
+  });
+
+  // Determine if dropdown should be disabled
+  const isDisabled = disabled || (requireBranch && !branchId);
 
   if (isLoading) {
-    return <Skeleton className="h-10 w-full" />;
+    return (
+      <div className="space-y-1">
+        <Skeleton className="h-10 w-full" />
+        <p className="text-xs text-muted-foreground">Planlar yükleniyor…</p>
+      </div>
+    );
+  }
+
+  // Show disabled state if branch is required but not selected
+  if (requireBranch && !branchId) {
+    return (
+      <Select disabled>
+        <SelectTrigger>
+          <SelectValue placeholder="Önce şube seçin" />
+        </SelectTrigger>
+      </Select>
+    );
   }
 
   if (!plans || plans.length === 0) {
     return (
-      <Select disabled>
-        <SelectTrigger>
-          <SelectValue placeholder="Aktif plan bulunamadı" />
-        </SelectTrigger>
-      </Select>
+      <div className="space-y-1">
+        <Select disabled>
+          <SelectTrigger>
+            <SelectValue
+              placeholder={
+                branchId
+                  ? "Bu şube için uygun plan bulunamadı."
+                  : "Aktif plan bulunamadı"
+              }
+            />
+          </SelectTrigger>
+        </Select>
+        {branchId && (
+          <p className="text-xs text-muted-foreground">
+            Bu şube için uygun plan bulunamadı.
+          </p>
+        )}
+      </div>
     );
   }
 
@@ -71,7 +111,7 @@ export function PlanSelector({
     <Select
       value={value || ""}
       onValueChange={onValueChange}
-      disabled={disabled}
+      disabled={isDisabled}
     >
       <SelectTrigger>
         <SelectValue placeholder="Üyelik planı seçin" />

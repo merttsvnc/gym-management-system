@@ -6,6 +6,7 @@ export type ApiError = {
   message: string;
   error?: string; // short code or title if backend returns it
   details?: unknown;
+  skipGlobalToast?: boolean; // If true, global error handler will skip showing toast
 };
 
 /**
@@ -64,6 +65,7 @@ export function toApiError(error: unknown): ApiError {
     message: "An unexpected error occurred",
   };
 }
+
 
 
 

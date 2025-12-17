@@ -81,11 +81,24 @@ axiosInstance.interceptors.response.use(
       // Redirect to login
       window.location.href = "/login";
       // Don't show toast for 401 errors as user is being redirected
-    } else {
+    } else if (!apiError.skipGlobalToast) {
       // Show toast for non-401 errors (including network errors)
-      toast.error("İşlem sırasında bir hata oluştu", {
-        description: apiError.message || "Beklenmeyen bir hata oluştu",
-      });
+      // Skip if error handler has already shown a toast
+      const message = apiError.message || "";
+      
+      // For 400 errors with member-related messages, skip global toast
+      // Let the hook's onError handler show the specific Turkish message
+      const isMemberRelatedError =
+        apiError.statusCode === 400 &&
+        (message.toLowerCase().includes("üye") ||
+          message.toLowerCase().includes("member"));
+      
+      if (!isMemberRelatedError) {
+        toast.error("İşlem sırasında bir hata oluştu", {
+          description: message || "Beklenmeyen bir hata oluştu",
+        });
+      }
+      // For member-related errors, skip toast here - hook will show specific message
     }
 
     // Rethrow ApiError

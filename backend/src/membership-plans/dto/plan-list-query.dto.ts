@@ -1,6 +1,14 @@
-import { IsOptional, IsEnum, IsString, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
-import { PlanStatus } from '@prisma/client';
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { PlanStatus, PlanScope } from '@prisma/client';
 
 export class PlanListQueryDto {
   @IsOptional()
@@ -25,4 +33,23 @@ export class PlanListQueryDto {
   @IsOptional()
   @IsString({ message: 'Arama metni metin olmalıdır' })
   search?: string;
+
+  @IsOptional()
+  @IsEnum(PlanScope, {
+    message: 'Kapsam TENANT veya BRANCH olmalıdır',
+  })
+  scope?: PlanScope;
+
+  @IsOptional()
+  @IsString({ message: 'Şube ID metin olmalıdır' })
+  branchId?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Arama metni metin olmalıdır' })
+  q?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'includeArchived boolean olmalıdır' })
+  includeArchived?: boolean = false;
 }

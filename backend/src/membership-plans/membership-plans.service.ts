@@ -3,16 +3,20 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   MembershipPlan,
   DurationType,
   PlanStatus,
+  PlanScope,
   Prisma,
 } from '@prisma/client';
 
 export interface CreatePlanInput {
+  scope: PlanScope;
+  branchId?: string;
   name: string;
   description?: string;
   durationType: DurationType;
@@ -42,6 +46,10 @@ export interface PlanListFilters {
   search?: string;
   page?: number;
   limit?: number;
+  scope?: PlanScope;
+  branchId?: string;
+  q?: string; // Name contains search (case-insensitive)
+  includeArchived?: boolean; // Default false
 }
 
 @Injectable()
@@ -51,16 +59,25 @@ export class MembershipPlansService {
   /**
    * Create a new membership plan for a tenant
    * Business rules:
-   * - Plan name must be unique within tenant (case-insensitive)
+   * - Plan name must be unique within tenant (TENANT scope) or branch (BRANCH scope) (case-insensitive, ACTIVE only)
    * - Duration value must be in valid range (DAYS: 1-730, MONTHS: 1-24)
    * - Currency must be valid ISO 4217 format (3 uppercase letters)
    * - Price must be >= 0
    * - New plans are created with status ACTIVE
+   * - scopeKey is computed internally: "TENANT" for TENANT scope, branchId for BRANCH scope
    */
   async createPlanForTenant(
     tenantId: string,
     input: CreatePlanInput,
   ): Promise<MembershipPlan> {
+    // Validate scope and branchId combination
+    this.validateScopeAndBranchId(input);
+
+    // Validate branch belongs to tenant (if BRANCH scope)
+    if (input.scope === PlanScope.BRANCH) {
+      await this.validateBranchBelongsToTenant(tenantId, input.branchId || '');
+    }
+
     // Validate duration value
     this.validateDurationValue(input.durationType, input.durationValue);
 
@@ -72,13 +89,25 @@ export class MembershipPlansService {
       throw new BadRequestException('Fiyat negatif olamaz');
     }
 
-    // Check name uniqueness (case-insensitive)
-    await this.checkNameUniqueness(tenantId, input.name, null);
+    // Compute scopeKey internally (never user-provided)
+    const scopeKey = this.computeScopeKey(input.scope, input.branchId || null);
+
+    // Check name uniqueness (case-insensitive, ACTIVE only, scope-aware)
+    await this.checkNameUniqueness(
+      tenantId,
+      input.name,
+      null,
+      input.scope,
+      input.branchId || null,
+    );
 
     // Create plan with status ACTIVE
     return this.prisma.membershipPlan.create({
       data: {
         tenantId,
+        scope: input.scope,
+        branchId: input.scope === PlanScope.BRANCH ? input.branchId : null,
+        scopeKey, // Computed internally, never user-provided
         name: input.name.trim(),
         description: input.description?.trim(),
         durationType: input.durationType,
@@ -97,9 +126,11 @@ export class MembershipPlansService {
    * List plans for a tenant with filters and pagination
    * Business rules:
    * - All queries are tenant-scoped
-   * - Supports filtering by status
-   * - Supports search by name (case-insensitive)
+   * - Supports filtering by scope, branchId, status
+   * - Supports search by name (case-insensitive) via 'q' parameter
+   * - Supports includeArchived flag (default false, uses archivedAt for archived logic)
    * - Default pagination: page=1, limit=20
+   * - Sorting: sortOrder ASC, then createdAt ASC
    */
   async listPlansForTenant(
     tenantId: string,
@@ -113,19 +144,53 @@ export class MembershipPlansService {
       totalPages: number;
     };
   }> {
-    const { status, search, page = 1, limit = 20 } = filters;
+    const {
+      status,
+      search,
+      page = 1,
+      limit = 20,
+      scope,
+      branchId,
+      q,
+      includeArchived = false,
+    } = filters;
+
+    // Validate branchId if provided (must exist and belong to tenant)
+    if (branchId) {
+      await this.validateBranchIdForListing(tenantId, branchId);
+    }
 
     const where: Prisma.MembershipPlanWhereInput = {
       tenantId,
     };
 
+    // Filter by scope
+    if (scope) {
+      where.scope = scope;
+    }
+
+    // Filter by branchId (returns only BRANCH-scoped plans for that branch)
+    if (branchId) {
+      where.branchId = branchId;
+      // If branchId is provided, implicitly filter to BRANCH scope
+      where.scope = PlanScope.BRANCH;
+    }
+
+    // Filter by archivedAt (not status) - archived = archivedAt != null
+    if (!includeArchived) {
+      where.archivedAt = null;
+    }
+
+    // Filter by status if provided (legacy support)
     if (status) {
       where.status = status;
     }
 
-    if (search) {
+    // Name search: use 'q' parameter if provided, fallback to 'search' for backward compatibility
+    const nameSearch = q || search;
+    if (nameSearch) {
       where.name = {
-        contains: search,
+        contains: nameSearch,
         mode: 'insensitive',
       };
     }
@@ -154,15 +219,76 @@ export class MembershipPlansService {
   /**
    * List active plans for a tenant (no pagination, for dropdowns)
    * Business rules:
-   * - Returns only ACTIVE plans
-   * - Ordered by sortOrder, then createdAt
+   * - Returns only ACTIVE plans (archivedAt is null)
+   * - If branchId is NOT provided: returns TENANT plans only
+   * - If branchId is provided (and valid for tenant): returns TENANT plans + BRANCH plans for that branch
+   * - Does NOT return BRANCH plans for other branches
+   * - Ordered by sortOrder ASC, then createdAt ASC
+   * - If includeMemberCount=true, includes activeMemberCount per plan (uses single query with aggregation)
    */
-  async listActivePlansForTenant(tenantId: string): Promise<MembershipPlan[]> {
+  async listActivePlansForTenant(
+    tenantId: string,
+    branchId?: string,
+    includeMemberCount?: boolean,
+  ): Promise<MembershipPlan[] | (MembershipPlan & { activeMemberCount: number })[]> {
+    // Validate branchId if provided
+    if (branchId) {
+      await this.validateBranchIdForListing(tenantId, branchId);
+    }
+
+    // Build where clause: ACTIVE plans (archivedAt is null)
+    const where: Prisma.MembershipPlanWhereInput = {
+      tenantId,
+      archivedAt: null, // ACTIVE = archivedAt is null
+    };
+
+    if (branchId) {
+      // Return TENANT plans + BRANCH plans for the specified branch
+      where.OR = [
+        { scope: PlanScope.TENANT }, // TENANT-scoped plans
+        {
+          scope: PlanScope.BRANCH,
+          branchId: branchId, // BRANCH-scoped plans for this branch only
+        },
+      ];
+    } else {
+      // No branchId provided: return only TENANT plans
+      where.scope = PlanScope.TENANT;
+    }
+
+    // If includeMemberCount is true, use aggregation to avoid N+1 queries
+    if (includeMemberCount) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const plansWithCounts = await this.prisma.membershipPlan.findMany({
+        where,
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        include: {
+          _count: {
+            select: {
+              members: {
+                where: {
+                  status: 'ACTIVE',
+                  membershipEndDate: {
+                    gte: today,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Map results to include activeMemberCount
+      return plansWithCounts.map((plan) => ({
+        ...plan,
+        activeMemberCount: plan._count.members,
+      })) as (MembershipPlan & { activeMemberCount: number })[];
+    }
+
     return this.prisma.membershipPlan.findMany({
-      where: {
-        tenantId,
-        status: PlanStatus.ACTIVE,
-      },
+      where,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
   }
@@ -206,6 +332,10 @@ export class MembershipPlansService {
   ): Promise<MembershipPlan> {
     const existingPlan = await this.getPlanByIdForTenant(tenantId, planId);
 
+    // Note: scope and branchId are immutable after creation.
+    // Immutability is enforced at the DTO/controller layer (fields not in UpdatePlanDto).
+    // ValidationPipe with forbidNonWhitelisted=true rejects requests with these fields.
+
     // Validate duration value if being updated
     if (input.durationType && input.durationValue !== undefined) {
       this.validateDurationValue(input.durationType, input.durationValue);
@@ -227,9 +357,15 @@ export class MembershipPlansService {
       throw new BadRequestException('Fiyat negatif olamaz');
     }
 
-    // Check name uniqueness if name is being updated
+    // Check name uniqueness if name is being updated (scope-aware)
     if (input.name && input.name.trim() !== existingPlan.name) {
-      await this.checkNameUniqueness(tenantId, input.name, planId);
+      await this.checkNameUniqueness(
+        tenantId,
+        input.name,
+        planId,
+        existingPlan.scope,
+        existingPlan.branchId,
+      );
     }
 
     // Build update data
@@ -263,6 +399,24 @@ export class MembershipPlansService {
       updateData.sortOrder = input.sortOrder ?? null;
     }
 
+    // Defense-in-depth: Ensure immutable fields are never in updateData
+    // Even though UpdatePlanInput doesn't include them, verify at runtime
+    if ('scope' in updateData) {
+      throw new BadRequestException(
+        'Plan kapsamı (scope) değiştirilemez. Plan oluşturulduktan sonra kapsam değiştirilemez.',
+      );
+    }
+    if ('branchId' in updateData) {
+      throw new BadRequestException(
+        'Plan şubesi (branchId) değiştirilemez. Plan oluşturulduktan sonra şube değiştirilemez.',
+      );
+    }
+    if ('scopeKey' in updateData) {
+      throw new BadRequestException(
+        'Plan scopeKey değiştirilemez. scopeKey sistem tarafından yönetilir.',
+      );
+    }
+
     return this.prisma.membershipPlan.update({
       where: { id: planId },
       data: updateData,
@@ -270,9 +424,10 @@ export class MembershipPlansService {
   }
 
   /**
-   * Archive a plan for a tenant
+   * Archive a plan for a tenant (soft delete)
    * Business rules:
-   * - Sets status to ARCHIVED
+   * - Sets archivedAt = now (uses archivedAt for archived logic, not status)
+   * - MUST be idempotent: if already archived (archivedAt != null), return successfully without error
    * - Does NOT block archival when active members exist (spec says warn, not block)
    * - Returns plan with active member count for warnings (used later by controller)
    */
@@ -282,17 +437,19 @@ export class MembershipPlansService {
   ): Promise<{ plan: MembershipPlan; activeMemberCount: number }> {
     const plan = await this.getPlanByIdForTenant(tenantId, planId);
 
-    if (plan.status === PlanStatus.ARCHIVED) {
-      // Already archived, return as-is
+    // Idempotent: if already archived (archivedAt != null), return successfully
+    if (plan.archivedAt !== null) {
       const activeMemberCount = await this.countActiveMembersForPlan(planId);
       return { plan, activeMemberCount };
     }
 
     const activeMemberCount = await this.countActiveMembersForPlan(planId);
 
+    // Soft delete by setting archivedAt = now and status = ARCHIVED
     const archivedPlan = await this.prisma.membershipPlan.update({
       where: { id: planId },
       data: {
+        archivedAt: new Date(),
         status: PlanStatus.ARCHIVED,
       },
     });
@@ -301,10 +458,14 @@ export class MembershipPlansService {
   }
 
   /**
-   * Restore an archived plan (set status back to ACTIVE)
+   * Restore an archived plan (set archivedAt back to null)
    * Business rules:
-   * - Sets status to ACTIVE
-   * - No restrictions on restoration
+   * - If plan already ACTIVE (archivedAt is null), return 400 Bad Request
+   * - Before restoring, run uniqueness validation (case-insensitive, archivedAt null check)
+   * - Recompute scopeKey during restore:
+   *   - TENANT -> "TENANT"
+   *   - BRANCH -> branchId (must exist)
+   * - Then set archivedAt = null
    */
   async restorePlanForTenant(
     tenantId: string,
@@ -312,15 +473,32 @@ export class MembershipPlansService {
   ): Promise<MembershipPlan> {
     const plan = await this.getPlanByIdForTenant(tenantId, planId);
 
-    if (plan.status === PlanStatus.ACTIVE) {
-      // Already active, return as-is
-      return plan;
+    // If plan already ACTIVE (archivedAt is null), return 400
+    if (plan.archivedAt === null) {
+      throw new BadRequestException(
+        'Plan zaten aktif durumda. Arşivlenmiş planlar geri yüklenebilir.',
+      );
     }
 
+    // Before restoring, run uniqueness validation (case-insensitive, archivedAt null check)
+    await this.checkNameUniqueness(
+      tenantId,
+      plan.name,
+      planId,
+      plan.scope,
+      plan.branchId,
+    );
+
+    // Recompute scopeKey during restore
+    const scopeKey = this.computeScopeKey(plan.scope, plan.branchId);
+
+    // Restore by setting archivedAt = null, status = ACTIVE, and updating scopeKey
     return this.prisma.membershipPlan.update({
       where: { id: planId },
       data: {
+        archivedAt: null,
         status: PlanStatus.ACTIVE,
+        scopeKey, // Recompute scopeKey during restore
       },
     });
   }
@@ -415,23 +593,142 @@ export class MembershipPlansService {
   }
 
   /**
-   * Check plan name uniqueness within tenant (case-insensitive)
+   * Validate scope and branchId combination
    * Business rules:
-   * - Plan names must be unique within tenant (case-insensitive)
+   * - TENANT scope requires branchId to be null/undefined
+   * - BRANCH scope requires branchId to be provided (non-empty string)
+   */
+  private validateScopeAndBranchId(input: CreatePlanInput): void {
+    if (input.scope === PlanScope.TENANT) {
+      if (input.branchId !== null && input.branchId !== undefined) {
+        throw new BadRequestException(
+          'TENANT kapsamındaki planlar için branchId belirtilmemelidir',
+        );
+      }
+    } else if (input.scope === PlanScope.BRANCH) {
+      if (!input.branchId || input.branchId.trim() === '') {
+        throw new BadRequestException(
+          'BRANCH kapsamındaki planlar için branchId gereklidir',
+        );
+      }
+    }
+  }
+
+  /**
+   * Validate branch belongs to tenant and is active (for BRANCH scope)
+   * Business rules:
+   * - Branch must exist
+   * - Branch must belong to tenantId
+   * - Branch must be active (isActive=true) for BRANCH scope plans
+   * - Returns 403 Forbidden for cross-tenant access (generic message, no tenant leakage)
+   * - Returns 404 Not Found if branch doesn't exist
+   */
+  private async validateBranchBelongsToTenant(
+    tenantId: string,
+    branchId: string,
+  ): Promise<void> {
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: branchId },
+    });
+
+    if (!branch) {
+      throw new NotFoundException('Şube bulunamadı');
+    }
+
+    if (branch.tenantId !== tenantId) {
+      // Generic error message to prevent tenant leakage
+      throw new ForbiddenException('Bu işlem için yetkiniz bulunmamaktadır');
+    }
+
+    if (!branch.isActive) {
+      throw new BadRequestException(
+        'Arşivlenmiş şubeler için plan oluşturulamaz',
+      );
+    }
+  }
+
+  /**
+   * Validate branchId for listing operations
+   * Business rules:
+   * - Branch must exist
+   * - Branch must belong to tenantId
+   * - Returns 400 Bad Request with generic Turkish message if invalid (no tenant leakage)
+   * - Used for listing filters (doesn't require branch to be active)
+   */
+  private async validateBranchIdForListing(
+    tenantId: string,
+    branchId: string,
+  ): Promise<void> {
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: branchId },
+    });
+
+    if (!branch || branch.tenantId !== tenantId) {
+      // Generic error message to prevent tenant leakage
+      throw new BadRequestException('Geçersiz şube kimliği');
+    }
+  }
+
+  /**
+   * Compute scopeKey based on scope and branchId
+   * Business rules:
+   * - TENANT scope => scopeKey = "TENANT"
+   * - BRANCH scope => scopeKey = branchId (must be non-empty)
+   * - scopeKey is ALWAYS computed internally, never user-provided
+   */
+  private computeScopeKey(scope: PlanScope, branchId?: string | null): string {
+    if (scope === PlanScope.TENANT) {
+      return 'TENANT';
+    } else if (scope === PlanScope.BRANCH) {
+      if (!branchId || branchId.trim() === '') {
+        throw new BadRequestException(
+          'BRANCH kapsamı için branchId gereklidir',
+        );
+      }
+      return branchId;
+    }
+    throw new BadRequestException(`Geçersiz plan kapsamı: ${String(scope)}`);
+  }
+
+  /**
+   * Check plan name uniqueness (scope-aware, case-insensitive, ACTIVE only)
+   * Business rules:
+   * - TENANT scope: checks tenantId + name (case-insensitive, ACTIVE only)
+   * - BRANCH scope: checks tenantId + branchId + name (case-insensitive, ACTIVE only)
+   * - Excludes archived plans from uniqueness checks (archivedAt is null)
+   * - Allows same name across different branches (BRANCH scope)
+   * - Allows same name between TENANT and BRANCH scopes
    * - Throws ConflictException if duplicate found
    */
   private async checkNameUniqueness(
     tenantId: string,
     name: string,
     excludePlanId: string | null,
+    scope: PlanScope,
+    branchId: string | null,
   ): Promise<void> {
     const where: Prisma.MembershipPlanWhereInput = {
       tenantId,
+      scope,
       name: {
         equals: name.trim(),
         mode: 'insensitive',
       },
+      archivedAt: null, // Only non-archived plans count toward uniqueness
     };
+
+    // For BRANCH scope, also filter by branchId
+    if (scope === PlanScope.BRANCH) {
+      if (!branchId) {
+        throw new BadRequestException(
+          'BRANCH kapsamı için branchId gereklidir',
+        );
+      }
+      where.branchId = branchId;
+    } else {
+      // For TENANT scope, ensure branchId is null
+      where.branchId = null;
+    }
 
     if (excludePlanId) {
       where.id = {

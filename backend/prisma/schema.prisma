@@ -50,6 +50,12 @@ enum PlanStatus {
   ARCHIVED
 }
 
+// Plan scope enum
+enum PlanScope {
+  TENANT
+  BRANCH
+}
+
 // Tenant model
 model Tenant {
   id              String   @id @default(cuid())
@@ -82,8 +88,9 @@ model Branch {
   archivedAt DateTime?
 
   // Relations
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  members Member[]
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members        Member[]
+  membershipPlans MembershipPlan[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -115,6 +122,9 @@ model User {
 model MembershipPlan {
   id            String       @id @default(cuid())
   tenantId      String
+  scope         PlanScope    @default(TENANT)
+  branchId      String?
+  scopeKey      String        @default("TENANT")
   name          String
   description   String?
   durationType  DurationType
@@ -124,17 +134,25 @@ model MembershipPlan {
   maxFreezeDays Int?
   autoRenew     Boolean      @default(false)
   status        PlanStatus
+  archivedAt    DateTime?
   sortOrder     Int?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch  Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   members Member[]
 
-  @@unique([tenantId, name])
+  @@unique([tenantId, scope, scopeKey, name])
   @@index([tenantId])
+  @@index([tenantId, scope])
   @@index([tenantId, status])
+  @@index([tenantId, scope, status])
+  @@index([tenantId, branchId])
+  @@index([branchId])
   @@index([tenantId, sortOrder])
+  @@index([tenantId, archivedAt])
+  @@index([tenantId, archivedAt, status])
 }
 
 // Member model
