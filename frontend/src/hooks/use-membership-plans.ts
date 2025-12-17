@@ -253,6 +253,9 @@ export function useDeletePlan(tenantId: string) {
     },
     onError: (error) => {
       const apiError = error as ApiError;
+      // Mark error as handled to prevent global toast
+      apiError.skipGlobalToast = true;
+      
       // Handle specific error codes
       if (apiError.statusCode === 400) {
         // Check if error message mentions members
@@ -271,6 +274,9 @@ export function useDeletePlan(tenantId: string) {
         toast.error('Bu işlem için yetkiniz yok.');
       } else if (apiError.statusCode === 404) {
         toast.error('Kayıt bulunamadı.');
+      } else {
+        // For other errors, show generic message and allow global handler
+        apiError.skipGlobalToast = false;
       }
       return error;
     },

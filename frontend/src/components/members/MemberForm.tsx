@@ -45,14 +45,10 @@ export function MemberForm({
   error,
   tenantId,
 }: MemberFormProps) {
-  const { data: branchesData } = useBranches(tenantId);
-  const branches = branchesData?.data || [];
-  const { data: plans } = useActivePlans(tenantId);
-
   // Get today's date in YYYY-MM-DD format for default
   const today = new Date().toISOString().split("T")[0];
 
-  // Form state
+  // Form state - declare branchId first since it's used in hooks below
   const [branchId, setBranchId] = useState(initialData?.branchId || "");
   const [firstName, setFirstName] = useState(initialData?.firstName || "");
   const [lastName, setLastName] = useState(initialData?.lastName || "");
@@ -74,6 +70,17 @@ export function MemberForm({
   );
   const [notes, setNotes] = useState(initialData?.notes || "");
 
+  // Fetch branches and plans (after state declarations)
+  const { data: branchesData } = useBranches(tenantId);
+  const branches = branchesData?.data || [];
+  
+  // Fetch plans for the selected branch (for DurationPreview)
+  // Only fetch when branchId is set in create mode
+  const { data: plans } = useActivePlans(
+    tenantId,
+    mode === "create" && branchId ? { branchId } : undefined
+  );
+
   // Get selected plan for DurationPreview
   const selectedPlan = plans?.find((p) => p.id === membershipPlanId) || null;
   const startDateForPreview = membershipStartDate
@@ -82,6 +89,23 @@ export function MemberForm({
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Clear membership plan selection when branch changes and selected plan is no longer available
+  useEffect(() => {
+    if (mode === "create" && branchId && membershipPlanId && plans) {
+      const planExists = plans.some((p) => p.id === membershipPlanId);
+      if (!planExists) {
+        setMembershipPlanId("");
+        setErrors((prevErrors) => {
+          if (prevErrors.membershipPlanId) {
+            const { membershipPlanId: _, ...rest } = prevErrors;
+            return rest;
+          }
+          return prevErrors;
+        });
+      }
+    }
+  }, [branchId, plans, membershipPlanId, mode]);
 
   // Reset form when initialData changes
   useEffect(() => {
@@ -199,6 +223,13 @@ export function MemberForm({
               value={branchId}
               onValueChange={(value) => {
                 setBranchId(value);
+                // Clear membership plan selection when branch changes
+                if (mode === "create") {
+                  setMembershipPlanId("");
+                  if (errors.membershipPlanId) {
+                    setErrors({ ...errors, membershipPlanId: "" });
+                  }
+                }
                 if (errors.branchId) setErrors({ ...errors, branchId: "" });
               }}
               disabled={isLoading}
@@ -366,6 +397,8 @@ export function MemberForm({
                   setErrors({ ...errors, membershipPlanId: "" });
               }}
               disabled={isLoading}
+              branchId={branchId}
+              requireBranch={true}
             />
             {errors.membershipPlanId && (
               <p className="text-sm text-destructive">
