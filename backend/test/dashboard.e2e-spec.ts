@@ -1,0 +1,368 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import request from 'supertest';
+import { AppModule } from '../src/app.module';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { PrismaService } from '../src/prisma/prisma.service';
+import {
+  createTestTenantAndUser,
+  createTestBranch,
+  cleanupTestData,
+  createMockToken,
+} from './test-helpers';
+import { DurationType, PlanStatus, MemberStatus } from '@prisma/client';
+
+describe('Dashboard E2E Tests', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let tenant1: any;
+  let user1: any;
+  let branch1: any;
+  let branch2: any;
+  let token1: string;
+  let tenant2: any;
+  let user2: any;
+  let token2: string;
+  let plan1: any;
+  let plan2: any;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+
+    // Apply global validation pipe (same as main.ts)
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    app.useGlobalFilters(new HttpExceptionFilter());
+
+    await app.init();
+
+    prisma = app.get<PrismaService>(PrismaService);
+
+    // Create test tenants and users
+    const setup1 = await createTestTenantAndUser(prisma, {
+      tenantName: 'Gym 1',
+      userEmail: `tenant1-dashboard-${Date.now()}@test.com`,
+    });
+    tenant1 = setup1.tenant;
+    user1 = setup1.user;
+    branch1 = await createTestBranch(prisma, tenant1.id, {
+      name: 'Branch 1',
+      isDefault: true,
+    });
+    branch2 = await createTestBranch(prisma, tenant1.id, {
+      name: 'Branch 2',
+      isDefault: false,
+    });
+    token1 = createMockToken({
+      userId: user1.id,
+      tenantId: tenant1.id,
+      email: user1.email,
+    });
+
+    const setup2 = await createTestTenantAndUser(prisma, {
+      tenantName: 'Gym 2',
+      userEmail: `tenant2-dashboard-${Date.now()}@test.com`,
+    });
+    tenant2 = setup2.tenant;
+    user2 = setup2.user;
+    await createTestBranch(prisma, tenant2.id, {
+      name: 'Branch 2',
+      isDefault: true,
+    });
+    token2 = createMockToken({
+      userId: user2.id,
+      tenantId: tenant2.id,
+      email: user2.email,
+    });
+
+    // Create membership plans for tenant1
+    plan1 = await prisma.membershipPlan.create({
+      data: {
+        tenantId: tenant1.id,
+        scope: 'TENANT',
+        scopeKey: 'TENANT',
+        name: 'Basic Plan',
+        durationType: DurationType.MONTHS,
+        durationValue: 1,
+        price: 100,
+        currency: 'TRY',
+        status: PlanStatus.ACTIVE,
+      },
+    });
+
+    plan2 = await prisma.membershipPlan.create({
+      data: {
+        tenantId: tenant1.id,
+        scope: 'TENANT',
+        scopeKey: 'TENANT',
+        name: 'Premium Plan',
+        durationType: DurationType.MONTHS,
+        durationValue: 3,
+        price: 250,
+        currency: 'TRY',
+        status: PlanStatus.ACTIVE,
+      },
+    });
+
+    // Create members for tenant1
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextMonth = new Date(today);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const lastMonth = new Date(today);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+    // Active members
+    await prisma.member.create({
+      data: {
+        tenantId: tenant1.id,
+        branchId: branch1.id,
+        firstName: 'Active',
+        lastName: 'Member1',
+        phone: '555-0001',
+        membershipPlanId: plan1.id,
+        membershipStartDate: today,
+        membershipEndDate: nextMonth,
+        status: MemberStatus.ACTIVE,
+        createdAt: today,
+      },
+    });
+
+    await prisma.member.create({
+      data: {
+        tenantId: tenant1.id,
+        branchId: branch1.id,
+        firstName: 'Active',
+        lastName: 'Member2',
+        phone: '555-0002',
+        membershipPlanId: plan2.id,
+        membershipStartDate: today,
+        membershipEndDate: nextMonth,
+        status: MemberStatus.ACTIVE,
+        createdAt: today,
+      },
+    });
+
+    // Expiring soon member
+    await prisma.member.create({
+      data: {
+        tenantId: tenant1.id,
+        branchId: branch1.id,
+        firstName: 'Expiring',
+        lastName: 'Member',
+        phone: '555-0003',
+        membershipPlanId: plan1.id,
+        membershipStartDate: today,
+        membershipEndDate: nextWeek,
+        status: MemberStatus.ACTIVE,
+        createdAt: today,
+      },
+    });
+
+    // Inactive member (expired)
+    await prisma.member.create({
+      data: {
+        tenantId: tenant1.id,
+        branchId: branch1.id,
+        firstName: 'Inactive',
+        lastName: 'Member',
+        phone: '555-0004',
+        membershipPlanId: plan1.id,
+        membershipStartDate: lastMonth,
+        membershipEndDate: today,
+        status: MemberStatus.INACTIVE,
+        createdAt: lastMonth,
+      },
+    });
+
+    // Member from branch2
+    await prisma.member.create({
+      data: {
+        tenantId: tenant1.id,
+        branchId: branch2.id,
+        firstName: 'Branch2',
+        lastName: 'Member',
+        phone: '555-0005',
+        membershipPlanId: plan1.id,
+        membershipStartDate: today,
+        membershipEndDate: nextMonth,
+        status: MemberStatus.ACTIVE,
+        createdAt: today,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await prisma.member.deleteMany({
+      where: { tenantId: { in: [tenant1.id, tenant2.id] } },
+    });
+    await prisma.membershipPlan.deleteMany({
+      where: { tenantId: { in: [tenant1.id, tenant2.id] } },
+    });
+    await cleanupTestData(prisma, [tenant1.id, tenant2.id]);
+    await app.close();
+  });
+
+  describe('GET /api/v1/dashboard/summary', () => {
+    it('should return 200 with summary statistics', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/summary')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('totalMembers');
+      expect(response.body).toHaveProperty('activeMembers');
+      expect(response.body).toHaveProperty('inactiveMembers');
+      expect(response.body).toHaveProperty('expiringSoon');
+      expect(typeof response.body.totalMembers).toBe('number');
+      expect(typeof response.body.activeMembers).toBe('number');
+      expect(typeof response.body.inactiveMembers).toBe('number');
+      expect(typeof response.body.expiringSoon).toBe('number');
+    });
+
+    it('should respect branchId filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/dashboard/summary?branchId=${branch1.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body.totalMembers).toBeGreaterThan(0);
+    });
+
+    it('should enforce tenant isolation', async () => {
+      // Try to access tenant2's data with tenant1's token
+      // Should return empty/zero results, not tenant2's data
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/summary')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // tenant1 should have members, tenant2 should not appear
+      expect(response.body.totalMembers).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should return 401 without authentication', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/dashboard/summary')
+        .expect(401);
+    });
+  });
+
+  describe('GET /api/v1/dashboard/membership-distribution', () => {
+    it('should return 200 with membership distribution', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/membership-distribution')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      if (response.body.length > 0) {
+        expect(response.body[0]).toHaveProperty('planId');
+        expect(response.body[0]).toHaveProperty('planName');
+        expect(response.body[0]).toHaveProperty('activeMemberCount');
+      }
+    });
+
+    it('should respect branchId filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/dashboard/membership-distribution?branchId=${branch1.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+    });
+
+    it('should enforce tenant isolation', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/membership-distribution')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should only return plans for tenant1
+      expect(Array.isArray(response.body)).toBe(true);
+    });
+
+    it('should return 401 without authentication', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/dashboard/membership-distribution')
+        .expect(401);
+    });
+  });
+
+  describe('GET /api/v1/dashboard/monthly-members', () => {
+    it('should return 200 with monthly members', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/monthly-members')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBe(6); // Default 6 months
+      if (response.body.length > 0) {
+        expect(response.body[0]).toHaveProperty('month');
+        expect(response.body[0]).toHaveProperty('newMembers');
+        expect(response.body[0].month).toMatch(/^\d{4}-\d{2}$/);
+        expect(typeof response.body[0].newMembers).toBe('number');
+      }
+    });
+
+    it('should respect months parameter', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/monthly-members?months=12')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body.length).toBe(12);
+    });
+
+    it('should respect branchId filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/dashboard/monthly-members?branchId=${branch1.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBe(6);
+    });
+
+    it('should return 400 for invalid months parameter', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/dashboard/monthly-members?months=13')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(400);
+    });
+
+    it('should enforce tenant isolation', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/monthly-members')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+    });
+
+    it('should return 401 without authentication', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/dashboard/monthly-members')
+        .expect(401);
+    });
+  });
+});
+

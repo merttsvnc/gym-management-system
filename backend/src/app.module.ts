@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { PlanModule } from './plan/plan.module';
 import { MembersModule } from './members/members.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     PlanModule,
     MembersModule,
     MembershipPlansModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
