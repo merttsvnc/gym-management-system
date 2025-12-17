@@ -17,11 +17,22 @@ export const PlanStatus = {
 export type PlanStatus = (typeof PlanStatus)[keyof typeof PlanStatus];
 
 /**
+ * Plan scope enum matching backend Prisma schema
+ */
+export const PlanScope = {
+  TENANT: "TENANT",
+  BRANCH: "BRANCH",
+} as const;
+export type PlanScope = (typeof PlanScope)[keyof typeof PlanScope];
+
+/**
  * Core membership plan entity, mirroring backend Prisma model
  */
 export type MembershipPlan = {
   id: string; // CUID
   tenantId: string;
+  scope: PlanScope; // TENANT or BRANCH
+  branchId: string | null; // Required if scope is BRANCH, null if TENANT
   name: string;
   description: string | null;
   durationType: DurationType;
@@ -32,8 +43,21 @@ export type MembershipPlan = {
   autoRenew: boolean;
   status: PlanStatus;
   sortOrder: number | null;
+  archivedAt: string | null; // ISO 8601 datetime or null
   createdAt: string; // ISO 8601 datetime
   updatedAt: string; // ISO 8601 datetime
+  // Optional fields from relations
+  branch?: {
+    id: string;
+    name: string;
+  } | null;
+};
+
+/**
+ * Membership plan with active member count (from /active endpoint)
+ */
+export type MembershipPlanWithCount = MembershipPlan & {
+  activeMemberCount: number;
 };
 
 /**
@@ -41,6 +65,8 @@ export type MembershipPlan = {
  * Used in POST /api/v1/membership-plans
  */
 export type CreatePlanPayload = {
+  scope: PlanScope; // TENANT or BRANCH
+  branchId?: string; // Required if scope is BRANCH, must not be sent if TENANT
   name: string;
   description?: string;
   durationType: DurationType;
@@ -77,7 +103,11 @@ export type PlanListQuery = {
   page?: number; // Default: 1, Min: 1
   limit?: number; // Default: 20, Min: 1, Max: 100
   status?: PlanStatus;
-  search?: string;
+  search?: string; // Legacy, use q instead
+  scope?: PlanScope; // TENANT or BRANCH
+  branchId?: string; // Filter by branch ID
+  q?: string; // Name search query
+  includeArchived?: boolean; // Default: false
 };
 
 /**

@@ -5,6 +5,7 @@ import {
   IconHelp,
   IconLayoutDashboard,
   IconUsers,
+  IconCreditCard,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -34,6 +35,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Üyeler",
       url: "/members",
       icon: IconUsers,
+    },
+    {
+      title: "Üyelik Planları",
+      url: "/membership-plans",
+      icon: IconCreditCard,
     },
     {
       title: "Salon Ayarları",

@@ -14,11 +14,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DurationType,
+  PlanScope,
   type MembershipPlan,
   type CreatePlanPayload,
   type UpdatePlanPayload,
 } from "@/types/membership-plan";
 import type { ApiError } from "@/types/error";
+import { useBranches } from "@/hooks/useBranches";
+import { useCurrentTenant } from "@/hooks/useTenant";
 
 interface PlanFormProps {
   mode: "create" | "edit";
@@ -41,7 +44,19 @@ export function PlanForm({
   isLoading = false,
   error,
 }: PlanFormProps) {
+  const { data: tenant } = useCurrentTenant();
+  const { data: branchesData } = useBranches(tenant?.id || "", {
+    includeArchived: false,
+  });
+  const branches = branchesData?.data || [];
+
   // Form state
+  const [scope, setScope] = useState<PlanScope>(
+    initialData?.scope || PlanScope.TENANT
+  );
+  const [branchId, setBranchId] = useState<string>(
+    initialData?.branchId || ""
+  );
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(
     initialData?.description || ""
@@ -70,6 +85,8 @@ export function PlanForm({
   useEffect(() => {
     if (initialData) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional form reset on data change
+      setScope(initialData.scope);
+      setBranchId(initialData.branchId || "");
       setName(initialData.name);
       setDescription(initialData.description || "");
       setDurationType(initialData.durationType);
@@ -84,6 +101,18 @@ export function PlanForm({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+
+    // Scope validation (only for create mode)
+    if (mode === "create") {
+      if (!scope) {
+        newErrors.scope = "Kapsam zorunludur";
+      } else if (scope === PlanScope.BRANCH && !branchId) {
+        newErrors.branchId = "Şube seçimi zorunludur";
+      } else if (scope === PlanScope.TENANT && branchId) {
+        // TENANT scope should not have branchId
+        newErrors.branchId = "Salon kapsamında şube seçilemez";
+      }
+    }
 
     if (!name.trim()) {
       newErrors.name = "Plan adı zorunludur";
@@ -155,19 +184,36 @@ export function PlanForm({
       return;
     }
 
-    const payload: CreatePlanPayload | UpdatePlanPayload = {
-      name: name.trim(),
-      ...(description.trim() && { description: description.trim() }),
-      durationType,
-      durationValue: parseInt(durationValue, 10),
-      price: parseFloat(price),
-      currency: currency.trim().toUpperCase(),
-      ...(maxFreezeDays.trim() && {
-        maxFreezeDays: parseInt(maxFreezeDays, 10),
-      }),
-      autoRenew,
-      ...(sortOrder.trim() && { sortOrder: parseInt(sortOrder, 10) }),
-    };
+    const payload: CreatePlanPayload | UpdatePlanPayload =
+      mode === "create"
+        ? {
+            scope,
+            ...(scope === PlanScope.BRANCH && branchId && { branchId }),
+            name: name.trim(),
+            ...(description.trim() && { description: description.trim() }),
+            durationType,
+            durationValue: parseInt(durationValue, 10),
+            price: parseFloat(price),
+            currency: currency.trim().toUpperCase(),
+            ...(maxFreezeDays.trim() && {
+              maxFreezeDays: parseInt(maxFreezeDays, 10),
+            }),
+            autoRenew,
+            ...(sortOrder.trim() && { sortOrder: parseInt(sortOrder, 10) }),
+          }
+        : {
+            name: name.trim(),
+            ...(description.trim() && { description: description.trim() }),
+            durationType,
+            durationValue: parseInt(durationValue, 10),
+            price: parseFloat(price),
+            currency: currency.trim().toUpperCase(),
+            ...(maxFreezeDays.trim() && {
+              maxFreezeDays: parseInt(maxFreezeDays, 10),
+            }),
+            autoRenew,
+            ...(sortOrder.trim() && { sortOrder: parseInt(sortOrder, 10) }),
+          };
 
     try {
       await onSubmit(payload);
@@ -180,6 +226,104 @@ export function PlanForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Scope (only in create mode, read-only in edit mode) */}
+        {mode === "create" ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="scope">
+                Kapsam <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={scope}
+                onValueChange={(value) => {
+                  setScope(value as PlanScope);
+                  if (value === PlanScope.TENANT) {
+                    setBranchId("");
+                  }
+                  if (errors.scope) setErrors({ ...errors, scope: "" });
+                  if (errors.branchId) setErrors({ ...errors, branchId: "" });
+                }}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={PlanScope.TENANT}>Salon</SelectItem>
+                  <SelectItem value={PlanScope.BRANCH}>Şube</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.scope && (
+                <p className="text-sm text-destructive">{errors.scope}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {scope === PlanScope.TENANT
+                  ? "Tüm şubeler için geçerli"
+                  : "Sadece seçilen şube için geçerli"}
+              </p>
+            </div>
+
+            {/* Branch Selection (only when scope is BRANCH) */}
+            {scope === PlanScope.BRANCH && (
+              <div className="space-y-2">
+                <Label htmlFor="branchId">
+                  Şube <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={branchId}
+                  onValueChange={(value) => {
+                    setBranchId(value);
+                    if (errors.branchId)
+                      setErrors({ ...errors, branchId: "" });
+                  }}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="branchId">
+                    <SelectValue placeholder="Şube seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.branchId && (
+                  <p className="text-sm text-destructive">{errors.branchId}</p>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Read-only scope and branch display in edit mode */}
+            <div className="space-y-2">
+              <Label>Kapsam</Label>
+              <Input
+                value={
+                  initialData?.scope === PlanScope.TENANT ? "Salon" : "Şube"
+                }
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            {initialData?.scope === PlanScope.BRANCH && (
+              <div className="space-y-2">
+                <Label>Şube</Label>
+                <Input
+                  value={initialData?.branch?.name || "—"}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Kapsam ve şube bilgisi oluşturulduktan sonra değiştirilemez.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
         {/* Plan Name */}
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="name">

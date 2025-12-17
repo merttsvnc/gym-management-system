@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import type {
   MembershipPlan,
+  MembershipPlanWithCount,
   PlanListQuery,
   PlanListResponse,
   CreatePlanPayload,
@@ -10,7 +11,7 @@ import type {
 
 /**
  * List membership plans for a tenant with pagination and filters
- * GET /api/v1/membership-plans?page=...&limit=...&status=...&search=...
+ * GET /api/v1/membership-plans?page=...&limit=...&scope=...&branchId=...&q=...&includeArchived=...
  */
 export async function listPlans(
   query: PlanListQuery & { tenantId: string },
@@ -30,6 +31,18 @@ export async function listPlans(
   if (queryParams.search) {
     searchParams.append('search', queryParams.search);
   }
+  if (queryParams.scope) {
+    searchParams.append('scope', queryParams.scope);
+  }
+  if (queryParams.branchId) {
+    searchParams.append('branchId', queryParams.branchId);
+  }
+  if (queryParams.q) {
+    searchParams.append('q', queryParams.q);
+  }
+  if (queryParams.includeArchived !== undefined) {
+    searchParams.append('includeArchived', queryParams.includeArchived.toString());
+  }
 
   const url = `/membership-plans${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 
@@ -38,12 +51,24 @@ export async function listPlans(
 
 /**
  * Get active membership plans for a tenant (no pagination)
- * GET /api/v1/membership-plans/active
+ * GET /api/v1/membership-plans/active?branchId=...&includeMemberCount=...
  */
 export async function getActivePlans(
   tenantId: string,
-): Promise<MembershipPlan[]> {
-  return apiClient.get<MembershipPlan[]>(`/membership-plans/active`, {
+  options?: {
+    branchId?: string;
+    includeMemberCount?: boolean;
+  },
+): Promise<MembershipPlan[] | MembershipPlanWithCount[]> {
+  const searchParams = new URLSearchParams();
+  if (options?.branchId) {
+    searchParams.append('branchId', options.branchId);
+  }
+  if (options?.includeMemberCount) {
+    searchParams.append('includeMemberCount', 'true');
+  }
+  const url = `/membership-plans/active${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return apiClient.get<MembershipPlan[] | MembershipPlanWithCount[]>(url, {
     tenantId,
   });
 }
