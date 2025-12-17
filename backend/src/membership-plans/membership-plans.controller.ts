@@ -67,7 +67,7 @@ export class MembershipPlansController {
    * Behavior:
    * - If branchId provided -> TENANT + that branch's BRANCH plans
    * - else -> TENANT plans only
-   * - If includeMemberCount=true, include activeMemberCount per plan
+   * - If includeMemberCount=true, include activeMemberCount per plan (single query with aggregation)
    */
   @Get('active')
   async listActivePlansForTenant(
@@ -76,28 +76,11 @@ export class MembershipPlansController {
     @Query('includeMemberCount', new ParseBoolPipe({ optional: true }))
     includeMemberCount?: boolean,
   ) {
-    const plans = await this.membershipPlansService.listActivePlansForTenant(
+    return this.membershipPlansService.listActivePlansForTenant(
       tenantId,
       branchId,
+      includeMemberCount,
     );
-
-    if (includeMemberCount) {
-      const plansWithCounts = await Promise.all(
-        plans.map(async (plan) => {
-          const count =
-            await this.membershipPlansService.countActiveMembersForPlan(
-              plan.id,
-            );
-          return {
-            ...plan,
-            activeMemberCount: count,
-          };
-        }),
-      );
-      return plansWithCounts;
-    }
-
-    return plans;
   }
 
   /**

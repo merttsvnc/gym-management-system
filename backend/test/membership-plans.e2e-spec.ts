@@ -361,6 +361,134 @@ describe('MembershipPlans E2E Tests', () => {
       expect(response.body[0].name).toBe('Tenant1 Active');
       expect(response.body[0].tenantId).toBe(tenant1.id);
     });
+
+    it('should include activeMemberCount when includeMemberCount=true', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const futureDate = new Date(today);
+      futureDate.setDate(futureDate.getDate() + 30);
+      const pastDate = new Date(today);
+      pastDate.setDate(pastDate.getDate() - 10);
+
+      const plan1 = await prisma.membershipPlan.create({
+        data: {
+          tenantId: tenant1.id,
+          name: 'Plan With Members',
+          durationType: DurationType.MONTHS,
+          durationValue: 1,
+          price: 100,
+          currency: 'USD',
+          status: PlanStatus.ACTIVE,
+        },
+      });
+
+      const plan2 = await prisma.membershipPlan.create({
+        data: {
+          tenantId: tenant1.id,
+          name: 'Plan Without Members',
+          durationType: DurationType.MONTHS,
+          durationValue: 1,
+          price: 100,
+          currency: 'USD',
+          status: PlanStatus.ACTIVE,
+        },
+      });
+
+      // Create 2 active members for plan1 (status=ACTIVE, membershipEndDate >= today)
+      await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Active',
+          lastName: 'Member1',
+          phone: '+905551234561',
+          membershipPlanId: plan1.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          membershipPriceAtPurchase: 100,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Active',
+          lastName: 'Member2',
+          phone: '+905551234562',
+          membershipPlanId: plan1.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          membershipPriceAtPurchase: 100,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      // Create an inactive member (status != ACTIVE) - should not be counted
+      await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Inactive',
+          lastName: 'Member',
+          phone: '+905551234563',
+          membershipPlanId: plan1.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          membershipPriceAtPurchase: 100,
+          status: MemberStatus.INACTIVE,
+        },
+      });
+
+      // Create an expired member (membershipEndDate < today) - should not be counted
+      await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expired',
+          lastName: 'Member',
+          phone: '+905551234564',
+          membershipPlanId: plan1.id,
+          membershipStartDate: pastDate,
+          membershipEndDate: pastDate,
+          membershipPriceAtPurchase: 100,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      // Test without includeMemberCount (should not have activeMemberCount)
+      const responseWithoutCount = await request(app.getHttpServer())
+        .get('/api/v1/membership-plans/active')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(responseWithoutCount.body).toHaveLength(2);
+      expect(responseWithoutCount.body[0]).not.toHaveProperty('activeMemberCount');
+      expect(responseWithoutCount.body[1]).not.toHaveProperty('activeMemberCount');
+
+      // Test with includeMemberCount=true (should have activeMemberCount)
+      const responseWithCount = await request(app.getHttpServer())
+        .get('/api/v1/membership-plans/active?includeMemberCount=true')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(responseWithCount.body).toHaveLength(2);
+      
+      // Find plan1 and plan2 in response
+      const plan1Response = responseWithCount.body.find((p: any) => p.id === plan1.id);
+      const plan2Response = responseWithCount.body.find((p: any) => p.id === plan2.id);
+
+      expect(plan1Response).toBeDefined();
+      expect(plan1Response).toHaveProperty('activeMemberCount');
+      expect(typeof plan1Response.activeMemberCount).toBe('number');
+      expect(plan1Response.activeMemberCount).toBe(2); // Only 2 active members counted
+
+      expect(plan2Response).toBeDefined();
+      expect(plan2Response).toHaveProperty('activeMemberCount');
+      expect(typeof plan2Response.activeMemberCount).toBe('number');
+      expect(plan2Response.activeMemberCount).toBe(0); // No members for plan2
+    });
   });
 
   // =====================================================================

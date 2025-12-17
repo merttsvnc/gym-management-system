@@ -224,11 +224,13 @@ export class MembershipPlansService {
    * - If branchId is provided (and valid for tenant): returns TENANT plans + BRANCH plans for that branch
    * - Does NOT return BRANCH plans for other branches
    * - Ordered by sortOrder ASC, then createdAt ASC
+   * - If includeMemberCount=true, includes activeMemberCount per plan (uses single query with aggregation)
    */
   async listActivePlansForTenant(
     tenantId: string,
     branchId?: string,
-  ): Promise<MembershipPlan[]> {
+    includeMemberCount?: boolean,
+  ): Promise<MembershipPlan[] | (MembershipPlan & { activeMemberCount: number })[]> {
     // Validate branchId if provided
     if (branchId) {
       await this.validateBranchIdForListing(tenantId, branchId);
@@ -252,6 +254,37 @@ export class MembershipPlansService {
     } else {
       // No branchId provided: return only TENANT plans
       where.scope = PlanScope.TENANT;
+    }
+
+    // If includeMemberCount is true, use aggregation to avoid N+1 queries
+    if (includeMemberCount) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const plansWithCounts = await this.prisma.membershipPlan.findMany({
+        where,
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        include: {
+          _count: {
+            select: {
+              members: {
+                where: {
+                  status: 'ACTIVE',
+                  membershipEndDate: {
+                    gte: today,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Map results to include activeMemberCount
+      return plansWithCounts.map((plan) => ({
+        ...plan,
+        activeMemberCount: plan._count.members,
+      })) as (MembershipPlan & { activeMemberCount: number })[];
     }
 
     return this.prisma.membershipPlan.findMany({

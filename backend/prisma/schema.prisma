@@ -151,6 +151,8 @@ model MembershipPlan {
   @@index([tenantId, branchId])
   @@index([branchId])
   @@index([tenantId, sortOrder])
+  @@index([tenantId, archivedAt])
+  @@index([tenantId, archivedAt, status])
 }
 
 // Member model

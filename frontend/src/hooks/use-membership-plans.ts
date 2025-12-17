@@ -30,7 +30,19 @@ const planKeys = {
   active: (
     tenantId: string,
     options?: { branchId?: string; includeMemberCount?: boolean },
-  ) => ['membership-plans', tenantId, 'active', options] as const,
+  ) => {
+    // Normalize options to avoid cache key differences for undefined/empty/null values
+    const normalizedOptions: Record<string, unknown> = {};
+    if (options?.branchId && options.branchId.trim() !== '') {
+      normalizedOptions.branchId = options.branchId;
+    }
+    if (options?.includeMemberCount === true) {
+      normalizedOptions.includeMemberCount = true;
+    }
+    // Only include options object if it has at least one property
+    const keyOptions = Object.keys(normalizedOptions).length > 0 ? normalizedOptions : undefined;
+    return ['membership-plans', tenantId, 'active', keyOptions] as const;
+  },
   detail: (tenantId: string, planId: string) =>
     ['membership-plans', tenantId, planId] as const,
 };
