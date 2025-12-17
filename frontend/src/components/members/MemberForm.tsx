@@ -73,7 +73,7 @@ export function MemberForm({
   // Fetch branches and plans (after state declarations)
   const { data: branchesData } = useBranches(tenantId);
   const branches = branchesData?.data || [];
-  
+
   // Fetch plans for the selected branch (for DurationPreview)
   // Only fetch when branchId is set in create mode
   const { data: plans } = useActivePlans(
@@ -95,13 +95,17 @@ export function MemberForm({
     if (mode === "create" && branchId && membershipPlanId && plans) {
       const planExists = plans.some((p) => p.id === membershipPlanId);
       if (!planExists) {
-        setMembershipPlanId("");
-        setErrors((prevErrors) => {
-          if (prevErrors.membershipPlanId) {
-            const { membershipPlanId: _, ...rest } = prevErrors;
-            return rest;
-          }
-          return prevErrors;
+        // Use queueMicrotask to avoid setState in effect
+        queueMicrotask(() => {
+          setMembershipPlanId("");
+          setErrors((prevErrors) => {
+            if (prevErrors.membershipPlanId) {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { membershipPlanId: _removed, ...rest } = prevErrors;
+              return rest;
+            }
+            return prevErrors;
+          });
         });
       }
     }

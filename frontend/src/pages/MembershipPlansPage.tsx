@@ -50,10 +50,8 @@ import {
   PlanScope,
   PlanStatus,
   type MembershipPlan,
-  type MembershipPlanWithCount,
 } from "@/types/membership-plan";
 import { DurationType } from "@/types/membership-plan";
-import { toast } from "sonner";
 import type { ApiError } from "@/types/error";
 import { Pencil, Archive, ArchiveRestore, Trash2 } from "lucide-react";
 
@@ -62,7 +60,7 @@ import { Pencil, Archive, ArchiveRestore, Trash2 } from "lucide-react";
  */
 function formatDuration(
   durationType: DurationType,
-  durationValue: number,
+  durationValue: number
 ): string {
   if (durationType === DurationType.DAYS) {
     return `${durationValue} gün`;
@@ -113,12 +111,10 @@ export function MembershipPlansPage() {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [includeMemberCount, setIncludeMemberCount] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [planToDelete, setPlanToDelete] = useState<MembershipPlan | null>(
-    null,
-  );
+  const [planToDelete, setPlanToDelete] = useState<MembershipPlan | null>(null);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [planToArchive, setPlanToArchive] = useState<MembershipPlan | null>(
-    null,
+    null
   );
 
   // Fetch branches for branch selector
@@ -161,10 +157,14 @@ export function MembershipPlansPage() {
 
   // Create member count map
   const memberCountMap = useMemo(() => {
-    if (!includeMemberCount || !activePlansData) return new Map<string, number>();
+    if (!includeMemberCount || !activePlansData)
+      return new Map<string, number>();
     const map = new Map<string, number>();
     activePlansData.forEach((plan) => {
-      if ("activeMemberCount" in plan) {
+      if (
+        "activeMemberCount" in plan &&
+        typeof plan.activeMemberCount === "number"
+      ) {
         map.set(plan.id, plan.activeMemberCount);
       }
     });
@@ -194,7 +194,7 @@ export function MembershipPlansPage() {
       await archivePlan.mutateAsync(planToArchive.id);
       setArchiveDialogOpen(false);
       setPlanToArchive(null);
-    } catch (error) {
+    } catch {
       // Error handled by hook
     }
   };
@@ -202,12 +202,12 @@ export function MembershipPlansPage() {
   const handleRestore = async (plan: MembershipPlan) => {
     if (
       confirm(
-        "Bu planı geri yüklemek istediğinizden emin misiniz? Plan tekrar aktif hale gelecektir.",
+        "Bu planı geri yüklemek istediğinizden emin misiniz? Plan tekrar aktif hale gelecektir."
       )
     ) {
       try {
         await restorePlan.mutateAsync(plan.id);
-      } catch (error) {
+      } catch {
         // Error handled by hook
       }
     }
@@ -224,7 +224,7 @@ export function MembershipPlansPage() {
       await deletePlan.mutateAsync(planToDelete.id);
       setDeleteDialogOpen(false);
       setPlanToDelete(null);
-    } catch (error) {
+    } catch {
       // Error handled by hook
     }
   };
@@ -258,7 +258,9 @@ export function MembershipPlansPage() {
   // Get archive warning message
   const archiveWarning =
     planToArchive && memberCountMap.has(planToArchive.id)
-      ? `Bu plana bağlı ${memberCountMap.get(planToArchive.id)} aktif üye bulunmaktadır.`
+      ? `Bu plana bağlı ${memberCountMap.get(
+          planToArchive.id
+        )} aktif üye bulunmaktadır.`
       : null;
 
   return (
@@ -431,14 +433,16 @@ export function MembershipPlansPage() {
                       ? "Arama kriterlerinize uygun plan bulunamadı"
                       : "Henüz plan oluşturulmamış"}
                   </p>
-                  {!searchQuery && scopeFilter === "ALL" && !includeArchived && (
-                    <Button
-                      className="mt-4"
-                      onClick={() => navigate("/membership-plans/new")}
-                    >
-                      İlk Planı Oluştur
-                    </Button>
-                  )}
+                  {!searchQuery &&
+                    scopeFilter === "ALL" &&
+                    !includeArchived && (
+                      <Button
+                        className="mt-4"
+                        onClick={() => navigate("/membership-plans/new")}
+                      >
+                        İlk Planı Oluştur
+                      </Button>
+                    )}
                 </div>
               ) : (
                 <>
@@ -500,7 +504,7 @@ export function MembershipPlansPage() {
                               <TableCell>
                                 {formatDuration(
                                   plan.durationType,
-                                  plan.durationValue,
+                                  plan.durationValue
                                 )}
                               </TableCell>
                               {includeMemberCount && (
@@ -513,9 +517,7 @@ export function MembershipPlansPage() {
                               <TableCell>
                                 <Badge
                                   variant={
-                                    status.isArchived
-                                      ? "secondary"
-                                      : "outline"
+                                    status.isArchived ? "secondary" : "outline"
                                   }
                                 >
                                   {status.label}
@@ -528,7 +530,7 @@ export function MembershipPlansPage() {
                                     size="sm"
                                     onClick={() =>
                                       navigate(
-                                        `/membership-plans/${plan.id}/edit`,
+                                        `/membership-plans/${plan.id}/edit`
                                       )
                                     }
                                   >
@@ -592,7 +594,7 @@ export function MembershipPlansPage() {
                           size="sm"
                           onClick={() =>
                             setPage((p) =>
-                              Math.min(pagination.totalPages, p + 1),
+                              Math.min(pagination.totalPages, p + 1)
                             )
                           }
                           disabled={
@@ -636,10 +638,7 @@ export function MembershipPlansPage() {
             >
               İptal
             </Button>
-            <Button
-              onClick={confirmArchive}
-              disabled={archivePlan.isPending}
-            >
+            <Button onClick={confirmArchive} disabled={archivePlan.isPending}>
               {archivePlan.isPending ? "Arşivleniyor..." : "Arşivle"}
             </Button>
           </DialogFooter>
