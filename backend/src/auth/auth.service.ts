@@ -1,11 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import type { StringValue } from 'ms';
 import * as bcrypt from 'bcrypt';
 import { UsersRepository } from '../users/users.repository';
-import { User } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { User, BillingStatus } from '@prisma/client';
 import { JwtPayload } from './strategies/jwt.strategy';
+import {
+  BILLING_ERROR_CODES,
+  BILLING_ERROR_MESSAGES,
+} from '../common/constants/billing-messages';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +18,7 @@ export class AuthService {
     private readonly usersRepository: UsersRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -31,7 +37,29 @@ export class AuthService {
     return user;
   }
 
-  login(user: User) {
+  async login(user: User) {
+    // Query tenant billing status
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: {
+        id: true,
+        name: true,
+        billingStatus: true,
+      },
+    });
+
+    if (!tenant) {
+      throw new ForbiddenException('Tenant not found');
+    }
+
+    // Reject SUSPENDED tenant login
+    if (tenant.billingStatus === BillingStatus.SUSPENDED) {
+      throw new ForbiddenException({
+        code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        message: BILLING_ERROR_MESSAGES.SUSPENDED_LOGIN,
+      });
+    }
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -64,6 +92,61 @@ export class AuthService {
         email: user.email,
         role: user.role,
         tenantId: user.tenantId,
+      },
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        billingStatus: tenant.billingStatus,
+      },
+    };
+  }
+
+  /**
+   * Get current user information including tenant billing status
+   */
+  async getCurrentUser(userId: string, tenantId: string) {
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user) {
+      return null;
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        billingStatus: true,
+        billingStatusUpdatedAt: true,
+      },
+    });
+
+    if (!tenant) {
+      return null;
+    }
+
+    // Check if tenant is SUSPENDED
+    if (tenant.billingStatus === BillingStatus.SUSPENDED) {
+      throw new ForbiddenException({
+        code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
+      });
+    }
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        tenantId: user.tenantId,
+      },
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        billingStatus: tenant.billingStatus,
+        billingStatusUpdatedAt: tenant.billingStatusUpdatedAt,
       },
     };
   }

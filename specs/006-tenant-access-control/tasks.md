@@ -93,23 +93,23 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T024 Update `AuthService.login()` to query Tenant billing status in `backend/src/auth/auth.service.ts`
-- [ ] T025 Add SUSPENDED tenant login rejection logic in `backend/src/auth/auth.service.ts`
-- [ ] T026 Add PAST_DUE tenant login allowance with billing status in response in `backend/src/auth/auth.service.ts`
-- [ ] T027 Include billing status in login response in `backend/src/auth/auth.service.ts`
-- [ ] T028 Install `@nestjs/throttler` package if not already installed
-- [ ] T029 Configure throttler module in `backend/src/app.module.ts`
-- [ ] T030 Apply throttler guard to login endpoint in `backend/src/auth/auth.controller.ts`
-- [ ] T031 Configure general rate limiting (5 attempts per 15 minutes per IP/email) in `backend/src/auth/auth.controller.ts`
-- [ ] T032 Add rate limit error response with `BILLING_ERROR_MESSAGES.RATE_LIMIT_EXCEEDED` in `backend/src/auth/auth.controller.ts`
-- [ ] T033 Add rate limit hit logging in `backend/src/auth/auth.controller.ts`
-- [ ] T034 Add `getCurrentUser()` method to `AuthService` in `backend/src/auth/auth.service.ts`
-- [ ] T035 Update `/auth/me` endpoint to query Tenant billing status in `backend/src/auth/auth.service.ts`
-- [ ] T036 Include billing status and `billingStatusUpdatedAt` in `/auth/me` response in `backend/src/auth/auth.controller.ts`
-- [ ] T037 Add SUSPENDED check to `/auth/me` endpoint (return 403 with error code) in `backend/src/auth/auth.service.ts`
-- [ ] T038 Update `UpdateTenantDto` to exclude `billingStatus` field in `backend/src/tenants/dto/update-tenant.dto.ts`
-- [ ] T039 Add service-level check to reject `billingStatus` updates in `backend/src/tenants/tenants.service.ts`
-- [ ] T040 Add 403 Forbidden response for billing status update attempts in `backend/src/tenants/tenants.service.ts`
+- [X] T024 Update `AuthService.login()` to query Tenant billing status in `backend/src/auth/auth.service.ts`
+- [X] T025 Add SUSPENDED tenant login rejection logic in `backend/src/auth/auth.service.ts`
+- [X] T026 Add PAST_DUE tenant login allowance with billing status in response in `backend/src/auth/auth.service.ts`
+- [X] T027 Include billing status in login response in `backend/src/auth/auth.service.ts`
+- [X] T028 Install `@nestjs/throttler` package if not already installed
+- [X] T029 Configure throttler module in `backend/src/app.module.ts`
+- [X] T030 Apply throttler guard to login endpoint in `backend/src/auth/auth.controller.ts`
+- [X] T031 Configure general rate limiting (5 attempts per 15 minutes per IP/email) in `backend/src/auth/auth.controller.ts`
+- [X] T032 Add rate limit error response with `BILLING_ERROR_MESSAGES.RATE_LIMIT_EXCEEDED` in `backend/src/auth/auth.controller.ts`
+- [X] T033 Add rate limit hit logging in `backend/src/auth/auth.controller.ts`
+- [X] T034 Add `getCurrentUser()` method to `AuthService` in `backend/src/auth/auth.service.ts`
+- [X] T035 Update `/auth/me` endpoint to query Tenant billing status in `backend/src/auth/auth.service.ts`
+- [X] T036 Include billing status and `billingStatusUpdatedAt` in `/auth/me` response in `backend/src/auth/auth.controller.ts`
+- [X] T037 Add SUSPENDED check to `/auth/me` endpoint (return 403 with error code) in `backend/src/auth/auth.service.ts`
+- [X] T038 Update `UpdateTenantDto` to exclude `billingStatus` field in `backend/src/tenants/dto/update-tenant.dto.ts`
+- [X] T039 Add service-level check to reject `billingStatus` updates in `backend/src/tenants/tenants.service.ts`
+- [X] T040 Add 403 Forbidden response for billing status update attempts in `backend/src/tenants/tenants.service.ts`
 
 **Acceptance Criteria:**
 - `login()` method queries Tenant table for `billingStatus` after credential validation
