@@ -214,7 +214,7 @@ This document contains the complete task list for implementing Tenant Access Con
 - [ ] T094 Integrate error handler with existing error handling infrastructure in `frontend/src/lib/api-error-handler.ts`
 - [ ] T095 Update user context/state management to include billing status in `frontend/src/features/auth/types.ts`
 - [ ] T096 Update auth hooks to fetch and store billing status in `frontend/src/hooks/use-auth.ts`
-- [ ] T097 Implement billing status refresh on each API call (via `/auth/me` endpoint) in `frontend/src/hooks/use-auth.ts`
+- [ ] T097 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/hooks/use-auth.ts`
 
 **Acceptance Criteria:**
 - `BillingStatus` enum matches backend enum values
@@ -230,7 +230,10 @@ This document contains the complete task list for implementing Tenant Access Con
 - Error handler shows toast notification for PAST_DUE mutation attempts
 - User context includes `billingStatus` field
 - Auth hooks fetch and store billing status
-- Billing status refreshes on each API call via `/auth/me` endpoint
+- Billing status fetched on app boot (or initial auth hydrate) via `/auth/me` endpoint
+- Billing status fetched after successful login
+- OPTIONAL: Billing status refreshes on window focus or on an interval (e.g., every 5–10 minutes)
+- Billing status does NOT refresh on each API call
 - Types compile correctly
 
 ---
@@ -297,7 +300,7 @@ This document contains the complete task list for implementing Tenant Access Con
 
 **Goal:** Implement mid-session billing status change handling and error display  
 **Dependencies:** Phase 5, Phase 6  
-**Blockers:** T088-T122 must be complete
+**Blockers:** T088-T140 must be complete
 
 ### Tasks
 
@@ -305,32 +308,38 @@ This document contains the complete task list for implementing Tenant Access Con
 - [ ] T124 Intercept 403 responses from mutation endpoints in `frontend/src/lib/api-error-handler.ts`
 - [ ] T125 Detect billing lock ONLY via structured response code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
 - [ ] T126 Show toast notification for other billing-related errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
-- [ ] T127 Implement mid-session billing status change detection in `frontend/src/lib/api-error-handler.ts`
-- [ ] T128 When API returns 403 with `code === "TENANT_BILLING_LOCKED"`, detect via error code only in `frontend/src/lib/api-error-handler.ts`
-- [ ] T129 For SUSPENDED status: optionally clear JWT token and redirect to `/billing-locked` in `frontend/src/lib/api-error-handler.ts`
-- [ ] T130 For PAST_DUE status: preserve JWT token and show toast notification in `frontend/src/lib/api-error-handler.ts`
+- [ ] T127 Implement mid-session billing status change detection (relies on backend authority) in `frontend/src/lib/api-error-handler.ts`
+- [ ] T128 When any API request returns 403 with `code === "TENANT_BILLING_LOCKED"`, detect via error code only and redirect to `/billing-locked` with correct JWT behavior in `frontend/src/lib/api-error-handler.ts`
+- [ ] T129 For SUSPENDED status: optionally clear JWT token and redirect to `/billing-locked` (not `/login`) in `frontend/src/lib/api-error-handler.ts`
+- [ ] T130 For PAST_DUE status: preserve JWT token (for read-only access) and show toast notification in `frontend/src/lib/api-error-handler.ts`
 - [ ] T131 Invalidate user session cache (React Query cache, user context) as needed in `frontend/src/lib/api-error-handler.ts`
 - [ ] T132 Update React Query cache invalidation on logout in `frontend/src/hooks/use-auth.ts`
 - [ ] T133 Invalidate billing status cache on logout in `frontend/src/hooks/use-auth.ts`
 - [ ] T134 Clear billing status from user context on logout in `frontend/src/hooks/use-auth.ts`
-- [ ] T135 Refresh billing status after successful login in `frontend/src/hooks/use-auth.ts`
-- [ ] T136 Fetch billing status from login response in `frontend/src/hooks/use-auth.ts`
-- [ ] T137 Store billing status in user context after login in `frontend/src/hooks/use-auth.ts`
-- [ ] T138 Trigger appropriate UI (banner, locked screen) based on status after login in `frontend/src/hooks/use-auth.ts`
+- [ ] T135 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/hooks/use-auth.ts`
+- [ ] T136 Fetch billing status on app boot (or initial auth hydrate) via `/auth/me` endpoint in `frontend/src/hooks/use-auth.ts`
+- [ ] T137 Fetch billing status after successful login (from login response) in `frontend/src/hooks/use-auth.ts`
+- [ ] T138 OPTIONAL: Implement refresh on window focus or on an interval (e.g., every 5–10 minutes) in `frontend/src/hooks/use-auth.ts`
+- [ ] T139 Store billing status in user context after fetch in `frontend/src/hooks/use-auth.ts`
+- [ ] T140 Trigger appropriate UI (banner, locked screen) based on status in `frontend/src/hooks/use-auth.ts`
 
 **Acceptance Criteria:**
 - Error handler intercepts 403 responses from mutation endpoints
 - Error handler detects billing lock ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`
 - Error handler does NOT check message text or keywords (error code is authoritative)
+- Mid-session enforcement relies on backend authority: when any API request returns 403 with `code === "TENANT_BILLING_LOCKED"`, redirect to `/billing-locked` and apply correct JWT behavior
 - Error handler redirects SUSPENDED tenants to `/billing-locked` (not `/login`)
-- Error handler preserves JWT token for PAST_DUE status
+- Error handler preserves JWT token for PAST_DUE status (user remains logged in for read-only access)
 - Error handler shows toast notification for PAST_DUE mutation attempts
 - Mid-session status change detection works for both PAST_DUE and SUSPENDED transitions
 - User session cache invalidated when billing status changes mid-session
 - Billing status cache invalidated on logout
 - Billing status cleared from user context on logout
-- Billing status refreshed after successful login
-- Appropriate UI (banner, locked screen) triggered based on status after login
+- Billing status fetched on app boot (or initial auth hydrate) via `/auth/me` endpoint
+- Billing status fetched after successful login
+- OPTIONAL: Billing status refreshes on window focus or on an interval (e.g., every 5–10 minutes)
+- Billing status does NOT refresh on each API call
+- Appropriate UI (banner, locked screen) triggered based on status
 
 ---
 
@@ -338,23 +347,23 @@ This document contains the complete task list for implementing Tenant Access Con
 
 **Goal:** Test frontend billing status UI and error handling  
 **Dependencies:** All frontend phases  
-**Blockers:** T098-T138 must be complete
+**Blockers:** T098-T140 must be complete
 
 ### Tasks
 
-- [ ] T139 Test PAST_DUE tenant UI: login and verify warning banner displays
-- [ ] T140 Test PAST_DUE tenant UI: verify create/update/delete buttons are disabled
-- [ ] T141 Test PAST_DUE tenant UI: verify forms are read-only
-- [ ] T142 Test PAST_DUE tenant UI: verify tooltips display correctly
-- [ ] T143 Test SUSPENDED tenant UI: attempt login and verify login is rejected with error message
-- [ ] T144 Test SUSPENDED tenant UI: verify locked screen displays if somehow logged in
-- [ ] T145 Test mid-session status change flow: login as ACTIVE tenant
-- [ ] T146 Test mid-session status change flow: update billing status to PAST_DUE in database
-- [ ] T147 Test mid-session status change flow: attempt to create/update record and verify mutation is blocked (403)
-- [ ] T148 Test mid-session status change flow: verify JWT is preserved (user remains logged in, can view data)
-- [ ] T149 Test mid-session status change flow: verify read-only mode indicators appear
-- [ ] T150 Test mid-session status change flow: update billing status to SUSPENDED in database
-- [ ] T151 Test mid-session status change flow: attempt any API request and verify redirects to `/billing-locked` when error code `TENANT_BILLING_LOCKED` is detected
+- [ ] T141 Test PAST_DUE tenant UI: login and verify warning banner displays
+- [ ] T142 Test PAST_DUE tenant UI: verify create/update/delete buttons are disabled
+- [ ] T143 Test PAST_DUE tenant UI: verify forms are read-only
+- [ ] T144 Test PAST_DUE tenant UI: verify tooltips display correctly
+- [ ] T145 Test SUSPENDED tenant UI: attempt login and verify login is rejected with error message
+- [ ] T146 Test SUSPENDED tenant UI: verify locked screen displays if somehow logged in
+- [ ] T147 Test mid-session status change flow: login as ACTIVE tenant
+- [ ] T148 Test mid-session status change flow: update billing status to PAST_DUE in database
+- [ ] T149 Test mid-session status change flow: attempt to create/update record and verify mutation is blocked (403)
+- [ ] T150 Test mid-session status change flow: verify JWT is preserved (user remains logged in, can view data)
+- [ ] T151 Test mid-session status change flow: verify read-only mode indicators appear
+- [ ] T152 Test mid-session status change flow: update billing status to SUSPENDED in database
+- [ ] T153 Test mid-session status change flow: attempt any API request and verify redirects to `/billing-locked` when error code `TENANT_BILLING_LOCKED` is detected (relies on backend authority)
 
 **Acceptance Criteria:**
 - PAST_DUE tenant sees warning banner on all pages
@@ -363,8 +372,9 @@ This document contains the complete task list for implementing Tenant Access Con
 - SUSPENDED tenant cannot login (403 on login endpoint)
 - SUSPENDED tenant sees error message on login page
 - SUSPENDED tenant sees locked screen if somehow logged in
-- Mid-session status change (ACTIVE → PAST_DUE) triggers read-only mode indicators
-- Mid-session status change (ACTIVE → SUSPENDED) triggers redirect to `/billing-locked`
+- Mid-session status change (ACTIVE → PAST_DUE) triggers read-only mode indicators (detected via backend error code)
+- Mid-session status change (ACTIVE → SUSPENDED) triggers redirect to `/billing-locked` (detected via backend error code `TENANT_BILLING_LOCKED`)
+- Mid-session enforcement relies on backend authority (not polling)
 - JWT token preserved for PAST_DUE status (user remains logged in)
 - All manual tests pass
 - UI behaves correctly for all billing states
@@ -380,21 +390,21 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T152 Create manual DB update runbook in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T153 Document Prisma Studio steps for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T154 Document SQL examples for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T155 Document billing status transition rules in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T156 Include examples for common scenarios (SUSPENDED → ACTIVE, ACTIVE → PAST_DUE, PAST_DUE → SUSPENDED) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T157 Include safety checks (verify tenant exists, verify current status) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T158 Document safe rollback considerations in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T159 Document migration rollback steps in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T160 Document data rollback procedures (if billing status needs to be reverted) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T161 Document impact of rollback on tenant access in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T162 Include SQL scripts for rollback scenarios in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T163 Create troubleshooting guide in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T164 Document common issues and solutions (tenant cannot login, tenant cannot create records, billing status not updating) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T165 Document how to verify billing status enforcement is working in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T166 Document how to check logs for billing status changes in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T154 Create manual DB update runbook in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T155 Document Prisma Studio steps for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T156 Document SQL examples for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T157 Document billing status transition rules in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T158 Include examples for common scenarios (SUSPENDED → ACTIVE, ACTIVE → PAST_DUE, PAST_DUE → SUSPENDED) in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T159 Include safety checks (verify tenant exists, verify current status) in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T160 Document safe rollback considerations in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T161 Document migration rollback steps in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T162 Document data rollback procedures (if billing status needs to be reverted) in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T163 Document impact of rollback on tenant access in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T164 Include SQL scripts for rollback scenarios in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T165 Create troubleshooting guide in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T166 Document common issues and solutions (tenant cannot login, tenant cannot create records, billing status not updating) in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T167 Document how to verify billing status enforcement is working in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T168 Document how to check logs for billing status changes in `specs/006-tenant-access-control/operations-runbook.md`
 
 **Acceptance Criteria:**
 - Runbook includes Prisma Studio steps for updating billing status

@@ -471,7 +471,9 @@ Before proceeding, verify alignment with core constitutional principles:
    - Files affected: `frontend/src/features/auth/types.ts`, `frontend/src/hooks/use-auth.ts` (or similar)
    - Add `billingStatus` to user context/state
    - Update auth hooks to fetch and store billing status
-   - Refresh billing status on each API call (via `/auth/me` endpoint)
+   - Fetch billing status on app boot (or initial auth hydrate)
+   - Fetch billing status after successful login
+   - OPTIONAL: Implement refresh on window focus or on an interval (e.g., every 5–10 minutes), but NOT per API call
 
 **Deliverables:**
 - Billing status TypeScript types
@@ -616,16 +618,17 @@ Before proceeding, verify alignment with core constitutional principles:
    - Estimated effort: 2 hours
    - Dependencies: Phase 5 (error handler), Phase 6 (routing)
    - Files affected: `frontend/src/lib/api-error-handler.ts`
-   - When API returns 403 with `code === "TENANT_BILLING_LOCKED"`:
+   - Mid-session enforcement relies on backend authority: when any API request returns 403 with `code === "TENANT_BILLING_LOCKED"`:
      - Detect billing lock ONLY via structured error code (not message text or keywords)
      - Error code is the only authoritative source for detection
-     - For SUSPENDED status:
-       - Optionally clear JWT token from storage (if needed)
-       - Redirect to `/billing-locked` (NOT `/login`)
-     - For PAST_DUE status:
-       - Do NOT clear JWT token (user remains logged in)
-       - Do NOT redirect to login (user can still view data)
-       - Show toast notification explaining read-only mode
+     - Redirect to `/billing-locked` and apply the correct JWT behavior:
+       - For SUSPENDED status:
+         - Optionally clear JWT token from storage (if needed)
+         - Redirect to `/billing-locked` (NOT `/login`)
+       - For PAST_DUE status:
+         - Preserve JWT token (user remains logged in for read-only access)
+         - Do NOT redirect to login (user can still view data)
+         - Show toast notification explaining read-only mode
    - Invalidate user session cache (React Query cache, user context) as needed
    - Ensure this works for both PAST_DUE and SUSPENDED transitions
 
@@ -636,25 +639,29 @@ Before proceeding, verify alignment with core constitutional principles:
    - Invalidate billing status cache on logout
    - Clear billing status from user context
 
-4. [ ] Refresh billing status after successful login
-   - Estimated effort: 30 minutes
+4. [ ] Implement billing status refresh strategy
+   - Estimated effort: 1 hour
    - Dependencies: Phase 5 (user context), Phase 5 (API types)
-   - Files affected: `frontend/src/hooks/use-auth.ts` (or login handler)
-   - After successful login, fetch billing status from login response
+   - Files affected: `frontend/src/hooks/use-auth.ts` (or login handler), app initialization code
+   - Fetch billing status on app boot (or initial auth hydrate) via `/auth/me` endpoint
+   - Fetch billing status after successful login (from login response)
+   - OPTIONAL: Implement refresh on window focus or on an interval (e.g., every 5–10 minutes)
    - Store billing status in user context
    - Trigger appropriate UI (banner, locked screen) based on status
+   - Do NOT refresh billing status on each API call
 
 **Deliverables:**
 - Updated error handling with billing-specific messages (detects ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`, message text is display-only)
-- Mid-session billing status change detection and handling (detects via error code only, redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
+- Mid-session billing status change detection and handling (relies on backend authority via error code, redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
 - Cache invalidation on logout
-- Billing status refresh on login
+- Billing status refresh strategy implemented (app boot, login, optional focus/interval - NOT per API call)
 
 **Testing:**
 - Test error messages display correctly for billing errors
-- Test mid-session status change triggers session invalidation
+- Test mid-session status change triggers session invalidation (via backend error code detection)
 - Test cache invalidation on logout
-- Test billing status refresh on login
+- Test billing status refresh on app boot and after login
+- Test optional refresh on window focus or interval (if implemented)
 
 **Review Points:**
 - Error handling strategy validated
@@ -663,11 +670,13 @@ Before proceeding, verify alignment with core constitutional principles:
 
 **Risks & Mitigation:**
 - **Risk:** Mid-session change detection is unreliable
-  - **Mitigation:** Detect ONLY via structured error code (`code === "TENANT_BILLING_LOCKED"`), do not use message text. Test all transition scenarios, log detection events.
+  - **Mitigation:** Rely on backend authority - detect ONLY via structured error code (`code === "TENANT_BILLING_LOCKED"`), do not use message text. Backend guard enforces restrictions, frontend reacts to error codes. Test all transition scenarios, log detection events.
 - **Risk:** Cache invalidation causes UI flicker
   - **Mitigation:** Use React Query's `invalidateQueries()` properly, handle loading states gracefully
 - **Risk:** Clearing JWT for PAST_DUE breaks read-only access
   - **Mitigation:** Do NOT clear JWT for PAST_DUE status, only redirect SUSPENDED tenants to `/billing-locked`
+- **Risk:** Polling billing status on each API call adds unnecessary overhead
+  - **Mitigation:** Use non-polling approach - fetch on boot/login, optional focus/interval refresh. Mid-session changes detected via backend error codes, not polling.
 
 ---
 
@@ -964,9 +973,9 @@ Before proceeding, verify alignment with core constitutional principles:
 
 ### Phase 7: Frontend - Error Handling & State Management
 - [ ] Error handling shows billing-specific messages (detects ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`, message text is display-only)
-- [ ] Mid-session billing status change detection implemented (detects via error code only, redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
+- [ ] Mid-session billing status change detection implemented (relies on backend authority via error code, redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
 - [ ] Cache invalidation on logout works
-- [ ] Billing status refresh on login works
+- [ ] Billing status refresh strategy implemented (app boot, login, optional focus/interval - NOT per API call)
 - [ ] All error scenarios tested
 
 ### Phase 8: Frontend - Testing
