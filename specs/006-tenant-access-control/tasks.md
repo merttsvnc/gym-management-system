@@ -246,31 +246,31 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T098 Create `BillingStatusBanner` component in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [ ] T099 Implement yellow/orange warning banner for PAST_DUE status in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [ ] T100 Implement red error banner for SUSPENDED status in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [ ] T101 Display message from `BILLING_BANNER_MESSAGES` in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [ ] T102 Make banner persistent (does not dismiss automatically) in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [ ] T103 Create `LockedScreen` component in `frontend/src/components/billing/LockedScreen.tsx`
-- [ ] T104 Implement full-screen overlay with SUSPENDED message in `frontend/src/components/billing/LockedScreen.tsx`
-- [ ] T105 Prevent all UI interactions (buttons, forms, navigation disabled) in `frontend/src/components/billing/LockedScreen.tsx`
-- [ ] T106 Show logout button and support contact information in `frontend/src/components/billing/LockedScreen.tsx`
-- [ ] T107 Create `useBillingStatus()` hook in `frontend/src/hooks/use-billing-status.ts`
-- [ ] T108 Create `useIsReadOnly()` hook to check if tenant is in read-only mode (PAST_DUE) in `frontend/src/hooks/use-billing-status.ts`
-- [ ] T109 Create `useIsSuspended()` hook to check if tenant is suspended in `frontend/src/hooks/use-billing-status.ts`
-- [ ] T110 Update layout to show billing banner when needed in `frontend/src/layouts/MainLayout.tsx`
-- [ ] T111 Add `BillingStatusBanner` component to layout in `frontend/src/layouts/MainLayout.tsx`
-- [ ] T112 Show banner when `billingStatus = PAST_DUE` or `SUSPENDED` in `frontend/src/layouts/MainLayout.tsx`
-- [ ] T113 Update all mutation buttons to disable in PAST_DUE mode (use `useIsReadOnly()` hook) in all pages with create/update/delete buttons
-- [ ] T114 Add tooltip on hover for disabled buttons: `BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY` in all pages with mutation buttons
-- [ ] T115 Add read-only styling to forms in PAST_DUE mode (use `useIsReadOnly()` hook) in all form components
-- [ ] T116 Disable form inputs (read-only styling) in `frontend/src/components/**/*Form.tsx` components
-- [ ] T117 Hide or disable action buttons in forms in `frontend/src/components/**/*Form.tsx` components
-- [ ] T118 Create route `/billing-locked` (or `/locked`) in `frontend/src/App.tsx` or router configuration
-- [ ] T119 Implement billing status check on route change in `frontend/src/App.tsx`
-- [ ] T120 Redirect to `/billing-locked` if `billingStatus = SUSPENDED` in `frontend/src/App.tsx`
-- [ ] T121 Ensure all routes redirect to `/billing-locked` for SUSPENDED tenants in `frontend/src/App.tsx`
-- [ ] T122 Ensure locked screen route is accessible without redirecting to login in `frontend/src/App.tsx`
+- [X] T098 Create `BillingStatusBanner` component in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [X] T099 Implement yellow/orange warning banner for PAST_DUE status in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [X] T100 Implement red error banner for SUSPENDED status in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [X] T101 Display message from `BILLING_BANNER_MESSAGES` in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [X] T102 Make banner persistent (does not dismiss automatically) in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [X] T103 Create `LockedScreen` component in `frontend/src/components/billing/LockedScreen.tsx`
+- [X] T104 Implement full-screen overlay with SUSPENDED message in `frontend/src/components/billing/LockedScreen.tsx`
+- [X] T105 Prevent all UI interactions (buttons, forms, navigation disabled) in `frontend/src/components/billing/LockedScreen.tsx`
+- [X] T106 Show logout button and support contact information in `frontend/src/components/billing/LockedScreen.tsx`
+- [X] T107 Create `useBillingStatus()` hook in `frontend/src/hooks/use-billing-status.ts`
+- [X] T108 Create `useIsReadOnly()` hook to check if tenant is in read-only mode (PAST_DUE) in `frontend/src/hooks/use-billing-status.ts`
+- [X] T109 Create `useIsSuspended()` hook to check if tenant is suspended in `frontend/src/hooks/use-billing-status.ts`
+- [X] T110 Update layout to show billing banner when needed in `frontend/src/layouts/MainLayout.tsx`
+- [X] T111 Add `BillingStatusBanner` component to layout in `frontend/src/layouts/MainLayout.tsx`
+- [X] T112 Show banner when `billingStatus = PAST_DUE` or `SUSPENDED` in `frontend/src/layouts/MainLayout.tsx`
+- [X] T113 Update all mutation buttons to disable in PAST_DUE mode (use `useIsReadOnly()` hook) in all pages with create/update/delete buttons
+- [X] T114 Add tooltip on hover for disabled buttons: `BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY` in all pages with mutation buttons
+- [X] T115 Add read-only styling to forms in PAST_DUE mode (use `useIsReadOnly()` hook) in all form components
+- [X] T116 Disable form inputs (read-only styling) in `frontend/src/components/**/*Form.tsx` components
+- [X] T117 Hide or disable action buttons in forms in `frontend/src/components/**/*Form.tsx` components
+- [X] T118 Create route `/billing-locked` (or `/locked`) in `frontend/src/App.tsx` or router configuration
+- [X] T119 Implement billing status check on route change in `frontend/src/App.tsx`
+- [X] T120 Redirect to `/billing-locked` if `billingStatus = SUSPENDED` in `frontend/src/App.tsx`
+- [X] T121 Ensure all routes redirect to `/billing-locked` for SUSPENDED tenants in `frontend/src/App.tsx`
+- [X] T122 Ensure locked screen route is accessible without redirecting to login in `frontend/src/App.tsx`
 
 **Acceptance Criteria:**
 - `BillingStatusBanner` component displays yellow/orange warning for PAST_DUE status
