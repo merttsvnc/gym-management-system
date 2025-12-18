@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -46,11 +46,6 @@ import { BillingStatusGuard } from './auth/guards/billing-status.guard';
     {
       provide: APP_GUARD,
       useClass: BillingStatusGuard,
-    },
-    // Register ThrottlerGuard globally (can be overridden per route)
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
     },
   ],
 })

@@ -5,8 +5,13 @@ import {
   UnauthorizedException,
   Get,
   UseFilters,
+  UseGuards,
 } from '@nestjs/common';
-import { Throttle, ThrottlerException } from '@nestjs/throttler';
+import {
+  Throttle,
+  ThrottlerException,
+  ThrottlerGuard,
+} from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SkipBillingStatusCheck } from './decorators/skip-billing-status-check.decorator';
@@ -28,6 +33,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes (900000ms)
   @UseFilters(ThrottlerExceptionFilter)
   async login(@Body() loginDto: LoginDto) {
