@@ -23,14 +23,14 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T001 Add `BillingStatus` enum to Prisma schema in `backend/prisma/schema.prisma`
-- [ ] T002 Add `billingStatus` field to Tenant model in `backend/prisma/schema.prisma`
-- [ ] T003 Add `billingStatusUpdatedAt` field to Tenant model in `backend/prisma/schema.prisma`
-- [ ] T004 Add index on `billingStatus` field in `backend/prisma/schema.prisma`
-- [ ] T005 Generate Prisma migration in `backend/prisma/migrations/`
-- [ ] T006 Add backfill logic to migration: set existing tenants to `ACTIVE` in `backend/prisma/migrations/`
-- [ ] T007 Test migration on development database
-- [ ] T008 Verify rollback procedure works correctly
+- [X] T001 Add `BillingStatus` enum to Prisma schema in `backend/prisma/schema.prisma`
+- [X] T002 Add `billingStatus` field to Tenant model in `backend/prisma/schema.prisma`
+- [X] T003 Add `billingStatusUpdatedAt` field to Tenant model in `backend/prisma/schema.prisma`
+- [X] T004 Add index on `billingStatus` field in `backend/prisma/schema.prisma`
+- [X] T005 Generate Prisma migration in `backend/prisma/migrations/`
+- [X] T006 Add backfill logic to migration: set existing tenants to `ACTIVE` in `backend/prisma/migrations/`
+- [X] T007 Test migration on development database
+- [X] T008 Verify rollback procedure works correctly
 
 **Acceptance Criteria:**
 - Prisma schema includes `BillingStatus` enum with values: TRIAL, ACTIVE, PAST_DUE, SUSPENDED

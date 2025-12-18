@@ -56,15 +56,25 @@ enum PlanScope {
   BRANCH
 }
 
+// Billing status enum
+enum BillingStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+}
+
 // Tenant model
 model Tenant {
-  id              String   @id @default(cuid())
-  name            String
-  slug            String   @unique
-  defaultCurrency String   @default("USD")
-  planKey         PlanKey  @default(SINGLE)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                    String          @id @default(cuid())
+  name                  String
+  slug                  String          @unique
+  defaultCurrency       String          @default("USD")
+  planKey               PlanKey         @default(SINGLE)
+  billingStatus         BillingStatus   @default(TRIAL)
+  billingStatusUpdatedAt DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   // Relations
   branches        Branch[]
@@ -73,6 +83,7 @@ model Tenant {
   membershipPlans MembershipPlan[]
 
   @@index([slug])
+  @@index([billingStatus])
 }
 
 // Branch model
