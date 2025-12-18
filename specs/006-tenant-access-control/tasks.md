@@ -51,21 +51,21 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T009 Create billing error code constants in `backend/src/common/constants/billing-messages.ts`
-- [ ] T010 Create billing error message constants (server-side only) in `backend/src/common/constants/billing-messages.ts`
-- [ ] T011 Create `BillingStatusGuard` class implementing `CanActivate` in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T012 Implement tenantId extraction from JWT in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T013 Implement billing status query logic in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T014 Implement PAST_DUE read-only logic (allow GET, block POST/PATCH/DELETE) in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T015 Implement SUSPENDED full blocking logic (block all requests) in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T016 Add error response formatting with error code `TENANT_BILLING_LOCKED` in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T017 Add guard execution time logging (warn if >10ms) in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T018 Add 403 response logging with billing status and endpoint in `backend/src/auth/guards/billing-status.guard.ts`
-- [ ] T019 Register `BillingStatusGuard` as `APP_GUARD` provider in `backend/src/app.module.ts`
-- [ ] T020 Exclude auth routes from guard in `backend/src/app.module.ts`
-- [ ] T021 Create structured logging utility for billing status changes in `backend/src/common/utils/billing-logger.ts`
-- [ ] T022 Implement billing status change logging function in `backend/src/common/utils/billing-logger.ts`
-- [ ] T023 Integrate billing logger with existing logging infrastructure in `backend/src/common/utils/billing-logger.ts`
+- [X] T009 Create billing error code constants in `backend/src/common/constants/billing-messages.ts`
+- [X] T010 Create billing error message constants (server-side only) in `backend/src/common/constants/billing-messages.ts`
+- [X] T011 Create `BillingStatusGuard` class implementing `CanActivate` in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T012 Implement tenantId extraction from JWT in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T013 Implement billing status query logic in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T014 Implement PAST_DUE read-only logic (allow GET, block POST/PATCH/DELETE) in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T015 Implement SUSPENDED full blocking logic (block all requests) in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T016 Add error response formatting with error code `TENANT_BILLING_LOCKED` in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T017 Add guard execution time logging (warn if >10ms) in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T018 Add 403 response logging with billing status and endpoint in `backend/src/auth/guards/billing-status.guard.ts`
+- [X] T019 Register `BillingStatusGuard` as `APP_GUARD` provider in `backend/src/app.module.ts`
+- [X] T020 Exclude auth routes from guard in `backend/src/app.module.ts`
+- [X] T021 Create structured logging utility for billing status changes in `backend/src/common/utils/billing-logger.ts`
+- [X] T022 Implement billing status change logging function in `backend/src/common/utils/billing-logger.ts`
+- [X] T023 Integrate billing logger with existing logging infrastructure in `backend/src/common/utils/billing-logger.ts`
 
 **Acceptance Criteria:**
 - `BILLING_ERROR_CODES` object exported with `TENANT_BILLING_LOCKED` code
