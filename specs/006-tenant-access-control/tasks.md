@@ -304,24 +304,24 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T123 Update error handling to show billing-specific messages in `frontend/src/lib/api-error-handler.ts`
-- [ ] T124 Intercept 403 responses from mutation endpoints in `frontend/src/lib/api-error-handler.ts`
-- [ ] T125 Detect billing lock ONLY via structured response code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
-- [ ] T126 Show toast notification for other billing-related errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
-- [ ] T127 Implement mid-session billing status change detection (relies on backend authority) in `frontend/src/lib/api-error-handler.ts`
-- [ ] T128 When any API request returns 403 with `code === "TENANT_BILLING_LOCKED"`, detect via error code only and redirect to `/billing-locked` with correct JWT behavior in `frontend/src/lib/api-error-handler.ts`
-- [ ] T129 For SUSPENDED status: optionally clear JWT token and redirect to `/billing-locked` (not `/login`) in `frontend/src/lib/api-error-handler.ts`
-- [ ] T130 For PAST_DUE status: preserve JWT token (for read-only access) and show toast notification in `frontend/src/lib/api-error-handler.ts`
-- [ ] T131 Invalidate user session cache (React Query cache, user context) as needed in `frontend/src/lib/api-error-handler.ts`
-- [ ] T132 Update React Query cache invalidation on logout in `frontend/src/hooks/use-auth.ts`
-- [ ] T133 Invalidate billing status cache on logout in `frontend/src/hooks/use-auth.ts`
-- [ ] T134 Clear billing status from user context on logout in `frontend/src/hooks/use-auth.ts`
-- [ ] T135 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/hooks/use-auth.ts`
-- [ ] T136 Fetch billing status on app boot (or initial auth hydrate) via `/auth/me` endpoint in `frontend/src/hooks/use-auth.ts`
-- [ ] T137 Fetch billing status after successful login (from login response) in `frontend/src/hooks/use-auth.ts`
-- [ ] T138 OPTIONAL: Implement refresh on window focus or on an interval (e.g., every 5–10 minutes) in `frontend/src/hooks/use-auth.ts`
-- [ ] T139 Store billing status in user context after fetch in `frontend/src/hooks/use-auth.ts`
-- [ ] T140 Trigger appropriate UI (banner, locked screen) based on status in `frontend/src/hooks/use-auth.ts`
+- [X] T123 Update error handling to show billing-specific messages in `frontend/src/lib/api-error-handler.ts`
+- [X] T124 Intercept 403 responses from mutation endpoints in `frontend/src/lib/api-error-handler.ts`
+- [X] T125 Detect billing lock ONLY via structured response code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
+- [X] T126 Show toast notification for other billing-related errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
+- [X] T127 Implement mid-session billing status change detection (relies on backend authority) in `frontend/src/lib/api-error-handler.ts`
+- [X] T128 When any API request returns 403 with `code === "TENANT_BILLING_LOCKED"`, detect via error code only and redirect to `/billing-locked` with correct JWT behavior in `frontend/src/lib/api-error-handler.ts`
+- [X] T129 For SUSPENDED status: optionally clear JWT token and redirect to `/billing-locked` (not `/login`) in `frontend/src/lib/api-error-handler.ts`
+- [X] T130 For PAST_DUE status: preserve JWT token (for read-only access) and show toast notification in `frontend/src/lib/api-error-handler.ts`
+- [X] T131 Invalidate user session cache (React Query cache, user context) as needed in `frontend/src/lib/api-error-handler.ts`
+- [X] T132 Update React Query cache invalidation on logout in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T133 Invalidate billing status cache on logout in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T134 Clear billing status from user context on logout in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T135 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T136 Fetch billing status on app boot (or initial auth hydrate) via `/auth/me` endpoint in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T137 Fetch billing status after successful login (from login response) in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T138 OPTIONAL: Implement refresh on window focus or on an interval (e.g., every 5–10 minutes) in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T139 Store billing status in user context after fetch in `frontend/src/features/auth/AuthContext.tsx`
+- [X] T140 Trigger appropriate UI (banner, locked screen) based on status in `frontend/src/features/auth/AuthContext.tsx`
 
 **Acceptance Criteria:**
 - Error handler intercepts 403 responses from mutation endpoints

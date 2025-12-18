@@ -4,6 +4,7 @@ import type { AuthUser, LoginResponse } from "./types";
 import type { BillingStatus } from "@/types/billing";
 import { login as loginApi, getCurrentUser } from "./api";
 import { AuthContext, type AuthContextType } from "./context";
+import { queryClient } from "@/lib/query-client";
 
 const AUTH_STORAGE_KEY = "gymms_auth";
 
@@ -159,6 +160,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [accessToken]);
 
+  // Listen for billing status change events (from error handler)
+  useEffect(() => {
+    const handleBillingStatusChanged = () => {
+      // Refresh billing status when error handler detects mid-session change
+      if (accessToken) {
+        refreshBillingStatus();
+      }
+    };
+
+    window.addEventListener("auth:billing-status-changed", handleBillingStatusChanged);
+
+    return () => {
+      window.removeEventListener("auth:billing-status-changed", handleBillingStatusChanged);
+    };
+  }, [accessToken, refreshBillingStatus]);
+
   // OPTIONAL: Refresh billing status on window focus (every 5-10 minutes)
   useEffect(() => {
     if (!accessToken) {
@@ -211,13 +228,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Clear state
     setUser(null);
     setAccessToken(null);
     setRefreshToken(null);
     setBillingStatus(null);
     setBillingStatusUpdatedAt(null);
+    
+    // Clear localStorage
     removeStorageItem(AUTH_STORAGE_KEY);
     removeStorageItem("jwt_token");
+    
+    // Invalidate React Query cache (including billing status cache)
+    queryClient.invalidateQueries();
+    queryClient.clear();
+    
+    // Navigate to login
     navigate("/login");
   }, [navigate]);
 
