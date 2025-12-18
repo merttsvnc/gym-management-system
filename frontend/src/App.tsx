@@ -30,6 +30,7 @@ function App() {
         }
       >
         <Route path="/panel" element={<PanelPage />} />
+        <Route path="/dashboard" element={<Navigate to="/panel" replace />} />
         <Route path="/settings/tenant" element={<TenantSettingsPage />} />
         <Route path="/settings/branches" element={<BranchesPage />} />
         <Route path="/members" element={<MembersPage />} />
