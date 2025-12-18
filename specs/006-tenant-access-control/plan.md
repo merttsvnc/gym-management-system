@@ -29,7 +29,7 @@ Implement billing state-based access restrictions for tenants, enabling manual b
 Before proceeding, verify alignment with core constitutional principles:
 
 - [x] **Long-Term Maintainability:** Billing status enforcement implemented as reusable guard pattern, centralized error messages, clear separation of concerns
-- [x] **Security & Correctness:** Tenant self-activation prevention, billing status restrictions enforced at guard level, rate limiting for SUSPENDED tenants
+- [x] **Security & Correctness:** Tenant self-activation prevention, billing status restrictions enforced at guard level, general rate limiting for login endpoint
 - [x] **Explicit Domain Rules:** Clear billing status rules documented, testable guard logic, explicit state transitions
 - [x] **Layered Architecture:** Guard layer for enforcement, service layer for business logic, controller layer for HTTP handling
 - [x] **Multi-Tenant Isolation:** Billing status restrictions are additive (do not bypass tenant scoping), tenant isolation maintained
@@ -100,7 +100,7 @@ Before proceeding, verify alignment with core constitutional principles:
 
 4. [x] Review frontend error handling patterns
    - **Finding:** React Query handles errors via `onError` callbacks, can intercept 403 responses with structured error codes
-   - **Decision:** Implement global error interceptor to detect billing lock via error code (`TENANT_BILLING_LOCKED`), redirect to `/billing-locked` (not `/login`), preserve JWT for PAST_DUE status
+   - **Decision:** Implement global error interceptor to detect billing lock ONLY via structured error code (`code === "TENANT_BILLING_LOCKED"`). Do not use message text for detection. Redirect to `/billing-locked` (not `/login`), preserve JWT for PAST_DUE status.
 
 **Deliverables:**
 - All technical unknowns resolved
@@ -185,8 +185,9 @@ Before proceeding, verify alignment with core constitutional principles:
    - Dependencies: None
    - Files affected: `backend/src/common/constants/billing-messages.ts`
    - Export `BILLING_ERROR_CODES` object with error codes (e.g., `TENANT_BILLING_LOCKED`)
-   - Export `BILLING_ERROR_MESSAGES` object with server-side Turkish error messages only
-   - Do NOT export UI strings (banners, tooltips) - frontend owns these
+   - Export `BILLING_ERROR_MESSAGES` object with server-side Turkish error messages only (for API responses/logs)
+   - Backend defines ONLY: error codes and server-side messages
+   - Do NOT export UI-facing strings (banners, tooltips, locked screen text) - frontend owns all UI copy
 
 2. [ ] Create `BillingStatusGuard` implementing `CanActivate`
    - Estimated effort: 2 hours
@@ -225,11 +226,11 @@ Before proceeding, verify alignment with core constitutional principles:
    - Files affected: `backend/src/auth/guards/billing-status.guard.ts`
    - Log 403 Forbidden responses by billing status (PAST_DUE, SUSPENDED)
    - Log guard execution time (warn if >10ms)
-   - Log rate limit hits for SUSPENDED tenant login attempts
+   - Log rate limit hits for login endpoint (general throttling, all tenants)
    - Use structured JSON format with correlation IDs
 
 **Deliverables:**
-- Billing error code and message constants file (backend-only, no UI strings)
+- Billing error code and message constants file (backend defines ONLY error codes and server-side messages, no UI strings)
 - `BillingStatusGuard` implementation
 - Guard applied globally (except auth routes)
 - Structured logging utilities
@@ -433,10 +434,11 @@ Before proceeding, verify alignment with core constitutional principles:
    - Estimated effort: 30 minutes
    - Dependencies: None
    - Files affected: `frontend/src/lib/constants/billing-messages.ts`
-   - Export `BILLING_ERROR_CODES` object matching backend error codes (e.g., `TENANT_BILLING_LOCKED`)
+   - Export `BILLING_ERROR_CODES` object with error codes matching backend (e.g., `TENANT_BILLING_LOCKED`)
    - Export `BILLING_BANNER_MESSAGES` for banner component (frontend-owned UI strings)
    - Export `BILLING_TOOLTIP_MESSAGES` for tooltip component (frontend-owned UI strings)
-   - Do NOT import from backend constants - frontend owns all UI strings
+   - Frontend defines its own error code constants (matching backend values) - no imports from backend
+   - Frontend owns all UI strings (banners, tooltips, locked screen text)
 
 3. [ ] Update API client types to include billing status
    - Estimated effort: 30 minutes
@@ -450,9 +452,10 @@ Before proceeding, verify alignment with core constitutional principles:
    - Dependencies: Task 2 (constants)
    - Files affected: `frontend/src/lib/api-error-handler.ts` (new utility)
    - Create error interceptor for React Query
-   - Detect billing lock via response payload `code` field: check for `code === "TENANT_BILLING_LOCKED"`
-   - Do NOT detect by matching error message keywords (use structured error codes)
-   - On billing lock detection (`TENANT_BILLING_LOCKED`):
+   - Detect billing lock ONLY via structured response code: check for `code === "TENANT_BILLING_LOCKED"`
+   - Do NOT detect by message text or keywords - error code is the only authoritative source
+   - Message text is display-only (non-authoritative)
+   - On billing lock detection (`code === "TENANT_BILLING_LOCKED"`):
      - Do NOT redirect to `/login`
      - Redirect to `/billing-locked` (or locked route)
      - Do NOT clear JWT token for PAST_DUE status
@@ -484,9 +487,9 @@ Before proceeding, verify alignment with core constitutional principles:
 
 **Review Points:**
 - Type definitions reviewed (match backend contracts)
-- Error handling strategy validated (uses structured error codes, not message keywords)
+- Error handling strategy validated (detects ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`, message text is display-only)
 - State management approach approved
-- Frontend constants are frontend-owned (no backend imports)
+- Frontend constants are frontend-owned (frontend defines its own error codes matching backend values, no backend imports)
 
 **Risks & Mitigation:**
 - **Risk:** Error handler interferes with other error handling
@@ -494,7 +497,7 @@ Before proceeding, verify alignment with core constitutional principles:
 - **Risk:** State management becomes complex
   - **Mitigation:** Use existing patterns (React Query, Context API), keep billing status in user context
 - **Risk:** Frontend imports backend constants causing coupling
-  - **Mitigation:** Frontend owns all UI strings, only shares error codes (constants, not imports)
+  - **Mitigation:** Frontend defines its own error code constants (matching backend values) and owns all UI strings. No imports from backend.
 
 ---
 
@@ -602,9 +605,10 @@ Before proceeding, verify alignment with core constitutional principles:
    - Dependencies: Phase 5 (error handler), Phase 5 (constants)
    - Files affected: `frontend/src/lib/api-error-handler.ts`
    - Intercept 403 responses from mutation endpoints
-   - Check if error response contains `code === "TENANT_BILLING_LOCKED"` (structured error code)
-   - Do NOT check error message keywords (use structured error codes)
-   - For `TENANT_BILLING_LOCKED` code: redirect to `/billing-locked` (handled in Task 4)
+   - Detect billing lock ONLY via structured response code: check for `code === "TENANT_BILLING_LOCKED"`
+   - Do NOT check message text or keywords - error code is the only authoritative source
+   - Message text is display-only (non-authoritative)
+   - For `code === "TENANT_BILLING_LOCKED"`: redirect to `/billing-locked` (handled in Task 4)
    - For other billing-related errors: show toast notification with appropriate message
    - Do not show technical error details
 
@@ -613,7 +617,8 @@ Before proceeding, verify alignment with core constitutional principles:
    - Dependencies: Phase 5 (error handler), Phase 6 (routing)
    - Files affected: `frontend/src/lib/api-error-handler.ts`
    - When API returns 403 with `code === "TENANT_BILLING_LOCKED"`:
-     - Detect billing lock via structured error code (not message keywords)
+     - Detect billing lock ONLY via structured error code (not message text or keywords)
+     - Error code is the only authoritative source for detection
      - For SUSPENDED status:
        - Optionally clear JWT token from storage (if needed)
        - Redirect to `/billing-locked` (NOT `/login`)
@@ -640,8 +645,8 @@ Before proceeding, verify alignment with core constitutional principles:
    - Trigger appropriate UI (banner, locked screen) based on status
 
 **Deliverables:**
-- Updated error handling with billing-specific messages (detects via error codes)
-- Mid-session billing status change detection and handling (redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
+- Updated error handling with billing-specific messages (detects ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`, message text is display-only)
+- Mid-session billing status change detection and handling (detects via error code only, redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
 - Cache invalidation on logout
 - Billing status refresh on login
 
@@ -658,7 +663,7 @@ Before proceeding, verify alignment with core constitutional principles:
 
 **Risks & Mitigation:**
 - **Risk:** Mid-session change detection is unreliable
-  - **Mitigation:** Use structured error codes (`code === "TENANT_BILLING_LOCKED"`), test all transition scenarios, log detection events
+  - **Mitigation:** Detect ONLY via structured error code (`code === "TENANT_BILLING_LOCKED"`), do not use message text. Test all transition scenarios, log detection events.
 - **Risk:** Cache invalidation causes UI flicker
   - **Mitigation:** Use React Query's `invalidateQueries()` properly, handle loading states gracefully
 - **Risk:** Clearing JWT for PAST_DUE breaks read-only access
@@ -689,15 +694,19 @@ Before proceeding, verify alignment with core constitutional principles:
      - Verify login is rejected with error message
      - Verify locked screen displays if somehow logged in
 
-3. [ ] Test mid-session status change flow (ACTIVE → PAST_DUE/SUSPENDED triggers session invalidation)
+3. [ ] Test mid-session status change flow (ACTIVE → PAST_DUE/SUSPENDED triggers appropriate handling)
    - Estimated effort: 1 hour
    - Dependencies: All frontend phases
    - Manual testing:
      - Login as ACTIVE tenant
      - Update billing status to PAST_DUE in database
      - Attempt to create/update record
-     - Verify session is invalidated and redirects to login
-     - Verify error message displays
+     - Verify mutation is blocked (403 with appropriate error)
+     - Verify JWT is preserved (user remains logged in, can view data)
+     - Verify read-only mode indicators appear
+     - Update billing status to SUSPENDED in database
+     - Attempt any API request
+     - Verify redirects to `/billing-locked` (not `/login`) when error code `TENANT_BILLING_LOCKED` is detected
 
 **Deliverables:**
 - Manual test results documented
@@ -835,7 +844,7 @@ Before proceeding, verify alignment with core constitutional principles:
 - **Likelihood:** Low (throttler applied correctly)
 - **Impact:** Medium (brute-force attacks)
 - **Mitigation:**
-  - Rate limiting applied to login endpoint generally (all tenants) with reasonable limits
+  - General rate limiting applied to login endpoint (all tenants, IP/email-based) with reasonable limits
   - Use `@nestjs/throttler` with proper configuration
   - Monitor rate limit hits in logs
   - Test rate limiting in integration tests
@@ -913,7 +922,7 @@ Before proceeding, verify alignment with core constitutional principles:
 - [ ] Rollback tested successfully
 
 ### Phase 2: Backend - Core Infrastructure
-- [ ] Billing error code and message constants file created (backend-only, no UI strings)
+- [ ] Billing error code and message constants file created (backend defines ONLY error codes and server-side messages, no UI strings)
 - [ ] `BillingStatusGuard` implemented and tested
 - [ ] Guard applied globally (except auth routes)
 - [ ] Structured logging utilities created
@@ -938,9 +947,9 @@ Before proceeding, verify alignment with core constitutional principles:
 
 ### Phase 5: Frontend - Core Infrastructure
 - [ ] Billing status TypeScript types created
-- [ ] Frontend-owned billing constants file created (error codes + UI strings)
+- [ ] Frontend-owned billing constants file created (frontend defines its own error codes matching backend values + UI strings)
 - [ ] API client types updated
-- [ ] Global API error handler implemented (detects via error codes, redirects to `/billing-locked`)
+- [ ] Global API error handler implemented (detects ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`, message text is display-only, redirects to `/billing-locked`)
 - [ ] User context includes billing status
 - [ ] All types compile correctly
 
@@ -954,8 +963,8 @@ Before proceeding, verify alignment with core constitutional principles:
 - [ ] Locked screen routing implemented (redirects to `/billing-locked`, not `/login`)
 
 ### Phase 7: Frontend - Error Handling & State Management
-- [ ] Error handling shows billing-specific messages (detects via error codes, not keywords)
-- [ ] Mid-session billing status change detection implemented (redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
+- [ ] Error handling shows billing-specific messages (detects ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`, message text is display-only)
+- [ ] Mid-session billing status change detection implemented (detects via error code only, redirects to `/billing-locked` for SUSPENDED, preserves JWT for PAST_DUE)
 - [ ] Cache invalidation on logout works
 - [ ] Billing status refresh on login works
 - [ ] All error scenarios tested
@@ -1019,7 +1028,7 @@ Before proceeding, verify alignment with core constitutional principles:
 ### Post-Deployment
 1. Monitor error rates (403 responses by billing status)
 2. Monitor guard execution time (alert if >10ms)
-3. Monitor rate limit hits for login endpoint (general throttling)
+3. Monitor rate limit hits for login endpoint (general throttling, all tenants)
 4. Verify tenant access restrictions are working correctly
 5. Update existing tenants' billing status as needed (via manual DB updates)
 6. Verify error codes are returned correctly (`TENANT_BILLING_LOCKED` for SUSPENDED)
