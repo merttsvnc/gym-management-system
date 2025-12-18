@@ -205,7 +205,10 @@ describe('TenantsService', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(ForbiddenException);
         const response = (error as ForbiddenException).getResponse();
-        expect(response).toHaveProperty('message', BILLING_ERROR_MESSAGES.BILLING_STATUS_UPDATE_FORBIDDEN);
+        expect(response).toHaveProperty(
+          'message',
+          BILLING_ERROR_MESSAGES.BILLING_STATUS_UPDATE_FORBIDDEN,
+        );
         expect(response).toHaveProperty('statusCode', 403);
       }
     });
@@ -222,7 +225,10 @@ describe('TenantsService', () => {
       mockPrismaService.tenant.update.mockResolvedValue(updatedTenant);
 
       // Act
-      const result = await service.updateCurrentTenant(tenantId, validUpdateDto);
+      const result = await service.updateCurrentTenant(
+        tenantId,
+        validUpdateDto,
+      );
 
       // Assert
       expect(result).toEqual(updatedTenant);

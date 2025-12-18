@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -14,10 +13,6 @@ import {
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersRepository: UsersRepository;
-  let jwtService: JwtService;
-  let configService: ConfigService;
-  let prismaService: PrismaService;
 
   const mockUsersRepository = {
     findByEmail: jest.fn(),
@@ -101,7 +96,8 @@ describe('AuthService', () => {
       } as User;
 
       mockUsersRepository.findByEmail.mockResolvedValue(mockUser);
-      jest.spyOn(require('bcrypt'), 'compare').mockResolvedValue(true);
+      const bcrypt = await import('bcrypt');
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
 
       // Act
       const result = await service.validateUser(email, password);
@@ -116,7 +112,10 @@ describe('AuthService', () => {
       mockUsersRepository.findByEmail.mockResolvedValue(null);
 
       // Act
-      const result = await service.validateUser('nonexistent@example.com', 'password');
+      const result = await service.validateUser(
+        'nonexistent@example.com',
+        'password',
+      );
 
       // Assert
       expect(result).toBeNull();
@@ -137,10 +136,14 @@ describe('AuthService', () => {
       } as User;
 
       mockUsersRepository.findByEmail.mockResolvedValue(mockUser);
-      jest.spyOn(require('bcrypt'), 'compare').mockResolvedValue(false);
+      const bcrypt = await import('bcrypt');
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
 
       // Act
-      const result = await service.validateUser('test@example.com', 'wrong-password');
+      const result = await service.validateUser(
+        'test@example.com',
+        'wrong-password',
+      );
 
       // Assert
       expect(result).toBeNull();
@@ -434,9 +437,9 @@ describe('AuthService', () => {
       });
 
       // Act & Assert
-      await expect(
-        service.getCurrentUser(userId, tenantId),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getCurrentUser(userId, tenantId)).rejects.toThrow(
+        ForbiddenException,
+      );
 
       try {
         await service.getCurrentUser(userId, tenantId);
@@ -483,4 +486,3 @@ describe('AuthService', () => {
     });
   });
 });
-

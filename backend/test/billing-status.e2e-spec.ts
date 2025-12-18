@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { INestApplication } from '@nestjs/common';
@@ -84,8 +84,12 @@ describe('Billing Status E2E Tests', () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
-      expect(response.body.message).toBe(BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION);
+      expect(response.body.code).toBe(
+        BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+      );
+      expect(response.body.message).toBe(
+        BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
+      );
     });
 
     it('T060: GET /api/v1/members returns 200 for PAST_DUE tenant (read-only)', async () => {
@@ -147,7 +151,9 @@ describe('Billing Status E2E Tests', () => {
         .send({ firstName: 'Updated' });
 
       expect(response.status).toBe(403);
-      expect(response.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
+      expect(response.body.code).toBe(
+        BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+      );
     });
 
     it('T062: DELETE /api/v1/members/:id returns 403 for PAST_DUE tenant', async () => {
@@ -177,7 +183,9 @@ describe('Billing Status E2E Tests', () => {
         .set('Authorization', `Bearer ${pastDueToken}`);
 
       expect(response.status).toBe(403);
-      expect(response.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
+      expect(response.body.code).toBe(
+        BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+      );
     });
   });
 
@@ -232,8 +240,12 @@ describe('Billing Status E2E Tests', () => {
         });
 
       expect(postResponse.status).toBe(403);
-      expect(postResponse.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
-      expect(postResponse.body.message).toBe(BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS);
+      expect(postResponse.body.code).toBe(
+        BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+      );
+      expect(postResponse.body.message).toBe(
+        BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
+      );
 
       // Test PATCH
       const now = new Date();
@@ -262,7 +274,9 @@ describe('Billing Status E2E Tests', () => {
         .send({ firstName: 'Updated' });
 
       expect(patchResponse.status).toBe(403);
-      expect(patchResponse.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
+      expect(patchResponse.body.code).toBe(
+        BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+      );
     });
 
     it('T064: GET endpoints return 403 with error code for SUSPENDED tenant', async () => {
@@ -271,8 +285,12 @@ describe('Billing Status E2E Tests', () => {
         .set('Authorization', `Bearer ${suspendedToken}`);
 
       expect(response.status).toBe(403);
-      expect(response.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
-      expect(response.body.message).toBe(BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS);
+      expect(response.body.code).toBe(
+        BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+      );
+      expect(response.body.message).toBe(
+        BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
+      );
     });
   });
 
@@ -317,8 +335,12 @@ describe('Billing Status E2E Tests', () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
-      expect(response.body.message).toBe(BILLING_ERROR_MESSAGES.SUSPENDED_LOGIN);
+      expect(response.body.code).toBe(
+        BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+      );
+      expect(response.body.message).toBe(
+        BILLING_ERROR_MESSAGES.SUSPENDED_LOGIN,
+      );
     });
 
     it('T066: POST /api/v1/auth/login returns 200 for PAST_DUE tenant (with billing status)', async () => {
@@ -379,7 +401,6 @@ describe('Billing Status E2E Tests', () => {
     let token1: string;
     let tenant2: any;
     let user2: any;
-    let token2: string;
 
     beforeEach(async () => {
       const setup1 = await createTestTenantAndUser(prisma, {
@@ -480,7 +501,9 @@ describe('Billing Status E2E Tests', () => {
         // Create a member via DB
         const now = new Date();
         const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const endDate = new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+        const endDate = new Date(
+          startDate.getTime() + 365 * 24 * 60 * 60 * 1000,
+        );
         await prisma.member.create({
           data: {
             tenantId: pastDueTenant.id,
@@ -528,7 +551,9 @@ describe('Billing Status E2E Tests', () => {
           });
 
         expect(postResponse.status).toBe(403);
-        expect(postResponse.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
+        expect(postResponse.body.code).toBe(
+          BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        );
       });
     });
 
@@ -586,7 +611,9 @@ describe('Billing Status E2E Tests', () => {
           .send({ name: 'Updated Plan' });
 
         expect(patchResponse.status).toBe(403);
-        expect(patchResponse.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
+        expect(patchResponse.body.code).toBe(
+          BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        );
       });
     });
 
@@ -616,8 +643,12 @@ describe('Billing Status E2E Tests', () => {
           });
 
         expect(response.status).toBe(403);
-        expect(response.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
-        expect(response.body.message).toBe(BILLING_ERROR_MESSAGES.SUSPENDED_LOGIN);
+        expect(response.body.code).toBe(
+          BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        );
+        expect(response.body.message).toBe(
+          BILLING_ERROR_MESSAGES.SUSPENDED_LOGIN,
+        );
       });
     });
 
@@ -917,7 +948,9 @@ describe('Billing Status E2E Tests', () => {
           });
 
         expect(login2.status).toBe(403);
-        expect(login2.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
+        expect(login2.body.code).toBe(
+          BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        );
       });
     });
 
@@ -1004,9 +1037,10 @@ describe('Billing Status E2E Tests', () => {
           });
 
         expect(create2.status).toBe(403);
-        expect(create2.body.code).toBe(BILLING_ERROR_CODES.TENANT_BILLING_LOCKED);
+        expect(create2.body.code).toBe(
+          BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        );
       });
     });
   });
 });
-

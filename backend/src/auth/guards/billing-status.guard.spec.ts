@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -13,8 +12,6 @@ import { SKIP_BILLING_STATUS_CHECK_KEY } from '../decorators/skip-billing-status
 
 describe('BillingStatusGuard', () => {
   let guard: BillingStatusGuard;
-  let prismaService: PrismaService;
-  let reflector: Reflector;
 
   const mockPrismaService = {
     tenant: {
@@ -486,7 +483,11 @@ describe('BillingStatusGuard', () => {
   describe('T048: Guard handles missing tenantId gracefully', () => {
     it('should return 403 when tenantId is missing', async () => {
       // Arrange
-      const context = createMockExecutionContext(null, 'GET', '/api/v1/members');
+      const context = createMockExecutionContext(
+        null,
+        'GET',
+        '/api/v1/members',
+      );
 
       // Act & Assert
       try {
@@ -494,7 +495,9 @@ describe('BillingStatusGuard', () => {
         fail('Should have thrown ForbiddenException');
       } catch (error) {
         expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).message).toBe('Tenant context not found');
+        expect((error as ForbiddenException).message).toBe(
+          'Tenant context not found',
+        );
         expect(mockPrismaService.tenant.findUnique).not.toHaveBeenCalled();
       }
     });
@@ -513,7 +516,9 @@ describe('BillingStatusGuard', () => {
         fail('Should have thrown ForbiddenException');
       } catch (error) {
         expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).message).toBe('Tenant context not found');
+        expect((error as ForbiddenException).message).toBe(
+          'Tenant context not found',
+        );
       }
     });
 
@@ -588,4 +593,3 @@ describe('BillingStatusGuard', () => {
     });
   });
 });
-
