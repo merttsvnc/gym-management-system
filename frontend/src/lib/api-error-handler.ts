@@ -13,6 +13,29 @@ import { toast } from "sonner";
 import type { ApiError } from "@/types/error";
 import { BILLING_ERROR_CODES } from "@/lib/constants/billing-messages";
 import { BILLING_BANNER_MESSAGES } from "@/lib/constants/billing-messages";
+import type { BillingStatus } from "@/types/billing";
+
+/**
+ * Get billing status from localStorage
+ * Returns null if not available or if localStorage is not accessible
+ */
+function getBillingStatusFromStorage(): BillingStatus | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return null;
+    }
+
+    const stored = localStorage.getItem("gymms_auth");
+    if (!stored) {
+      return null;
+    }
+
+    const authData = JSON.parse(stored);
+    return authData.billingStatus || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Check if error is a billing lock error via structured error code
@@ -23,18 +46,13 @@ import { BILLING_BANNER_MESSAGES } from "@/lib/constants/billing-messages";
  * or
  * { code: "TENANT_BILLING_LOCKED", message: "..." }
  */
-function isBillingLockError(error: ApiError): boolean {
-  // Check for structured error code in details (from toApiError conversion)
-  if (
-    error.details &&
-    typeof error.details === "object" &&
-    "code" in error.details &&
-    error.details.code === BILLING_ERROR_CODES.TENANT_BILLING_LOCKED
-  ) {
-    return true;
+function isBillingLockError(error: ApiError | unknown): boolean {
+  // Type guard to check if error has ApiError structure
+  if (!error || typeof error !== "object") {
+    return false;
   }
 
-  // Also check if error object itself has code property (direct from axios response)
+  // Check if error object itself has code property (from toApiError conversion)
   if (
     "code" in error &&
     typeof error.code === "string" &&
@@ -43,10 +61,19 @@ function isBillingLockError(error: ApiError): boolean {
     return true;
   }
 
-  // Check if error is an axios error with response.data.code
+  // Check for structured error code in details (fallback for nested structures)
   if (
-    error &&
-    typeof error === "object" &&
+    "details" in error &&
+    error.details &&
+    typeof error.details === "object" &&
+    "code" in error.details &&
+    error.details.code === BILLING_ERROR_CODES.TENANT_BILLING_LOCKED
+  ) {
+    return true;
+  }
+
+  // Check if error is an axios error with response.data.code (direct axios error)
+  if (
     "response" in error &&
     error.response &&
     typeof error.response === "object" &&
@@ -87,10 +114,12 @@ function handleBillingLock(_error: ApiError): void {
 /**
  * Handle PAST_DUE mutation error
  * Preserves JWT token and shows toast notification
+ * Does NOT redirect to login
  */
 function handlePastDueError(_error: ApiError): void {
   // Preserve JWT token - user remains logged in for read-only access
   // Do NOT redirect to login
+  // Do NOT clear JWT token
 
   // Show toast notification
   toast.error(BILLING_BANNER_MESSAGES.PAST_DUE.title, {
@@ -102,8 +131,8 @@ function handlePastDueError(_error: ApiError): void {
  * Handle billing-related errors from API responses
  * This function is called by React Query error handlers and axios interceptors
  *
- * NOTE: For 403 errors, billing lock detection should be done in the axios interceptor
- * by checking response.data.code directly. This function is kept for React Query usage.
+ * Detection is done ONLY via structured error code (code === "TENANT_BILLING_LOCKED").
+ * Message text is NOT used for detection - error code is authoritative.
  */
 export function handleBillingError(error: unknown): void {
   const apiError = error as ApiError;
@@ -115,22 +144,21 @@ export function handleBillingError(error: unknown): void {
 
   // Detect billing lock ONLY via structured error code
   // Error code is the ONLY authoritative source - do NOT check message text
-  if (isBillingLockError(apiError)) {
-    handleBillingLock(apiError);
+  if (!isBillingLockError(apiError)) {
     return;
   }
 
-  // For other 403 errors, check if it's a PAST_DUE mutation attempt
-  // This is detected by the error message (since backend doesn't return error code for PAST_DUE mutations)
-  // Note: This is a fallback - ideally backend should return structured error codes for all billing errors
-  const message = apiError.message?.toLowerCase() || "";
-  if (
-    message.includes("salt okunur") ||
-    message.includes("read-only") ||
-    message.includes("ödeme gecikmesi")
-  ) {
+  // Differentiate PAST_DUE vs SUSPENDED using billing status from localStorage
+  // Both use the same error code, so we check the current billing status
+  const billingStatus = getBillingStatusFromStorage();
+
+  if (billingStatus === "PAST_DUE") {
+    // PAST_DUE: Show toast, preserve JWT, do NOT redirect
     handlePastDueError(apiError);
-    return;
+  } else {
+    // SUSPENDED or unknown: Redirect to /billing-locked
+    // Default to SUSPENDED behavior if billing status is not available
+    handleBillingLock(apiError);
   }
 }
 
@@ -144,6 +172,7 @@ export function reactQueryBillingErrorHandler(error: unknown): void {
 
 /**
  * Check if error should skip global toast (already handled by billing handler)
+ * Uses ONLY structured error codes for detection - no message text parsing
  */
 export function shouldSkipBillingToast(error: unknown): boolean {
   const apiError = error as ApiError;
@@ -151,18 +180,10 @@ export function shouldSkipBillingToast(error: unknown): boolean {
     return false;
   }
 
-  // Skip toast if it's a billing lock error (we redirect instead)
+  // Skip toast if it's a billing lock error
+  // For SUSPENDED: we redirect (skip toast)
+  // For PAST_DUE: we show custom toast (skip global toast)
   if (isBillingLockError(apiError)) {
-    return true;
-  }
-
-  // Skip toast if it's a PAST_DUE error (we show custom toast)
-  const message = apiError.message?.toLowerCase() || "";
-  if (
-    message.includes("salt okunur") ||
-    message.includes("read-only") ||
-    message.includes("ödeme gecikmesi")
-  ) {
     return true;
   }
 

@@ -5,6 +5,7 @@ export type ApiError = {
   statusCode: number;
   message: string;
   error?: string; // short code or title if backend returns it
+  code?: string; // Structured error code (e.g., "TENANT_BILLING_LOCKED")
   details?: unknown;
   skipGlobalToast?: boolean; // If true, global error handler will skip showing toast
 };
@@ -21,6 +22,7 @@ export function toApiError(error: unknown): ApiError {
           statusCode?: number;
           message?: string;
           error?: string;
+          code?: string; // Structured error code
           details?: unknown;
         };
       };
@@ -43,6 +45,7 @@ export function toApiError(error: unknown): ApiError {
           axiosError.response.data.statusCode ?? axiosError.response.status,
         message,
         error: axiosError.response.data.error,
+        code: axiosError.response.data.code, // Extract structured error code
         details: axiosError.response.data.details,
       };
     }

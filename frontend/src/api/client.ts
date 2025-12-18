@@ -88,33 +88,11 @@ axiosInstance.interceptors.response.use(
       // Don't show toast for 401 errors as user is being redirected
     } else if (error.response?.status === 403) {
       // Handle billing status errors (403 Forbidden)
-      // Check for billing lock error code in response data directly
-      const responseData = error.response?.data;
-      if (
-        responseData &&
-        typeof responseData === "object" &&
-        "code" in responseData &&
-        responseData.code === "TENANT_BILLING_LOCKED"
-      ) {
-        // This is a billing lock error - handle it
-        handleBillingError(apiError);
-        return Promise.reject(apiError);
-      }
-
-      // For other 403 errors, check if it's a PAST_DUE mutation attempt
-      const message = apiError.message?.toLowerCase() || "";
-      if (
-        message.includes("salt okunur") ||
-        message.includes("read-only") ||
-        message.includes("ödeme gecikmesi")
-      ) {
-        // PAST_DUE mutation error - show toast and preserve JWT
-        toast.error("Ödeme Gecikmesi", {
-          description:
-            "Ödemeniz gecikti. Hesabınız şu anda salt okunur modda. Lütfen ödemenizi tamamlayın.",
-        });
-        return Promise.reject(apiError);
-      }
+      // Detection is done ONLY via structured error code in handleBillingError
+      // No message text parsing - error code is authoritative
+      // Pass both axios error (for direct response.data.code access) and apiError (for consistency)
+      handleBillingError(apiError);
+      return Promise.reject(apiError);
     }
 
     // Show toast for other errors (if not skipped)
