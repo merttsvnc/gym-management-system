@@ -196,25 +196,25 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T079 Add `BillingStatus` enum to shared TypeScript types in `frontend/src/types/billing.ts`
-- [ ] T080 Export `AuthMeResponse` type with billing status fields in `frontend/src/types/billing.ts`
-- [ ] T081 Export `LoginResponse` type with billing status fields in `frontend/src/types/billing.ts`
-- [ ] T082 Create frontend-owned billing constants file in `frontend/src/lib/constants/billing-messages.ts`
-- [ ] T083 Export `BILLING_ERROR_CODES` object matching backend values in `frontend/src/lib/constants/billing-messages.ts`
-- [ ] T084 Export `BILLING_BANNER_MESSAGES` for banner component in `frontend/src/lib/constants/billing-messages.ts`
-- [ ] T085 Export `BILLING_TOOLTIP_MESSAGES` for tooltip component in `frontend/src/lib/constants/billing-messages.ts`
-- [ ] T086 Update `LoginResponse` type in API client to include `tenant.billingStatus` in `frontend/src/api/auth.ts`
-- [ ] T087 Update `AuthMeResponse` type in API client to include billing status fields in `frontend/src/api/auth.ts`
-- [ ] T088 Create global API error handler utility in `frontend/src/lib/api-error-handler.ts`
-- [ ] T089 Implement error interceptor for React Query in `frontend/src/lib/api-error-handler.ts`
-- [ ] T090 Implement billing lock detection via structured error code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
-- [ ] T091 Implement redirect to `/billing-locked` (not `/login`) for SUSPENDED status in `frontend/src/lib/api-error-handler.ts`
-- [ ] T092 Implement JWT preservation for PAST_DUE status in `frontend/src/lib/api-error-handler.ts`
-- [ ] T093 Implement toast notification for other billing errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
-- [ ] T094 Integrate error handler with existing error handling infrastructure in `frontend/src/lib/api-error-handler.ts`
-- [ ] T095 Update user context/state management to include billing status in `frontend/src/features/auth/types.ts`
-- [ ] T096 Update auth hooks to fetch and store billing status in `frontend/src/hooks/use-auth.ts`
-- [ ] T097 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/hooks/use-auth.ts`
+- [X] T079 Add `BillingStatus` enum to shared TypeScript types in `frontend/src/types/billing.ts`
+- [X] T080 Export `AuthMeResponse` type with billing status fields in `frontend/src/types/billing.ts`
+- [X] T081 Export `LoginResponse` type with billing status fields in `frontend/src/types/billing.ts`
+- [X] T082 Create frontend-owned billing constants file in `frontend/src/lib/constants/billing-messages.ts`
+- [X] T083 Export `BILLING_ERROR_CODES` object matching backend values in `frontend/src/lib/constants/billing-messages.ts`
+- [X] T084 Export `BILLING_BANNER_MESSAGES` for banner component in `frontend/src/lib/constants/billing-messages.ts`
+- [X] T085 Export `BILLING_TOOLTIP_MESSAGES` for tooltip component in `frontend/src/lib/constants/billing-messages.ts`
+- [X] T086 Update `LoginResponse` type in API client to include `tenant.billingStatus` in `frontend/src/api/auth.ts`
+- [X] T087 Update `AuthMeResponse` type in API client to include billing status fields in `frontend/src/api/auth.ts`
+- [X] T088 Create global API error handler utility in `frontend/src/lib/api-error-handler.ts`
+- [X] T089 Implement error interceptor for React Query in `frontend/src/lib/api-error-handler.ts`
+- [X] T090 Implement billing lock detection via structured error code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
+- [X] T091 Implement redirect to `/billing-locked` (not `/login`) for SUSPENDED status in `frontend/src/lib/api-error-handler.ts`
+- [X] T092 Implement JWT preservation for PAST_DUE status in `frontend/src/lib/api-error-handler.ts`
+- [X] T093 Implement toast notification for other billing errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
+- [X] T094 Integrate error handler with existing error handling infrastructure in `frontend/src/lib/api-error-handler.ts`
+- [X] T095 Update user context/state management to include billing status in `frontend/src/features/auth/types.ts`
+- [X] T096 Update auth hooks to fetch and store billing status in `frontend/src/hooks/use-auth.ts`
+- [X] T097 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/hooks/use-auth.ts`
 
 **Acceptance Criteria:**
 - `BillingStatus` enum matches backend enum values

@@ -75,7 +75,7 @@ export function MembershipDistributionChart({
                 ]}
               />
               <Bar dataKey="activeMemberCount" radius={[0, 4, 4, 0]}>
-                {chartData.map((entry, index) => (
+                {chartData.map((_entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}

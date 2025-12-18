@@ -5,6 +5,10 @@ import axios, {
 } from "axios";
 import { toast } from "sonner";
 import { toApiError } from "@/types/error";
+import {
+  handleBillingError,
+  shouldSkipBillingToast,
+} from "@/lib/api-error-handler";
 
 /**
  * Base API client configuration
@@ -56,7 +60,8 @@ axiosInstance.interceptors.request.use((config) => {
 /**
  * Response interceptor: Handles errors globally
  * - Centralized 401 handling: auto-logout and redirect
- * - Show toast notifications for non-401 errors
+ * - Billing status error handling: detect via error code, redirect to /billing-locked
+ * - Show toast notifications for non-401/non-billing errors
  * - Convert AxiosError to ApiError
  */
 axiosInstance.interceptors.response.use(
@@ -81,24 +86,53 @@ axiosInstance.interceptors.response.use(
       // Redirect to login
       window.location.href = "/login";
       // Don't show toast for 401 errors as user is being redirected
-    } else if (!apiError.skipGlobalToast) {
-      // Show toast for non-401 errors (including network errors)
-      // Skip if error handler has already shown a toast
+    } else if (error.response?.status === 403) {
+      // Handle billing status errors (403 Forbidden)
+      // Check for billing lock error code in response data directly
+      const responseData = error.response?.data;
+      if (
+        responseData &&
+        typeof responseData === "object" &&
+        "code" in responseData &&
+        responseData.code === "TENANT_BILLING_LOCKED"
+      ) {
+        // This is a billing lock error - handle it
+        handleBillingError(apiError);
+        return Promise.reject(apiError);
+      }
+
+      // For other 403 errors, check if it's a PAST_DUE mutation attempt
+      const message = apiError.message?.toLowerCase() || "";
+      if (
+        message.includes("salt okunur") ||
+        message.includes("read-only") ||
+        message.includes("ödeme gecikmesi")
+      ) {
+        // PAST_DUE mutation error - show toast and preserve JWT
+        toast.error("Ödeme Gecikmesi", {
+          description:
+            "Ödemeniz gecikti. Hesabınız şu anda salt okunur modda. Lütfen ödemenizi tamamlayın.",
+        });
+        return Promise.reject(apiError);
+      }
+    }
+
+    // Show toast for other errors (if not skipped)
+    if (!apiError.skipGlobalToast && !shouldSkipBillingToast(apiError)) {
       const message = apiError.message || "";
-      
+
       // For 400 errors with member-related messages, skip global toast
       // Let the hook's onError handler show the specific Turkish message
       const isMemberRelatedError =
         apiError.statusCode === 400 &&
         (message.toLowerCase().includes("üye") ||
           message.toLowerCase().includes("member"));
-      
+
       if (!isMemberRelatedError) {
         toast.error("İşlem sırasında bir hata oluştu", {
           description: message || "Beklenmeyen bir hata oluştu",
         });
       }
-      // For member-related errors, skip toast here - hook will show specific message
     }
 
     // Rethrow ApiError

@@ -1,5 +1,6 @@
 import axios from "axios";
-import type { AuthResponse } from "./types";
+import type { LoginResponse, AuthMeResponse } from "@/types/billing";
+import { apiClient } from "@/api/client";
 
 /**
  * Base URL for API endpoints
@@ -11,14 +12,14 @@ const apiBaseURL =
  * Login API function
  * POST to /api/v1/auth/login with email and password
  *
- * Returns stable, user-friendly error codes (not backend messages)
+ * Returns LoginResponse with billing status included
  */
 export async function login(
   email: string,
   password: string
-): Promise<AuthResponse> {
+): Promise<LoginResponse> {
   try {
-    const response = await axios.post<AuthResponse>(
+    const response = await axios.post<LoginResponse>(
       `${apiBaseURL}/auth/login`,
       { email, password },
       {
@@ -41,4 +42,12 @@ export async function login(
     // Catch-all for non-Axios errors
     throw new Error("LOGIN_FAILED");
   }
+}
+
+/**
+ * Get current user information including billing status
+ * GET /api/v1/auth/me
+ */
+export async function getCurrentUser(): Promise<AuthMeResponse> {
+  return apiClient.get<AuthMeResponse>("/auth/me");
 }
