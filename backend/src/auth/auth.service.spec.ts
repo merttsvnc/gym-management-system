@@ -10,6 +10,9 @@ import {
   BILLING_ERROR_CODES,
   BILLING_ERROR_MESSAGES,
 } from '../common/constants/billing-messages';
+import * as bcrypt from 'bcrypt';
+
+jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -96,8 +99,7 @@ describe('AuthService', () => {
       } as User;
 
       mockUsersRepository.findByEmail.mockResolvedValue(mockUser);
-      const bcrypt = await import('bcrypt');
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       // Act
       const result = await service.validateUser(email, password);
@@ -136,8 +138,7 @@ describe('AuthService', () => {
       } as User;
 
       mockUsersRepository.findByEmail.mockResolvedValue(mockUser);
-      const bcrypt = await import('bcrypt');
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       // Act
       const result = await service.validateUser(

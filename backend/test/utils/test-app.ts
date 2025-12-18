@@ -10,7 +10,10 @@ import { HttpExceptionFilter } from '../../src/common/filters/http-exception.fil
 export async function createTestApp(): Promise<INestApplication> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  })
+    .overrideProvider('THROTTLER_OPTIONS')
+    .useValue({ throttlers: [] }) // Disable throttler for tests
+    .compile();
 
   const app = moduleFixture.createNestApplication();
 

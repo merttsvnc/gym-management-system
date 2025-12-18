@@ -10,6 +10,7 @@ import { setupTestDatabase, cleanupTestDatabase } from './utils/test-db';
 import {
   createTestTenantAndUser,
   createTestBranch,
+  createTestMembershipPlan,
   cleanupTestData,
   loginUser,
   createMockToken,
@@ -44,6 +45,7 @@ describe('Billing Status E2E Tests', () => {
     let pastDueUser: any;
     let pastDueToken: string;
     let branch: any;
+    let membershipPlan: any;
 
     beforeEach(async () => {
       const setup = await createTestTenantAndUser(prisma, {
@@ -63,6 +65,12 @@ describe('Billing Status E2E Tests', () => {
         name: 'Main Branch',
         isDefault: true,
       });
+
+      membershipPlan = await createTestMembershipPlan(
+        prisma,
+        pastDueTenant.id,
+        branch.id,
+      );
 
       // Get token (PAST_DUE tenants can login, so use real login)
       const loginResult = await loginUser(app, pastDueUser.email, 'Pass123!');
@@ -101,12 +109,13 @@ describe('Billing Status E2E Tests', () => {
         data: {
           tenantId: pastDueTenant.id,
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           firstName: 'Jane',
           lastName: 'Doe',
           email: 'jane@example.com',
           phone: '+1234567891',
           gender: 'FEMALE',
-          birthDate: new Date('1990-01-01'),
+          dateOfBirth: new Date('1990-01-01'),
           membershipStartDate: startDate,
           membershipEndDate: endDate,
           membershipPriceAtPurchase: 100,
@@ -132,12 +141,13 @@ describe('Billing Status E2E Tests', () => {
         data: {
           tenantId: pastDueTenant.id,
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           firstName: 'Test',
           lastName: 'Member',
           email: 'test@example.com',
           phone: '+1234567892',
           gender: 'MALE',
-          birthDate: new Date('1990-01-01'),
+          dateOfBirth: new Date('1990-01-01'),
           membershipStartDate: startDate,
           membershipEndDate: endDate,
           membershipPriceAtPurchase: 100,

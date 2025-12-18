@@ -51,6 +51,8 @@ export function initTestDatabase() {
 export async function resetDatabase() {
   try {
     // Delete in order to respect foreign keys
+    await prisma.member.deleteMany();
+    await prisma.membershipPlan.deleteMany();
     await prisma.branch.deleteMany();
     await prisma.user.deleteMany();
     await prisma.tenant.deleteMany();

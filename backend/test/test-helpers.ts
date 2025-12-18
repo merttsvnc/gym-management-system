@@ -210,6 +210,44 @@ export async function createTestBranch(
 }
 
 /**
+ * Creates a test membership plan for a tenant
+ */
+export async function createTestMembershipPlan(
+  prisma: PrismaService,
+  tenantId: string,
+  branchId?: string,
+  data?: {
+    name?: string;
+    price?: number;
+    durationType?: string;
+    durationValue?: number;
+    scope?: string;
+  },
+) {
+  const planName =
+    data?.name ||
+    `Test Plan ${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+  return prisma.membershipPlan.create({
+    data: {
+      tenantId,
+      branchId,
+      scope: (data?.scope as any) || 'TENANT',
+      scopeKey: branchId ? `BRANCH:${branchId}` : 'TENANT',
+      name: planName,
+      description: 'Test plan description',
+      durationType: (data?.durationType as any) || 'MONTHS',
+      durationValue: data?.durationValue || 12,
+      price: data?.price || 100,
+      currency: 'USD',
+      maxFreezeDays: 30,
+      autoRenew: false,
+      status: 'ACTIVE',
+    },
+  });
+}
+
+/**
  * Cleans up test data
  * If tenantIds are provided, only deletes data for those tenants
  * Otherwise, deletes all test data
@@ -241,6 +279,8 @@ export async function cleanupTestData(
   } else {
     // Clean up all test data
     await prisma.user.deleteMany({});
+    await prisma.member.deleteMany({});
+    await prisma.membershipPlan.deleteMany({});
     await prisma.branch.deleteMany({});
     await prisma.tenant.deleteMany({});
   }
