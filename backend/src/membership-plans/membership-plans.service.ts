@@ -230,7 +230,9 @@ export class MembershipPlansService {
     tenantId: string,
     branchId?: string,
     includeMemberCount?: boolean,
-  ): Promise<MembershipPlan[] | (MembershipPlan & { activeMemberCount: number })[]> {
+  ): Promise<
+    MembershipPlan[] | (MembershipPlan & { activeMemberCount: number })[]
+  > {
     // Validate branchId if provided
     if (branchId) {
       await this.validateBranchIdForListing(tenantId, branchId);

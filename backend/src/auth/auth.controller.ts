@@ -1,4 +1,10 @@
-import { Controller, Post, Body, UnauthorizedException, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UnauthorizedException,
+  Get,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SkipBillingStatusCheck } from './decorators/skip-billing-status-check.decorator';

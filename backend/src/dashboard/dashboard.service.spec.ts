@@ -175,7 +175,10 @@ describe('DashboardService', () => {
       mockPrismaService.member.groupBy.mockResolvedValue(mockDistribution);
       mockPrismaService.membershipPlan.findMany.mockResolvedValue(mockPlans);
 
-      const result = await service.getMembershipDistribution(tenantId, branchId);
+      const result = await service.getMembershipDistribution(
+        tenantId,
+        branchId,
+      );
 
       expect(result).toEqual([
         { planId: 'plan-1', planName: 'Basic Plan', activeMemberCount: 15 },
@@ -346,4 +349,3 @@ describe('DashboardService', () => {
     });
   });
 });
-

@@ -464,8 +464,12 @@ describe('MembershipPlans E2E Tests', () => {
         .expect(200);
 
       expect(responseWithoutCount.body).toHaveLength(2);
-      expect(responseWithoutCount.body[0]).not.toHaveProperty('activeMemberCount');
-      expect(responseWithoutCount.body[1]).not.toHaveProperty('activeMemberCount');
+      expect(responseWithoutCount.body[0]).not.toHaveProperty(
+        'activeMemberCount',
+      );
+      expect(responseWithoutCount.body[1]).not.toHaveProperty(
+        'activeMemberCount',
+      );
 
       // Test with includeMemberCount=true (should have activeMemberCount)
       const responseWithCount = await request(app.getHttpServer())
@@ -474,10 +478,14 @@ describe('MembershipPlans E2E Tests', () => {
         .expect(200);
 
       expect(responseWithCount.body).toHaveLength(2);
-      
+
       // Find plan1 and plan2 in response
-      const plan1Response = responseWithCount.body.find((p: any) => p.id === plan1.id);
-      const plan2Response = responseWithCount.body.find((p: any) => p.id === plan2.id);
+      const plan1Response = responseWithCount.body.find(
+        (p: any) => p.id === plan1.id,
+      );
+      const plan2Response = responseWithCount.body.find(
+        (p: any) => p.id === plan2.id,
+      );
 
       expect(plan1Response).toBeDefined();
       expect(plan1Response).toHaveProperty('activeMemberCount');

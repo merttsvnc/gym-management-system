@@ -108,9 +108,10 @@ export class BillingStatusGuard implements CanActivate {
             `Billing status restriction: PAST_DUE tenant mutation blocked, tenantId: ${tenantId}, method: ${method}, path: ${path}, executionTime: ${executionTime}ms`,
           );
 
-          throw new ForbiddenException(
-            BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
-          );
+          throw new ForbiddenException({
+            code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+            message: BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
+          });
         }
 
         // Allow read operations
@@ -150,4 +151,3 @@ export class BillingStatusGuard implements CanActivate {
     }
   }
 }
-

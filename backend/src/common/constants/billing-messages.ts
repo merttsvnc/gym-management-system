@@ -23,10 +23,14 @@ export const BILLING_ERROR_CODES = {
  * Frontend owns all UI strings (banners, tooltips, etc.)
  */
 export const BILLING_ERROR_MESSAGES = {
-  SUSPENDED_LOGIN: 'Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin.',
-  SUSPENDED_ACCESS: 'Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin.',
-  PAST_DUE_MUTATION: 'Ödeme gecikmesi nedeniyle hesabınız salt okunur modda. Lütfen ödemenizi tamamlayın.',
-  BILLING_STATUS_UPDATE_FORBIDDEN: 'Faturalama durumu API üzerinden güncellenemez.',
-  RATE_LIMIT_EXCEEDED: 'Çok fazla giriş denemesi. Lütfen bir süre sonra tekrar deneyin.',
+  SUSPENDED_LOGIN:
+    'Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin.',
+  SUSPENDED_ACCESS:
+    'Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin.',
+  PAST_DUE_MUTATION:
+    'Ödeme gecikmesi nedeniyle hesabınız salt okunur modda. Lütfen ödemenizi tamamlayın.',
+  BILLING_STATUS_UPDATE_FORBIDDEN:
+    'Faturalama durumu API üzerinden güncellenemez.',
+  RATE_LIMIT_EXCEEDED:
+    'Çok fazla giriş denemesi. Lütfen bir süre sonra tekrar deneyin.',
 } as const;
-
