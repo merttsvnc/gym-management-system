@@ -6,7 +6,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { MemberStatus } from '@prisma/client';
 
 describe('DashboardService', () => {
   let service: DashboardService;

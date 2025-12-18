@@ -52,7 +52,11 @@ export class BillingStatusGuard implements CanActivate {
     }
 
     const startTime = Date.now();
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<{
+      user?: { tenantId?: string };
+      method: string;
+      url: string;
+    }>();
     const user = request.user;
 
     // Extract tenantId from JWT (set by TenantGuard)
@@ -62,9 +66,9 @@ export class BillingStatusGuard implements CanActivate {
       throw new ForbiddenException('Tenant context not found');
     }
 
-    const tenantId = user.tenantId;
-    const method = request.method;
-    const path = request.url;
+    const tenantId: string = user.tenantId;
+    const method: string = request.method;
+    const path: string = request.url;
 
     try {
       // Query Tenant table to fetch billingStatus

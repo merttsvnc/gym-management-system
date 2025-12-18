@@ -26,7 +26,6 @@ describe('Dashboard E2E Tests', () => {
   let token1: string;
   let tenant2: any;
   let user2: any;
-  let token2: string;
   let plan1: any;
   let plan2: any;
 
