@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useCurrentTenant } from "@/hooks/useTenant";
 import { useMember, useUpdateMember } from "@/hooks/useMembers";
 import { MemberForm } from "@/components/members/MemberForm";
+import { useIsReadOnly } from "@/hooks/use-billing-status";
 import type { UpdateMemberPayload } from "@/types/member";
 import type { ApiError } from "@/types/error";
 
@@ -23,6 +24,7 @@ export function EditMemberPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
+  const isReadOnly = useIsReadOnly();
   const {
     data: member,
     isLoading: memberLoading,
@@ -117,6 +119,7 @@ export function EditMemberPage() {
             isLoading={updateMember.isPending}
             error={updateMember.error}
             tenantId={tenant.id}
+            readOnly={isReadOnly}
           />
         </CardContent>
       </Card>

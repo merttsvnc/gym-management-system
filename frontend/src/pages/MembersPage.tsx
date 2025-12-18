@@ -8,10 +8,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCurrentTenant } from "@/hooks/useTenant";
 import { useMembers } from "@/hooks/useMembers";
 import { MemberList } from "@/components/members/MemberList";
 import { MemberStatus } from "@/types/member";
+import { useIsReadOnly } from "@/hooks/use-billing-status";
+import { BILLING_TOOLTIP_MESSAGES } from "@/lib/constants/billing-messages";
 
 /**
  * Member List Page
@@ -20,6 +28,7 @@ import { MemberStatus } from "@/types/member";
 export function MembersPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
   const navigate = useNavigate();
+  const isReadOnly = useIsReadOnly();
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [search, setSearch] = useState("");
@@ -81,7 +90,25 @@ export function MembersPage() {
             Üyelerinizi görüntüleyin ve yönetin.
           </p>
         </div>
-        <Button onClick={() => navigate("/members/new")}>Yeni Üye</Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  onClick={() => navigate("/members/new")}
+                  disabled={isReadOnly}
+                >
+                  Yeni Üye
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {isReadOnly && (
+              <TooltipContent>
+                <p>{BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <Card className="w-full">
@@ -102,6 +129,7 @@ export function MembersPage() {
             onStatusFilterChange={setStatusFilter}
             membershipTypeFilter={membershipTypeFilter}
             onMembershipTypeFilterChange={setMembershipTypeFilter}
+            readOnly={isReadOnly}
           />
 
           {/* Pagination */}

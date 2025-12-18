@@ -30,6 +30,7 @@ interface PlanFormProps {
   onCancel?: () => void;
   isLoading?: boolean;
   error?: ApiError | null;
+  readOnly?: boolean;
 }
 
 /**
@@ -43,6 +44,7 @@ export function PlanForm({
   onCancel,
   isLoading = false,
   error,
+  readOnly = false,
 }: PlanFormProps) {
   const { data: tenant } = useCurrentTenant();
   const { data: branchesData } = useBranches(tenant?.id || "", {
@@ -243,7 +245,7 @@ export function PlanForm({
                   if (errors.scope) setErrors({ ...errors, scope: "" });
                   if (errors.branchId) setErrors({ ...errors, branchId: "" });
                 }}
-                disabled={isLoading}
+                disabled={isLoading || readOnly}
               >
                 <SelectTrigger id="scope">
                   <SelectValue />
@@ -276,7 +278,7 @@ export function PlanForm({
                     if (errors.branchId)
                       setErrors({ ...errors, branchId: "" });
                   }}
-                  disabled={isLoading}
+                  disabled={isLoading || readOnly}
                 >
                   <SelectTrigger id="branchId">
                     <SelectValue placeholder="Şube seçin" />
@@ -338,7 +340,7 @@ export function PlanForm({
             }}
             placeholder="Örn: Temel 1 Aylık Plan"
             className={errors.name ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.name && (
             <p className="text-sm text-destructive">{errors.name}</p>
@@ -358,7 +360,7 @@ export function PlanForm({
             placeholder="Plan hakkında açıklama..."
             rows={3}
             className={errors.description ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.description && (
             <p className="text-sm text-destructive">{errors.description}</p>
@@ -377,7 +379,7 @@ export function PlanForm({
               if (errors.durationType)
                 setErrors({ ...errors, durationType: "" });
             }}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           >
             <SelectTrigger id="durationType">
               <SelectValue />
@@ -410,7 +412,7 @@ export function PlanForm({
             min={1}
             max={durationType === DurationType.DAYS ? 730 : 24}
             className={errors.durationValue ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.durationValue && (
             <p className="text-sm text-destructive">{errors.durationValue}</p>
@@ -439,7 +441,7 @@ export function PlanForm({
             placeholder="0.00"
             min="0"
             className={errors.price ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.price && (
             <p className="text-sm text-destructive">{errors.price}</p>
@@ -461,7 +463,7 @@ export function PlanForm({
             placeholder="TRY"
             maxLength={3}
             className={errors.currency ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.currency && (
             <p className="text-sm text-destructive">{errors.currency}</p>
@@ -486,7 +488,7 @@ export function PlanForm({
             placeholder="Boş bırakılabilir"
             min="0"
             className={errors.maxFreezeDays ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.maxFreezeDays && (
             <p className="text-sm text-destructive">{errors.maxFreezeDays}</p>
@@ -509,7 +511,7 @@ export function PlanForm({
             }}
             placeholder="Boş bırakılabilir"
             className={errors.sortOrder ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.sortOrder && (
             <p className="text-sm text-destructive">{errors.sortOrder}</p>
@@ -528,7 +530,7 @@ export function PlanForm({
               onCheckedChange={(checked) => {
                 setAutoRenew(checked === true);
               }}
-              disabled={isLoading}
+              disabled={isLoading || readOnly}
             />
             <Label htmlFor="autoRenew" className="cursor-pointer">
               Otomatik Yenileme
@@ -555,18 +557,20 @@ export function PlanForm({
             type="button"
             variant="outline"
             onClick={onCancel}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           >
             İptal
           </Button>
         )}
-        <Button type="submit" disabled={isLoading}>
-          {isLoading
-            ? "Kaydediliyor..."
-            : mode === "create"
-            ? "Kaydet"
-            : "Güncelle"}
-        </Button>
+        {!readOnly && (
+          <Button type="submit" disabled={isLoading || readOnly}>
+            {isLoading
+              ? "Kaydediliyor..."
+              : mode === "create"
+              ? "Kaydet"
+              : "Güncelle"}
+          </Button>
+        )}
       </div>
     </form>
   );

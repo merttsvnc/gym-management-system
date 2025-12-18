@@ -2,6 +2,12 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -46,6 +52,8 @@ import {
   useDeletePlan,
   useActivePlans,
 } from "@/hooks/use-membership-plans";
+import { useIsReadOnly } from "@/hooks/use-billing-status";
+import { BILLING_TOOLTIP_MESSAGES } from "@/lib/constants/billing-messages";
 import {
   PlanScope,
   PlanStatus,
@@ -103,6 +111,7 @@ function getPlanStatus(plan: MembershipPlan): {
 export function MembershipPlansPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
   const navigate = useNavigate();
+  const isReadOnly = useIsReadOnly();
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [searchQuery, setSearchQuery] = useState("");
@@ -274,9 +283,25 @@ export function MembershipPlansPage() {
             Üyelik planlarınızı görüntüleyin ve yönetin.
           </p>
         </div>
-        <Button onClick={() => navigate("/membership-plans/new")}>
-          Yeni Plan
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  onClick={() => navigate("/membership-plans/new")}
+                  disabled={isReadOnly}
+                >
+                  Yeni Plan
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {isReadOnly && (
+              <TooltipContent>
+                <p>{BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <Card className="w-full">
@@ -436,12 +461,30 @@ export function MembershipPlansPage() {
                   {!searchQuery &&
                     scopeFilter === "ALL" &&
                     !includeArchived && (
-                      <Button
-                        className="mt-4"
-                        onClick={() => navigate("/membership-plans/new")}
-                      >
-                        İlk Planı Oluştur
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                className="mt-4"
+                                onClick={() =>
+                                  navigate("/membership-plans/new")
+                                }
+                                disabled={isReadOnly}
+                              >
+                                İlk Planı Oluştur
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {isReadOnly && (
+                            <TooltipContent>
+                              <p>
+                                {BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}
+                              </p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                 </div>
               ) : (
@@ -525,45 +568,122 @@ export function MembershipPlansPage() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      navigate(
-                                        `/membership-plans/${plan.id}/edit`
-                                      )
-                                    }
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                              navigate(
+                                                `/membership-plans/${plan.id}/edit`
+                                              )
+                                            }
+                                            disabled={isReadOnly}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {isReadOnly && (
+                                        <TooltipContent>
+                                          <p>
+                                            {BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}
+                                          </p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   {status.isArchived ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleRestore(plan)}
-                                      disabled={restorePlan.isPending}
-                                    >
-                                      <ArchiveRestore className="h-4 w-4" />
-                                    </Button>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleRestore(plan)}
+                                              disabled={
+                                                restorePlan.isPending ||
+                                                isReadOnly
+                                              }
+                                            >
+                                              <ArchiveRestore className="h-4 w-4" />
+                                            </Button>
+                                          </span>
+                                        </TooltipTrigger>
+                                        {isReadOnly && (
+                                          <TooltipContent>
+                                            <p>
+                                              {
+                                                BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY
+                                              }
+                                            </p>
+                                          </TooltipContent>
+                                        )}
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   ) : (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleArchive(plan)}
-                                      disabled={archivePlan.isPending}
-                                    >
-                                      <Archive className="h-4 w-4" />
-                                    </Button>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() =>
+                                                handleArchive(plan)
+                                              }
+                                              disabled={
+                                                archivePlan.isPending ||
+                                                isReadOnly
+                                              }
+                                            >
+                                              <Archive className="h-4 w-4" />
+                                            </Button>
+                                          </span>
+                                        </TooltipTrigger>
+                                        {isReadOnly && (
+                                          <TooltipContent>
+                                            <p>
+                                              {
+                                                BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY
+                                              }
+                                            </p>
+                                          </TooltipContent>
+                                        )}
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDelete(plan)}
-                                    disabled={deletePlan.isPending}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDelete(plan)}
+                                            disabled={
+                                              deletePlan.isPending || isReadOnly
+                                            }
+                                            className="text-destructive hover:text-destructive"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {isReadOnly && (
+                                        <TooltipContent>
+                                          <p>
+                                            {
+                                              BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY
+                                            }
+                                          </p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </div>
                               </TableCell>
                             </TableRow>

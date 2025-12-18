@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,6 +40,7 @@ interface MemberListProps {
   onStatusFilterChange: (status: MemberStatus | "ALL") => void;
   membershipTypeFilter: string | "ALL";
   onMembershipTypeFilterChange: (type: string | "ALL") => void;
+  readOnly?: boolean;
 }
 
 /**
@@ -68,6 +75,7 @@ export function MemberList({
   onStatusFilterChange,
   membershipTypeFilter,
   onMembershipTypeFilterChange,
+  readOnly = false,
 }: MemberListProps) {
   const [localSearch, setLocalSearch] = useState(search);
   const debouncedSearch = useDebounce(localSearch, 300);
@@ -207,9 +215,39 @@ export function MemberList({
                       <Button variant="ghost" size="sm" asChild>
                         <Link to={`/members/${member.id}`}>Detay</Link>
                       </Button>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/members/${member.id}/edit`}>Düzenle</Link>
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                asChild
+                                disabled={readOnly}
+                              >
+                                <Link
+                                  to={`/members/${member.id}/edit`}
+                                  onClick={(e) => {
+                                    if (readOnly) {
+                                      e.preventDefault();
+                                    }
+                                  }}
+                                >
+                                  Düzenle
+                                </Link>
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {readOnly && (
+                            <TooltipContent>
+                              <p>
+                                Ödeme gecikmesi nedeniyle hesabınız salt okunur
+                                modda.
+                              </p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </TableCell>
                 </TableRow>

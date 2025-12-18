@@ -12,7 +12,9 @@ import { MembershipPlansPage } from "./pages/MembershipPlansPage";
 import { CreatePlanPage } from "./pages/CreatePlanPage";
 import { EditPlanPage } from "./pages/EditPlanPage";
 import { LoginPage } from "./pages/LoginPage";
+import { BillingLockedPage } from "./pages/BillingLockedPage";
 import { ProtectedRoute } from "./features/auth/ProtectedRoute";
+import { BillingStatusGuard } from "./features/auth/BillingStatusGuard";
 import { Toaster } from "@/components/ui/sonner";
 
 function App() {
@@ -21,11 +23,21 @@ function App() {
       <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
+        path="/billing-locked"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <Outlet />
-            </AppLayout>
+            <BillingLockedPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <BillingStatusGuard>
+              <AppLayout>
+                <Outlet />
+              </AppLayout>
+            </BillingStatusGuard>
           </ProtectedRoute>
         }
       >

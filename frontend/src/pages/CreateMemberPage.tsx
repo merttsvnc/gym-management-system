@@ -9,6 +9,7 @@ import {
 import { useCurrentTenant } from "@/hooks/useTenant";
 import { useCreateMember } from "@/hooks/useMembers";
 import { MemberForm } from "@/components/members/MemberForm";
+import { useIsReadOnly } from "@/hooks/use-billing-status";
 import type { CreateMemberPayload, UpdateMemberPayload } from "@/types/member";
 
 /**
@@ -18,6 +19,7 @@ import type { CreateMemberPayload, UpdateMemberPayload } from "@/types/member";
 export function CreateMemberPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
   const navigate = useNavigate();
+  const isReadOnly = useIsReadOnly();
   const createMember = useCreateMember(tenant?.id || "");
 
   const handleSubmit = async (
@@ -76,6 +78,7 @@ export function CreateMemberPage() {
             isLoading={createMember.isPending}
             error={createMember.error}
             tenantId={tenant.id}
+            readOnly={isReadOnly}
           />
         </CardContent>
       </Card>

@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useCurrentTenant } from "@/hooks/useTenant";
+import { useIsReadOnly } from "@/hooks/use-billing-status";
+import { BILLING_TOOLTIP_MESSAGES } from "@/lib/constants/billing-messages";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   useBranches,
   useArchiveBranch,
@@ -39,6 +47,7 @@ function formatDate(dateString: string): string {
 
 export function BranchesPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
+  const isReadOnly = useIsReadOnly();
   const [includeArchived, setIncludeArchived] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -162,13 +171,34 @@ export function BranchesPage() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            disabled={!canCreateBranch}
-          >
-            Yeni Şube
-          </Button>
-          {!canCreateBranch && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    onClick={() => setCreateDialogOpen(true)}
+                    disabled={!canCreateBranch || isReadOnly}
+                  >
+                    Yeni Şube
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {isReadOnly && (
+                <TooltipContent>
+                  <p>{BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}</p>
+                </TooltipContent>
+              )}
+              {!isReadOnly && !canCreateBranch && (
+                <TooltipContent>
+                  <p>
+                    Plan limitine ulaştınız. Mevcut planınız en fazla{" "}
+                    {MAX_BRANCHES_SINGLE_PLAN} şubeye izin veriyor.
+                  </p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+          {!canCreateBranch && !isReadOnly && (
             <p className="text-xs text-muted-foreground mt-1">
               Plan limitine ulaştınız.
               <br />
@@ -304,59 +334,136 @@ export function BranchesPage() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2 items-center flex-wrap">
                             {!branch.archivedAt && !branch.isDefault && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSetDefault(branch.id)}
-                                disabled={setDefaultBranch.isPending}
-                                className="h-8 text-xs sm:text-sm whitespace-nowrap"
-                              >
-                                Varsayılan Yap
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleSetDefault(branch.id)
+                                        }
+                                        disabled={
+                                          setDefaultBranch.isPending ||
+                                          isReadOnly
+                                        }
+                                        className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                      >
+                                        Varsayılan Yap
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  {isReadOnly && (
+                                    <TooltipContent>
+                                      <p>
+                                        {BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}
+                                      </p>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                             {!branch.archivedAt && (
                               <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setEditingBranch(branch);
-                                    setEditDialogOpen(true);
-                                  }}
-                                  className="h-8 text-xs sm:text-sm whitespace-nowrap"
-                                >
-                                  Düzenle
-                                </Button>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setEditingBranch(branch);
+                                            setEditDialogOpen(true);
+                                          }}
+                                          disabled={isReadOnly}
+                                          className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                        >
+                                          Düzenle
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    {isReadOnly && (
+                                      <TooltipContent>
+                                        <p>
+                                          {
+                                            BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY
+                                          }
+                                        </p>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
                                 {!branch.isDefault && (
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleArchive(branch.id)}
-                                    disabled={archiveBranch.isPending}
-                                    className="h-8 text-xs sm:text-sm whitespace-nowrap"
-                                  >
-                                    Arşivle
-                                  </Button>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() =>
+                                              handleArchive(branch.id)
+                                            }
+                                            disabled={
+                                              archiveBranch.isPending ||
+                                              isReadOnly
+                                            }
+                                            className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                          >
+                                            Arşivle
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {isReadOnly && (
+                                        <TooltipContent>
+                                          <p>
+                                            {
+                                              BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY
+                                            }
+                                          </p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 )}
                               </>
                             )}
                             {branch.archivedAt && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleRestore(branch.id)}
-                                disabled={
-                                  restoreBranch.isPending || hasReachedLimit
-                                }
-                                className="h-8 text-xs sm:text-sm whitespace-nowrap"
-                                title={
-                                  hasReachedLimit
-                                    ? "Plan limitine ulaşıldı. Başka bir şubeyi arşivleyin."
-                                    : undefined
-                                }
-                              >
-                                Geri Yükle
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRestore(branch.id)}
+                                        disabled={
+                                          restoreBranch.isPending ||
+                                          hasReachedLimit ||
+                                          isReadOnly
+                                        }
+                                        className="h-8 text-xs sm:text-sm whitespace-nowrap"
+                                        title={
+                                          hasReachedLimit
+                                            ? "Plan limitine ulaşıldı. Başka bir şubeyi arşivleyin."
+                                            : undefined
+                                        }
+                                      >
+                                        Geri Yükle
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  {isReadOnly && (
+                                    <TooltipContent>
+                                      <p>
+                                        {BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}
+                                      </p>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                           </div>
                         </TableCell>
@@ -417,57 +524,128 @@ export function BranchesPage() {
                     </div>
                     <div className="flex justify-end gap-2 pt-4 border-t">
                       {!branch.archivedAt && !branch.isDefault && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSetDefault(branch.id)}
-                          disabled={setDefaultBranch.isPending}
-                          className="h-8 text-xs"
-                        >
-                          Varsayılan Yap
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSetDefault(branch.id)}
+                                  disabled={
+                                    setDefaultBranch.isPending || isReadOnly
+                                  }
+                                  className="h-8 text-xs"
+                                >
+                                  Varsayılan Yap
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            {isReadOnly && (
+                              <TooltipContent>
+                                <p>
+                                  {BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}
+                                </p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       {!branch.archivedAt && (
                         <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingBranch(branch);
-                              setEditDialogOpen(true);
-                            }}
-                            className="h-8 text-xs"
-                          >
-                            Düzenle
-                          </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingBranch(branch);
+                                      setEditDialogOpen(true);
+                                    }}
+                                    disabled={isReadOnly}
+                                    className="h-8 text-xs"
+                                  >
+                                    Düzenle
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {isReadOnly && (
+                                <TooltipContent>
+                                  <p>
+                                    {BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}
+                                  </p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
                           {!branch.isDefault && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleArchive(branch.id)}
-                              disabled={archiveBranch.isPending}
-                              className="h-8 text-xs"
-                            >
-                              Arşivle
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleArchive(branch.id)}
+                                      disabled={
+                                        archiveBranch.isPending || isReadOnly
+                                      }
+                                      className="h-8 text-xs"
+                                    >
+                                      Arşivle
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                {isReadOnly && (
+                                  <TooltipContent>
+                                    <p>
+                                      {
+                                        BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY
+                                      }
+                                    </p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </>
                       )}
                       {branch.archivedAt && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRestore(branch.id)}
-                          disabled={restoreBranch.isPending || hasReachedLimit}
-                          className="h-8 text-xs"
-                          title={
-                            hasReachedLimit
-                              ? "Plan limitine ulaşıldı. Başka bir şubeyi arşivleyin."
-                              : undefined
-                          }
-                        >
-                          Geri Yükle
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRestore(branch.id)}
+                                  disabled={
+                                    restoreBranch.isPending ||
+                                    hasReachedLimit ||
+                                    isReadOnly
+                                  }
+                                  className="h-8 text-xs"
+                                  title={
+                                    hasReachedLimit
+                                      ? "Plan limitine ulaşıldı. Başka bir şubeyi arşivleyin."
+                                      : undefined
+                                  }
+                                >
+                                  Geri Yükle
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            {isReadOnly && (
+                              <TooltipContent>
+                                <p>
+                                  {BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}
+                                </p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                   </div>

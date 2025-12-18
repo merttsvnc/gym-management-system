@@ -31,6 +31,7 @@ interface MemberFormProps {
   isLoading?: boolean;
   error?: ApiError | null;
   tenantId: string;
+  readOnly?: boolean;
 }
 
 /**
@@ -44,6 +45,7 @@ export function MemberForm({
   isLoading = false,
   error,
   tenantId,
+  readOnly = false,
 }: MemberFormProps) {
   // Get today's date in YYYY-MM-DD format for default
   const today = new Date().toISOString().split("T")[0];
@@ -236,7 +238,7 @@ export function MemberForm({
                 }
                 if (errors.branchId) setErrors({ ...errors, branchId: "" });
               }}
-              disabled={isLoading}
+              disabled={isLoading || readOnly}
             >
               <SelectTrigger
                 id="branchId"
@@ -274,7 +276,7 @@ export function MemberForm({
             }}
             placeholder="Ad"
             className={errors.firstName ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.firstName && (
             <p className="text-sm text-destructive">{errors.firstName}</p>
@@ -295,7 +297,7 @@ export function MemberForm({
             }}
             placeholder="Soyad"
             className={errors.lastName ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.lastName && (
             <p className="text-sm text-destructive">{errors.lastName}</p>
@@ -317,7 +319,7 @@ export function MemberForm({
             }}
             placeholder="+90 555 123 4567"
             className={errors.phone ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.phone && (
             <p className="text-sm text-destructive">{errors.phone}</p>
@@ -337,7 +339,7 @@ export function MemberForm({
             }}
             placeholder="ornek@email.com"
             className={errors.email ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.email && (
             <p className="text-sm text-destructive">{errors.email}</p>
@@ -353,7 +355,7 @@ export function MemberForm({
               setGender(value as MemberGender | "");
               if (errors.gender) setErrors({ ...errors, gender: "" });
             }}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           >
             <SelectTrigger id="gender">
               <SelectValue placeholder="Cinsiyet seçin" />
@@ -377,7 +379,7 @@ export function MemberForm({
               if (errors.dateOfBirth) setErrors({ ...errors, dateOfBirth: "" });
             }}
             className={errors.dateOfBirth ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.dateOfBirth && (
             <p className="text-sm text-destructive">{errors.dateOfBirth}</p>
@@ -400,7 +402,7 @@ export function MemberForm({
                 if (errors.membershipPlanId)
                   setErrors({ ...errors, membershipPlanId: "" });
               }}
-              disabled={isLoading}
+              disabled={isLoading || readOnly}
               branchId={branchId}
               requireBranch={true}
             />
@@ -425,7 +427,7 @@ export function MemberForm({
                 setErrors({ ...errors, membershipStartDate: "" });
             }}
             className={errors.membershipStartDate ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.membershipStartDate && (
             <p className="text-sm text-destructive">
@@ -458,7 +460,7 @@ export function MemberForm({
             placeholder="Üye hakkında notlar..."
             rows={4}
             className={errors.notes ? "border-destructive" : ""}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           />
           {errors.notes && (
             <p className="text-sm text-destructive">{errors.notes}</p>
@@ -481,18 +483,20 @@ export function MemberForm({
             type="button"
             variant="outline"
             onClick={onCancel}
-            disabled={isLoading}
+            disabled={isLoading || readOnly}
           >
             İptal
           </Button>
         )}
-        <Button type="submit" disabled={isLoading}>
-          {isLoading
-            ? "Kaydediliyor..."
-            : mode === "create"
-            ? "Kaydet"
-            : "Güncelle"}
-        </Button>
+        {!readOnly && (
+          <Button type="submit" disabled={isLoading || readOnly}>
+            {isLoading
+              ? "Kaydediliyor..."
+              : mode === "create"
+              ? "Kaydet"
+              : "Güncelle"}
+          </Button>
+        )}
       </div>
     </form>
   );

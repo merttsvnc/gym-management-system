@@ -17,6 +17,14 @@ import {
   useRestorePlan,
 } from "@/hooks/use-membership-plans";
 import { PlanForm } from "@/components/membership-plans/PlanForm";
+import { useIsReadOnly } from "@/hooks/use-billing-status";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { BILLING_TOOLTIP_MESSAGES } from "@/lib/constants/billing-messages";
 import { PlanStatus } from "@/types/membership-plan";
 import type { UpdatePlanPayload } from "@/types/membership-plan";
 import { toast } from "sonner";
@@ -31,6 +39,7 @@ export function EditPlanPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
+  const isReadOnly = useIsReadOnly();
   const {
     data: plan,
     isLoading: planLoading,
@@ -144,17 +153,38 @@ export function EditPlanPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {isArchived ? (
-            <Button variant="outline" onClick={handleRestore}>
-              <ArchiveRestore className="h-4 w-4 mr-2" />
-              Geri Yükle
-            </Button>
-          ) : (
-            <Button variant="outline" onClick={handleArchive}>
-              <Archive className="h-4 w-4 mr-2" />
-              Arşivle
-            </Button>
-          )}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  {isArchived ? (
+                    <Button
+                      variant="outline"
+                      onClick={handleRestore}
+                      disabled={isReadOnly}
+                    >
+                      <ArchiveRestore className="h-4 w-4 mr-2" />
+                      Geri Yükle
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={handleArchive}
+                      disabled={isReadOnly}
+                    >
+                      <Archive className="h-4 w-4 mr-2" />
+                      Arşivle
+                    </Button>
+                  )}
+                </span>
+              </TooltipTrigger>
+              {isReadOnly && (
+                <TooltipContent>
+                  <p>{BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -183,6 +213,7 @@ export function EditPlanPage() {
             onCancel={() => navigate("/membership-plans")}
             isLoading={updatePlan.isPending}
             error={updatePlan.error}
+            readOnly={isReadOnly}
           />
         </CardContent>
       </Card>

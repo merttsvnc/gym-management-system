@@ -9,6 +9,7 @@ import {
 import { useCurrentTenant } from "@/hooks/useTenant";
 import { useCreatePlan } from "@/hooks/use-membership-plans";
 import { PlanForm } from "@/components/membership-plans/PlanForm";
+import { useIsReadOnly } from "@/hooks/use-billing-status";
 import type {
   CreatePlanPayload,
   UpdatePlanPayload,
@@ -21,6 +22,7 @@ import type {
 export function CreatePlanPage() {
   const { data: tenant, isLoading: tenantLoading } = useCurrentTenant();
   const navigate = useNavigate();
+  const isReadOnly = useIsReadOnly();
   const createPlan = useCreatePlan(tenant?.id || "");
 
   const handleSubmit = async (data: CreatePlanPayload | UpdatePlanPayload) => {
@@ -80,6 +82,7 @@ export function CreatePlanPage() {
             onCancel={() => navigate("/membership-plans")}
             isLoading={createPlan.isPending}
             error={createPlan.error}
+            readOnly={isReadOnly}
           />
         </CardContent>
       </Card>
