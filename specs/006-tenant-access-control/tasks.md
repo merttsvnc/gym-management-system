@@ -136,44 +136,44 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [ ] T041 Create unit test file for `BillingStatusGuard` in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T042 Test guard allows ACTIVE tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T043 Test guard allows TRIAL tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T044 Test guard blocks PAST_DUE tenant POST/PATCH/DELETE requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T045 Test guard allows PAST_DUE tenant GET requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T046 Test guard blocks SUSPENDED tenant all requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T047 Test guard extracts tenantId from JWT correctly in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T048 Test guard handles missing tenantId gracefully (returns 401) in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [ ] T049 Update `AuthService` unit tests for billing status checks in `backend/src/auth/auth.service.spec.ts`
-- [ ] T050 Test `login()` rejects SUSPENDED tenant with 403 and error code in `backend/src/auth/auth.service.spec.ts`
-- [ ] T051 Test `login()` allows PAST_DUE tenant (returns billing status) in `backend/src/auth/auth.service.spec.ts`
-- [ ] T052 Test `login()` allows ACTIVE/TRIAL tenant normally in `backend/src/auth/auth.service.spec.ts`
-- [ ] T053 Test rate limiting blocks login attempts after threshold in `backend/src/auth/auth.service.spec.ts`
-- [ ] T054 Update `TenantsService` unit tests for billing status rejection in `backend/src/tenants/tenants.service.spec.ts`
-- [ ] T055 Test `update()` rejects `billingStatus` field in update data in `backend/src/tenants/tenants.service.spec.ts`
-- [ ] T056 Test `update()` throws 403 Forbidden if `billingStatus` included in `backend/src/tenants/tenants.service.spec.ts`
-- [ ] T057 Test `update()` allows `name` and `defaultCurrency` updates normally in `backend/src/tenants/tenants.service.spec.ts`
-- [ ] T058 Create E2E test file for billing status in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T059 Test POST /api/v1/members returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T060 Test GET /api/v1/members returns 200 for PAST_DUE tenant (read-only) in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T061 Test PATCH /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T062 Test DELETE /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T063 Test all mutation endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T064 Test GET endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T065 Test POST /api/v1/auth/login returns 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T066 Test POST /api/v1/auth/login returns 200 for PAST_DUE tenant (with billing status) in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T067 Test PUT /api/v1/tenants/:id rejects billingStatus field with 403 in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T068 Test tenant isolation maintained (billing status restrictions do not bypass tenant scoping) in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T069 Test E2E-001: PAST_DUE tenant can view members but cannot create new member in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T070 Test E2E-002: PAST_DUE tenant can view plans but cannot update plan in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T071 Test E2E-003: SUSPENDED tenant cannot login (403 on login endpoint) in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T072 Test E2E-004: SUSPENDED tenant sees error message on login page in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T073 Test E2E-005: ACTIVE tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T074 Test E2E-006: TRIAL tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T075 Test E2E-007: Tenant cannot update own billingStatus via API (403 Forbidden) in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T076 Test E2E-008: Database update of billingStatus (PAST_DUE → ACTIVE) immediately allows mutations in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T077 Test E2E-009: Database update of billingStatus (ACTIVE → SUSPENDED) blocks next login attempt in `backend/test/billing-status.e2e-spec.ts`
-- [ ] T078 Test E2E-010: Mid-session billing status change (ACTIVE → PAST_DUE) blocks next mutation request in `backend/test/billing-status.e2e-spec.ts`
+- [X] T041 Create unit test file for `BillingStatusGuard` in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T042 Test guard allows ACTIVE tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T043 Test guard allows TRIAL tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T044 Test guard blocks PAST_DUE tenant POST/PATCH/DELETE requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T045 Test guard allows PAST_DUE tenant GET requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T046 Test guard blocks SUSPENDED tenant all requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T047 Test guard extracts tenantId from JWT correctly in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T048 Test guard handles missing tenantId gracefully (returns 401) in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [X] T049 Update `AuthService` unit tests for billing status checks in `backend/src/auth/auth.service.spec.ts`
+- [X] T050 Test `login()` rejects SUSPENDED tenant with 403 and error code in `backend/src/auth/auth.service.spec.ts`
+- [X] T051 Test `login()` allows PAST_DUE tenant (returns billing status) in `backend/src/auth/auth.service.spec.ts`
+- [X] T052 Test `login()` allows ACTIVE/TRIAL tenant normally in `backend/src/auth/auth.service.spec.ts`
+- [X] T053 Test rate limiting blocks login attempts after threshold in `backend/src/auth/auth.service.spec.ts`
+- [X] T054 Update `TenantsService` unit tests for billing status rejection in `backend/src/tenants/tenants.service.spec.ts`
+- [X] T055 Test `update()` rejects `billingStatus` field in update data in `backend/src/tenants/tenants.service.spec.ts`
+- [X] T056 Test `update()` throws 403 Forbidden if `billingStatus` included in `backend/src/tenants/tenants.service.spec.ts`
+- [X] T057 Test `update()` allows `name` and `defaultCurrency` updates normally in `backend/src/tenants/tenants.service.spec.ts`
+- [X] T058 Create E2E test file for billing status in `backend/test/billing-status.e2e-spec.ts`
+- [X] T059 Test POST /api/v1/members returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
+- [X] T060 Test GET /api/v1/members returns 200 for PAST_DUE tenant (read-only) in `backend/test/billing-status.e2e-spec.ts`
+- [X] T061 Test PATCH /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
+- [X] T062 Test DELETE /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
+- [X] T063 Test all mutation endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
+- [X] T064 Test GET endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
+- [X] T065 Test POST /api/v1/auth/login returns 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
+- [X] T066 Test POST /api/v1/auth/login returns 200 for PAST_DUE tenant (with billing status) in `backend/test/billing-status.e2e-spec.ts`
+- [X] T067 Test PUT /api/v1/tenants/:id rejects billingStatus field with 403 in `backend/test/billing-status.e2e-spec.ts`
+- [X] T068 Test tenant isolation maintained (billing status restrictions do not bypass tenant scoping) in `backend/test/billing-status.e2e-spec.ts`
+- [X] T069 Test E2E-001: PAST_DUE tenant can view members but cannot create new member in `backend/test/billing-status.e2e-spec.ts`
+- [X] T070 Test E2E-002: PAST_DUE tenant can view plans but cannot update plan in `backend/test/billing-status.e2e-spec.ts`
+- [X] T071 Test E2E-003: SUSPENDED tenant cannot login (403 on login endpoint) in `backend/test/billing-status.e2e-spec.ts`
+- [X] T072 Test E2E-004: SUSPENDED tenant sees error message on login page in `backend/test/billing-status.e2e-spec.ts`
+- [X] T073 Test E2E-005: ACTIVE tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
+- [X] T074 Test E2E-006: TRIAL tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
+- [X] T075 Test E2E-007: Tenant cannot update own billingStatus via API (403 Forbidden) in `backend/test/billing-status.e2e-spec.ts`
+- [X] T076 Test E2E-008: Database update of billingStatus (PAST_DUE → ACTIVE) immediately allows mutations in `backend/test/billing-status.e2e-spec.ts`
+- [X] T077 Test E2E-009: Database update of billingStatus (ACTIVE → SUSPENDED) blocks next login attempt in `backend/test/billing-status.e2e-spec.ts`
+- [X] T078 Test E2E-010: Mid-session billing status change (ACTIVE → PAST_DUE) blocks next mutation request in `backend/test/billing-status.e2e-spec.ts`
 
 **Acceptance Criteria:**
 - Unit tests for `BillingStatusGuard` cover all state combinations (ACTIVE, TRIAL, PAST_DUE, SUSPENDED)

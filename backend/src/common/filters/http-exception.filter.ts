@@ -29,6 +29,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Sunucu hatası';
+    let code: string | undefined;
     let errors: Array<{ field: string; message: string }> | undefined;
 
     // Handle NestJS HttpException
@@ -41,6 +42,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof exceptionResponse === 'object') {
         const responseObj = exceptionResponse as any;
         message = responseObj.message || exception.message;
+        code = responseObj.code; // Preserve error code if present
 
         // Handle validation errors from class-validator
         if (Array.isArray(responseObj.message)) {
@@ -77,6 +79,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const errorResponse = {
       statusCode: status,
       message,
+      ...(code && { code }),
       ...(errors && { errors }),
       timestamp: new Date().toISOString(),
       path: (request as { url: string }).url,
