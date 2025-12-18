@@ -23,16 +23,17 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [X] T001 Add `BillingStatus` enum to Prisma schema in `backend/prisma/schema.prisma`
-- [X] T002 Add `billingStatus` field to Tenant model in `backend/prisma/schema.prisma`
-- [X] T003 Add `billingStatusUpdatedAt` field to Tenant model in `backend/prisma/schema.prisma`
-- [X] T004 Add index on `billingStatus` field in `backend/prisma/schema.prisma`
-- [X] T005 Generate Prisma migration in `backend/prisma/migrations/`
-- [X] T006 Add backfill logic to migration: set existing tenants to `ACTIVE` in `backend/prisma/migrations/`
-- [X] T007 Test migration on development database
-- [X] T008 Verify rollback procedure works correctly
+- [x] T001 Add `BillingStatus` enum to Prisma schema in `backend/prisma/schema.prisma`
+- [x] T002 Add `billingStatus` field to Tenant model in `backend/prisma/schema.prisma`
+- [x] T003 Add `billingStatusUpdatedAt` field to Tenant model in `backend/prisma/schema.prisma`
+- [x] T004 Add index on `billingStatus` field in `backend/prisma/schema.prisma`
+- [x] T005 Generate Prisma migration in `backend/prisma/migrations/`
+- [x] T006 Add backfill logic to migration: set existing tenants to `ACTIVE` in `backend/prisma/migrations/`
+- [x] T007 Test migration on development database
+- [x] T008 Verify rollback procedure works correctly
 
 **Acceptance Criteria:**
+
 - Prisma schema includes `BillingStatus` enum with values: TRIAL, ACTIVE, PAST_DUE, SUSPENDED
 - Tenant model includes `billingStatus` with default `TRIAL` and `billingStatusUpdatedAt` nullable DateTime
 - Index created on `billingStatus` field
@@ -51,23 +52,26 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [X] T009 Create billing error code constants in `backend/src/common/constants/billing-messages.ts`
-- [X] T010 Create billing error message constants (server-side only) in `backend/src/common/constants/billing-messages.ts`
-- [X] T011 Create `BillingStatusGuard` class implementing `CanActivate` in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T012 Implement tenantId extraction from JWT in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T013 Implement billing status query logic in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T014 Implement PAST_DUE read-only logic (allow GET, block POST/PATCH/DELETE) in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T015 Implement SUSPENDED full blocking logic (block all requests) in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T016 Add error response formatting with error code `TENANT_BILLING_LOCKED` in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T017 Add guard execution time logging (warn if >10ms) in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T018 Add 403 response logging with billing status and endpoint in `backend/src/auth/guards/billing-status.guard.ts`
-- [X] T019 Register `BillingStatusGuard` as `APP_GUARD` provider in `backend/src/app.module.ts`
-- [X] T020 Exclude auth routes from guard in `backend/src/app.module.ts`
-- [X] T021 Create structured logging utility for billing status changes in `backend/src/common/utils/billing-logger.ts`
-- [X] T022 Implement billing status change logging function in `backend/src/common/utils/billing-logger.ts`
-- [X] T023 Integrate billing logger with existing logging infrastructure in `backend/src/common/utils/billing-logger.ts`
+- [x] T009 Create billing error code constants in `backend/src/common/constants/billing-messages.ts`
+- [x] T010 Create billing error message constants (server-side only) in `backend/src/common/constants/billing-messages.ts`
+- [x] T011 Create `BillingStatusGuard` class implementing `CanActivate` in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T012 Implement tenantId extraction from JWT in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T013 Implement billing status query logic in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T014 Implement PAST_DUE read-only logic (allow GET, block POST/PATCH/DELETE) in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T015 Implement SUSPENDED full blocking logic (block all requests) in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T016 Add error response formatting with error code `TENANT_BILLING_LOCKED` in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T017 Add guard execution time logging (warn if >10ms) in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T018 Add 403 response logging with billing status and endpoint in `backend/src/auth/guards/billing-status.guard.ts`
+- [x] T019 Register `BillingStatusGuard` as `APP_GUARD` provider in `backend/src/app.module.ts`
+- [x] T020 Exclude auth routes and tenant info routes from guard in `backend/src/app.module.ts`
+  - Auth routes: `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/refresh`, `/api/v1/auth/me`
+  - Tenant info: `/api/v1/tenants/current` (GET only - needed for frontend to display billing status)
+- [x] T021 Create structured logging utility for billing status changes in `backend/src/common/utils/billing-logger.ts`
+- [x] T022 Implement billing status change logging function in `backend/src/common/utils/billing-logger.ts`
+- [x] T023 Integrate billing logger with existing logging infrastructure in `backend/src/common/utils/billing-logger.ts`
 
 **Acceptance Criteria:**
+
 - `BILLING_ERROR_CODES` object exported with `TENANT_BILLING_LOCKED` code
 - `BILLING_ERROR_MESSAGES` object exported with Turkish server-side messages only (no UI strings)
 - Guard extracts `tenantId` from `request.user.tenantId`
@@ -93,25 +97,26 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [X] T024 Update `AuthService.login()` to query Tenant billing status in `backend/src/auth/auth.service.ts`
-- [X] T025 Add SUSPENDED tenant login rejection logic in `backend/src/auth/auth.service.ts`
-- [X] T026 Add PAST_DUE tenant login allowance with billing status in response in `backend/src/auth/auth.service.ts`
-- [X] T027 Include billing status in login response in `backend/src/auth/auth.service.ts`
-- [X] T028 Install `@nestjs/throttler` package if not already installed
-- [X] T029 Configure throttler module in `backend/src/app.module.ts`
-- [X] T030 Apply throttler guard to login endpoint in `backend/src/auth/auth.controller.ts`
-- [X] T031 Configure general rate limiting (5 attempts per 15 minutes per IP/email) in `backend/src/auth/auth.controller.ts`
-- [X] T032 Add rate limit error response with `BILLING_ERROR_MESSAGES.RATE_LIMIT_EXCEEDED` in `backend/src/auth/auth.controller.ts`
-- [X] T033 Add rate limit hit logging in `backend/src/auth/auth.controller.ts`
-- [X] T034 Add `getCurrentUser()` method to `AuthService` in `backend/src/auth/auth.service.ts`
-- [X] T035 Update `/auth/me` endpoint to query Tenant billing status in `backend/src/auth/auth.service.ts`
-- [X] T036 Include billing status and `billingStatusUpdatedAt` in `/auth/me` response in `backend/src/auth/auth.controller.ts`
-- [X] T037 Add SUSPENDED check to `/auth/me` endpoint (return 403 with error code) in `backend/src/auth/auth.service.ts`
-- [X] T038 Update `UpdateTenantDto` to exclude `billingStatus` field in `backend/src/tenants/dto/update-tenant.dto.ts`
-- [X] T039 Add service-level check to reject `billingStatus` updates in `backend/src/tenants/tenants.service.ts`
-- [X] T040 Add 403 Forbidden response for billing status update attempts in `backend/src/tenants/tenants.service.ts`
+- [x] T024 Update `AuthService.login()` to query Tenant billing status in `backend/src/auth/auth.service.ts`
+- [x] T025 Add SUSPENDED tenant login rejection logic in `backend/src/auth/auth.service.ts`
+- [x] T026 Add PAST_DUE tenant login allowance with billing status in response in `backend/src/auth/auth.service.ts`
+- [x] T027 Include billing status in login response in `backend/src/auth/auth.service.ts`
+- [x] T028 Install `@nestjs/throttler` package if not already installed
+- [x] T029 Configure throttler module in `backend/src/app.module.ts`
+- [x] T030 Apply throttler guard to login endpoint in `backend/src/auth/auth.controller.ts`
+- [x] T031 Configure general rate limiting (5 attempts per 15 minutes per IP/email) in `backend/src/auth/auth.controller.ts`
+- [x] T032 Add rate limit error response with `BILLING_ERROR_MESSAGES.RATE_LIMIT_EXCEEDED` in `backend/src/auth/auth.controller.ts`
+- [x] T033 Add rate limit hit logging in `backend/src/auth/auth.controller.ts`
+- [x] T034 Add `getCurrentUser()` method to `AuthService` in `backend/src/auth/auth.service.ts`
+- [x] T035 Update `/auth/me` endpoint to query Tenant billing status in `backend/src/auth/auth.service.ts`
+- [x] T036 Include billing status and `billingStatusUpdatedAt` in `/auth/me` response in `backend/src/auth/auth.controller.ts`
+- [x] T037 Add SUSPENDED check to `/auth/me` endpoint (return 403 with error code) in `backend/src/auth/auth.service.ts`
+- [x] T038 Update `UpdateTenantDto` to exclude `billingStatus` field in `backend/src/tenants/dto/update-tenant.dto.ts`
+- [x] T039 Add service-level check to reject `billingStatus` updates in `backend/src/tenants/tenants.service.ts`
+- [x] T040 Add 403 Forbidden response for billing status update attempts in `backend/src/tenants/tenants.service.ts`
 
 **Acceptance Criteria:**
+
 - `login()` method queries Tenant table for `billingStatus` after credential validation
 - SUSPENDED tenant login returns 403 with error code `TENANT_BILLING_LOCKED` and message `BILLING_ERROR_MESSAGES.SUSPENDED_LOGIN`
 - PAST_DUE tenant login succeeds and includes billing status in response
@@ -136,46 +141,47 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [X] T041 Create unit test file for `BillingStatusGuard` in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T042 Test guard allows ACTIVE tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T043 Test guard allows TRIAL tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T044 Test guard blocks PAST_DUE tenant POST/PATCH/DELETE requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T045 Test guard allows PAST_DUE tenant GET requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T046 Test guard blocks SUSPENDED tenant all requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T047 Test guard extracts tenantId from JWT correctly in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T048 Test guard handles missing tenantId gracefully (returns 401) in `backend/src/auth/guards/billing-status.guard.spec.ts`
-- [X] T049 Update `AuthService` unit tests for billing status checks in `backend/src/auth/auth.service.spec.ts`
-- [X] T050 Test `login()` rejects SUSPENDED tenant with 403 and error code in `backend/src/auth/auth.service.spec.ts`
-- [X] T051 Test `login()` allows PAST_DUE tenant (returns billing status) in `backend/src/auth/auth.service.spec.ts`
-- [X] T052 Test `login()` allows ACTIVE/TRIAL tenant normally in `backend/src/auth/auth.service.spec.ts`
-- [X] T053 Test rate limiting blocks login attempts after threshold in `backend/src/auth/auth.service.spec.ts`
-- [X] T054 Update `TenantsService` unit tests for billing status rejection in `backend/src/tenants/tenants.service.spec.ts`
-- [X] T055 Test `update()` rejects `billingStatus` field in update data in `backend/src/tenants/tenants.service.spec.ts`
-- [X] T056 Test `update()` throws 403 Forbidden if `billingStatus` included in `backend/src/tenants/tenants.service.spec.ts`
-- [X] T057 Test `update()` allows `name` and `defaultCurrency` updates normally in `backend/src/tenants/tenants.service.spec.ts`
-- [X] T058 Create E2E test file for billing status in `backend/test/billing-status.e2e-spec.ts`
-- [X] T059 Test POST /api/v1/members returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
-- [X] T060 Test GET /api/v1/members returns 200 for PAST_DUE tenant (read-only) in `backend/test/billing-status.e2e-spec.ts`
-- [X] T061 Test PATCH /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
-- [X] T062 Test DELETE /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
-- [X] T063 Test all mutation endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
-- [X] T064 Test GET endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
-- [X] T065 Test POST /api/v1/auth/login returns 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
-- [X] T066 Test POST /api/v1/auth/login returns 200 for PAST_DUE tenant (with billing status) in `backend/test/billing-status.e2e-spec.ts`
-- [X] T067 Test PUT /api/v1/tenants/:id rejects billingStatus field with 403 in `backend/test/billing-status.e2e-spec.ts`
-- [X] T068 Test tenant isolation maintained (billing status restrictions do not bypass tenant scoping) in `backend/test/billing-status.e2e-spec.ts`
-- [X] T069 Test E2E-001: PAST_DUE tenant can view members but cannot create new member in `backend/test/billing-status.e2e-spec.ts`
-- [X] T070 Test E2E-002: PAST_DUE tenant can view plans but cannot update plan in `backend/test/billing-status.e2e-spec.ts`
-- [X] T071 Test E2E-003: SUSPENDED tenant cannot login (403 on login endpoint) in `backend/test/billing-status.e2e-spec.ts`
-- [X] T072 Test E2E-004: SUSPENDED tenant sees error message on login page in `backend/test/billing-status.e2e-spec.ts`
-- [X] T073 Test E2E-005: ACTIVE tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
-- [X] T074 Test E2E-006: TRIAL tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
-- [X] T075 Test E2E-007: Tenant cannot update own billingStatus via API (403 Forbidden) in `backend/test/billing-status.e2e-spec.ts`
-- [X] T076 Test E2E-008: Database update of billingStatus (PAST_DUE → ACTIVE) immediately allows mutations in `backend/test/billing-status.e2e-spec.ts`
-- [X] T077 Test E2E-009: Database update of billingStatus (ACTIVE → SUSPENDED) blocks next login attempt in `backend/test/billing-status.e2e-spec.ts`
-- [X] T078 Test E2E-010: Mid-session billing status change (ACTIVE → PAST_DUE) blocks next mutation request in `backend/test/billing-status.e2e-spec.ts`
+- [x] T041 Create unit test file for `BillingStatusGuard` in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T042 Test guard allows ACTIVE tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T043 Test guard allows TRIAL tenant requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T044 Test guard blocks PAST_DUE tenant POST/PATCH/DELETE requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T045 Test guard allows PAST_DUE tenant GET requests in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T046 Test guard blocks SUSPENDED tenant all requests with 403 in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T047 Test guard extracts tenantId from JWT correctly in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T048 Test guard handles missing tenantId gracefully (returns 401) in `backend/src/auth/guards/billing-status.guard.spec.ts`
+- [x] T049 Update `AuthService` unit tests for billing status checks in `backend/src/auth/auth.service.spec.ts`
+- [x] T050 Test `login()` rejects SUSPENDED tenant with 403 and error code in `backend/src/auth/auth.service.spec.ts`
+- [x] T051 Test `login()` allows PAST_DUE tenant (returns billing status) in `backend/src/auth/auth.service.spec.ts`
+- [x] T052 Test `login()` allows ACTIVE/TRIAL tenant normally in `backend/src/auth/auth.service.spec.ts`
+- [x] T053 Test rate limiting blocks login attempts after threshold in `backend/src/auth/auth.service.spec.ts`
+- [x] T054 Update `TenantsService` unit tests for billing status rejection in `backend/src/tenants/tenants.service.spec.ts`
+- [x] T055 Test `update()` rejects `billingStatus` field in update data in `backend/src/tenants/tenants.service.spec.ts`
+- [x] T056 Test `update()` throws 403 Forbidden if `billingStatus` included in `backend/src/tenants/tenants.service.spec.ts`
+- [x] T057 Test `update()` allows `name` and `defaultCurrency` updates normally in `backend/src/tenants/tenants.service.spec.ts`
+- [x] T058 Create E2E test file for billing status in `backend/test/billing-status.e2e-spec.ts`
+- [x] T059 Test POST /api/v1/members returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
+- [x] T060 Test GET /api/v1/members returns 200 for PAST_DUE tenant (read-only) in `backend/test/billing-status.e2e-spec.ts`
+- [x] T061 Test PATCH /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
+- [x] T062 Test DELETE /api/v1/members/:id returns 403 for PAST_DUE tenant in `backend/test/billing-status.e2e-spec.ts`
+- [x] T063 Test all mutation endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
+- [x] T064 Test GET endpoints return 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
+- [x] T065 Test POST /api/v1/auth/login returns 403 with error code `TENANT_BILLING_LOCKED` for SUSPENDED tenant in `backend/test/billing-status.e2e-spec.ts`
+- [x] T066 Test POST /api/v1/auth/login returns 200 for PAST_DUE tenant (with billing status) in `backend/test/billing-status.e2e-spec.ts`
+- [x] T067 Test PUT /api/v1/tenants/:id rejects billingStatus field with 403 in `backend/test/billing-status.e2e-spec.ts`
+- [x] T068 Test tenant isolation maintained (billing status restrictions do not bypass tenant scoping) in `backend/test/billing-status.e2e-spec.ts`
+- [x] T069 Test E2E-001: PAST_DUE tenant can view members but cannot create new member in `backend/test/billing-status.e2e-spec.ts`
+- [x] T070 Test E2E-002: PAST_DUE tenant can view plans but cannot update plan in `backend/test/billing-status.e2e-spec.ts`
+- [x] T071 Test E2E-003: SUSPENDED tenant cannot login (403 on login endpoint) in `backend/test/billing-status.e2e-spec.ts`
+- [x] T072 Test E2E-004: SUSPENDED tenant sees error message on login page in `backend/test/billing-status.e2e-spec.ts`
+- [x] T073 Test E2E-005: ACTIVE tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
+- [x] T074 Test E2E-006: TRIAL tenant can perform all CRUD operations normally in `backend/test/billing-status.e2e-spec.ts`
+- [x] T075 Test E2E-007: Tenant cannot update own billingStatus via API (403 Forbidden) in `backend/test/billing-status.e2e-spec.ts`
+- [x] T076 Test E2E-008: Database update of billingStatus (PAST_DUE → ACTIVE) immediately allows mutations in `backend/test/billing-status.e2e-spec.ts`
+- [x] T077 Test E2E-009: Database update of billingStatus (ACTIVE → SUSPENDED) blocks next login attempt in `backend/test/billing-status.e2e-spec.ts`
+- [x] T078 Test E2E-010: Mid-session billing status change (ACTIVE → PAST_DUE) blocks next mutation request in `backend/test/billing-status.e2e-spec.ts`
 
 **Acceptance Criteria:**
+
 - Unit tests for `BillingStatusGuard` cover all state combinations (ACTIVE, TRIAL, PAST_DUE, SUSPENDED)
 - Unit tests verify guard excludes auth routes correctly
 - Unit tests for `AuthService.login()` cover all billing states
@@ -196,27 +202,28 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [X] T079 Add `BillingStatus` enum to shared TypeScript types in `frontend/src/types/billing.ts`
-- [X] T080 Export `AuthMeResponse` type with billing status fields in `frontend/src/types/billing.ts`
-- [X] T081 Export `LoginResponse` type with billing status fields in `frontend/src/types/billing.ts`
-- [X] T082 Create frontend-owned billing constants file in `frontend/src/lib/constants/billing-messages.ts`
-- [X] T083 Export `BILLING_ERROR_CODES` object matching backend values in `frontend/src/lib/constants/billing-messages.ts`
-- [X] T084 Export `BILLING_BANNER_MESSAGES` for banner component in `frontend/src/lib/constants/billing-messages.ts`
-- [X] T085 Export `BILLING_TOOLTIP_MESSAGES` for tooltip component in `frontend/src/lib/constants/billing-messages.ts`
-- [X] T086 Update `LoginResponse` type in API client to include `tenant.billingStatus` in `frontend/src/api/auth.ts`
-- [X] T087 Update `AuthMeResponse` type in API client to include billing status fields in `frontend/src/api/auth.ts`
-- [X] T088 Create global API error handler utility in `frontend/src/lib/api-error-handler.ts`
-- [X] T089 Implement error interceptor for React Query in `frontend/src/lib/api-error-handler.ts`
-- [X] T090 Implement billing lock detection via structured error code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
-- [X] T091 Implement redirect to `/billing-locked` (not `/login`) for SUSPENDED status in `frontend/src/lib/api-error-handler.ts`
-- [X] T092 Implement JWT preservation for PAST_DUE status in `frontend/src/lib/api-error-handler.ts`
-- [X] T093 Implement toast notification for other billing errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
-- [X] T094 Integrate error handler with existing error handling infrastructure in `frontend/src/lib/api-error-handler.ts`
-- [X] T095 Update user context/state management to include billing status in `frontend/src/features/auth/types.ts`
-- [X] T096 Update auth hooks to fetch and store billing status in `frontend/src/hooks/use-auth.ts`
-- [X] T097 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/hooks/use-auth.ts`
+- [x] T079 Add `BillingStatus` enum to shared TypeScript types in `frontend/src/types/billing.ts`
+- [x] T080 Export `AuthMeResponse` type with billing status fields in `frontend/src/types/billing.ts`
+- [x] T081 Export `LoginResponse` type with billing status fields in `frontend/src/types/billing.ts`
+- [x] T082 Create frontend-owned billing constants file in `frontend/src/lib/constants/billing-messages.ts`
+- [x] T083 Export `BILLING_ERROR_CODES` object matching backend values in `frontend/src/lib/constants/billing-messages.ts`
+- [x] T084 Export `BILLING_BANNER_MESSAGES` for banner component in `frontend/src/lib/constants/billing-messages.ts`
+- [x] T085 Export `BILLING_TOOLTIP_MESSAGES` for tooltip component in `frontend/src/lib/constants/billing-messages.ts`
+- [x] T086 Update `LoginResponse` type in API client to include `tenant.billingStatus` in `frontend/src/api/auth.ts`
+- [x] T087 Update `AuthMeResponse` type in API client to include billing status fields in `frontend/src/api/auth.ts`
+- [x] T088 Create global API error handler utility in `frontend/src/lib/api-error-handler.ts`
+- [x] T089 Implement error interceptor for React Query in `frontend/src/lib/api-error-handler.ts`
+- [x] T090 Implement billing lock detection via structured error code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
+- [x] T091 Implement redirect to `/billing-locked` (not `/login`) for SUSPENDED status in `frontend/src/lib/api-error-handler.ts`
+- [x] T092 Implement JWT preservation for PAST_DUE status in `frontend/src/lib/api-error-handler.ts`
+- [x] T093 Implement toast notification for other billing errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
+- [x] T094 Integrate error handler with existing error handling infrastructure in `frontend/src/lib/api-error-handler.ts`
+- [x] T095 Update user context/state management to include billing status in `frontend/src/features/auth/types.ts`
+- [x] T096 Update auth hooks to fetch and store billing status in `frontend/src/hooks/use-auth.ts`
+- [x] T097 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/hooks/use-auth.ts`
 
 **Acceptance Criteria:**
+
 - `BillingStatus` enum matches backend enum values
 - `AuthMeResponse` type includes `tenant.billingStatus` and `tenant.billingStatusUpdatedAt`
 - `LoginResponse` type includes `tenant.billingStatus`
@@ -246,33 +253,34 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [X] T098 Create `BillingStatusBanner` component in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [X] T099 Implement yellow/orange warning banner for PAST_DUE status in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [X] T100 Implement red error banner for SUSPENDED status in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [X] T101 Display message from `BILLING_BANNER_MESSAGES` in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [X] T102 Make banner persistent (does not dismiss automatically) in `frontend/src/components/billing/BillingStatusBanner.tsx`
-- [X] T103 Create `LockedScreen` component in `frontend/src/components/billing/LockedScreen.tsx`
-- [X] T104 Implement full-screen overlay with SUSPENDED message in `frontend/src/components/billing/LockedScreen.tsx`
-- [X] T105 Prevent all UI interactions (buttons, forms, navigation disabled) in `frontend/src/components/billing/LockedScreen.tsx`
-- [X] T106 Show logout button and support contact information in `frontend/src/components/billing/LockedScreen.tsx`
-- [X] T107 Create `useBillingStatus()` hook in `frontend/src/hooks/use-billing-status.ts`
-- [X] T108 Create `useIsReadOnly()` hook to check if tenant is in read-only mode (PAST_DUE) in `frontend/src/hooks/use-billing-status.ts`
-- [X] T109 Create `useIsSuspended()` hook to check if tenant is suspended in `frontend/src/hooks/use-billing-status.ts`
-- [X] T110 Update layout to show billing banner when needed in `frontend/src/layouts/MainLayout.tsx`
-- [X] T111 Add `BillingStatusBanner` component to layout in `frontend/src/layouts/MainLayout.tsx`
-- [X] T112 Show banner when `billingStatus = PAST_DUE` or `SUSPENDED` in `frontend/src/layouts/MainLayout.tsx`
-- [X] T113 Update all mutation buttons to disable in PAST_DUE mode (use `useIsReadOnly()` hook) in all pages with create/update/delete buttons
-- [X] T114 Add tooltip on hover for disabled buttons: `BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY` in all pages with mutation buttons
-- [X] T115 Add read-only styling to forms in PAST_DUE mode (use `useIsReadOnly()` hook) in all form components
-- [X] T116 Disable form inputs (read-only styling) in `frontend/src/components/**/*Form.tsx` components
-- [X] T117 Hide or disable action buttons in forms in `frontend/src/components/**/*Form.tsx` components
-- [X] T118 Create route `/billing-locked` (or `/locked`) in `frontend/src/App.tsx` or router configuration
-- [X] T119 Implement billing status check on route change in `frontend/src/App.tsx`
-- [X] T120 Redirect to `/billing-locked` if `billingStatus = SUSPENDED` in `frontend/src/App.tsx`
-- [X] T121 Ensure all routes redirect to `/billing-locked` for SUSPENDED tenants in `frontend/src/App.tsx`
-- [X] T122 Ensure locked screen route is accessible without redirecting to login in `frontend/src/App.tsx`
+- [x] T098 Create `BillingStatusBanner` component in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [x] T099 Implement yellow/orange warning banner for PAST_DUE status in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [x] T100 Implement red error banner for SUSPENDED status in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [x] T101 Display message from `BILLING_BANNER_MESSAGES` in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [x] T102 Make banner persistent (does not dismiss automatically) in `frontend/src/components/billing/BillingStatusBanner.tsx`
+- [x] T103 Create `LockedScreen` component in `frontend/src/components/billing/LockedScreen.tsx`
+- [x] T104 Implement full-screen overlay with SUSPENDED message in `frontend/src/components/billing/LockedScreen.tsx`
+- [x] T105 Prevent all UI interactions (buttons, forms, navigation disabled) in `frontend/src/components/billing/LockedScreen.tsx`
+- [x] T106 Show logout button and support contact information in `frontend/src/components/billing/LockedScreen.tsx`
+- [x] T107 Create `useBillingStatus()` hook in `frontend/src/hooks/use-billing-status.ts`
+- [x] T108 Create `useIsReadOnly()` hook to check if tenant is in read-only mode (PAST_DUE) in `frontend/src/hooks/use-billing-status.ts`
+- [x] T109 Create `useIsSuspended()` hook to check if tenant is suspended in `frontend/src/hooks/use-billing-status.ts`
+- [x] T110 Update layout to show billing banner when needed in `frontend/src/layouts/MainLayout.tsx`
+- [x] T111 Add `BillingStatusBanner` component to layout in `frontend/src/layouts/MainLayout.tsx`
+- [x] T112 Show banner when `billingStatus = PAST_DUE` or `SUSPENDED` in `frontend/src/layouts/MainLayout.tsx`
+- [x] T113 Update all mutation buttons to disable in PAST_DUE mode (use `useIsReadOnly()` hook) in all pages with create/update/delete buttons
+- [x] T114 Add tooltip on hover for disabled buttons: `BILLING_TOOLTIP_MESSAGES.PAST_DUE_READ_ONLY` in all pages with mutation buttons
+- [x] T115 Add read-only styling to forms in PAST_DUE mode (use `useIsReadOnly()` hook) in all form components
+- [x] T116 Disable form inputs (read-only styling) in `frontend/src/components/**/*Form.tsx` components
+- [x] T117 Hide or disable action buttons in forms in `frontend/src/components/**/*Form.tsx` components
+- [x] T118 Create route `/billing-locked` (or `/locked`) in `frontend/src/App.tsx` or router configuration
+- [x] T119 Implement billing status check on route change in `frontend/src/App.tsx`
+- [x] T120 Redirect to `/billing-locked` if `billingStatus = SUSPENDED` in `frontend/src/App.tsx`
+- [x] T121 Ensure all routes redirect to `/billing-locked` for SUSPENDED tenants in `frontend/src/App.tsx`
+- [x] T122 Ensure locked screen route is accessible without redirecting to login in `frontend/src/App.tsx`
 
 **Acceptance Criteria:**
+
 - `BillingStatusBanner` component displays yellow/orange warning for PAST_DUE status
 - `BillingStatusBanner` component displays red error banner for SUSPENDED status
 - Banner shows message from `BILLING_BANNER_MESSAGES`
@@ -304,26 +312,27 @@ This document contains the complete task list for implementing Tenant Access Con
 
 ### Tasks
 
-- [X] T123 Update error handling to show billing-specific messages in `frontend/src/lib/api-error-handler.ts`
-- [X] T124 Intercept 403 responses from mutation endpoints in `frontend/src/lib/api-error-handler.ts`
-- [X] T125 Detect billing lock ONLY via structured response code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
-- [X] T126 Show toast notification for other billing-related errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
-- [X] T127 Implement mid-session billing status change detection (relies on backend authority) in `frontend/src/lib/api-error-handler.ts`
-- [X] T128 When any API request returns 403 with `code === "TENANT_BILLING_LOCKED"`, detect via error code only and redirect to `/billing-locked` with correct JWT behavior in `frontend/src/lib/api-error-handler.ts`
-- [X] T129 For SUSPENDED status: optionally clear JWT token and redirect to `/billing-locked` (not `/login`) in `frontend/src/lib/api-error-handler.ts`
-- [X] T130 For PAST_DUE status: preserve JWT token (for read-only access) and show toast notification in `frontend/src/lib/api-error-handler.ts`
-- [X] T131 Invalidate user session cache (React Query cache, user context) as needed in `frontend/src/lib/api-error-handler.ts`
-- [X] T132 Update React Query cache invalidation on logout in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T133 Invalidate billing status cache on logout in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T134 Clear billing status from user context on logout in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T135 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T136 Fetch billing status on app boot (or initial auth hydrate) via `/auth/me` endpoint in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T137 Fetch billing status after successful login (from login response) in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T138 OPTIONAL: Implement refresh on window focus or on an interval (e.g., every 5–10 minutes) in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T139 Store billing status in user context after fetch in `frontend/src/features/auth/AuthContext.tsx`
-- [X] T140 Trigger appropriate UI (banner, locked screen) based on status in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T123 Update error handling to show billing-specific messages in `frontend/src/lib/api-error-handler.ts`
+- [x] T124 Intercept 403 responses from mutation endpoints in `frontend/src/lib/api-error-handler.ts`
+- [x] T125 Detect billing lock ONLY via structured response code (`code === "TENANT_BILLING_LOCKED"`) in `frontend/src/lib/api-error-handler.ts`
+- [x] T126 Show toast notification for other billing-related errors (PAST_DUE mutation attempts) in `frontend/src/lib/api-error-handler.ts`
+- [x] T127 Implement mid-session billing status change detection (relies on backend authority) in `frontend/src/lib/api-error-handler.ts`
+- [x] T128 When any API request returns 403 with `code === "TENANT_BILLING_LOCKED"`, detect via error code only and redirect to `/billing-locked` with correct JWT behavior in `frontend/src/lib/api-error-handler.ts`
+- [x] T129 For SUSPENDED status: optionally clear JWT token and redirect to `/billing-locked` (not `/login`) in `frontend/src/lib/api-error-handler.ts`
+- [x] T130 For PAST_DUE status: preserve JWT token (for read-only access) and show toast notification in `frontend/src/lib/api-error-handler.ts`
+- [x] T131 Invalidate user session cache (React Query cache, user context) as needed in `frontend/src/lib/api-error-handler.ts`
+- [x] T132 Update React Query cache invalidation on logout in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T133 Invalidate billing status cache on logout in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T134 Clear billing status from user context on logout in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T135 Implement billing status refresh strategy (app boot, login, optional focus/interval - NOT per API call) in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T136 Fetch billing status on app boot (or initial auth hydrate) via `/auth/me` endpoint in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T137 Fetch billing status after successful login (from login response) in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T138 OPTIONAL: Implement refresh on window focus or on an interval (e.g., every 5–10 minutes) in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T139 Store billing status in user context after fetch in `frontend/src/features/auth/AuthContext.tsx`
+- [x] T140 Trigger appropriate UI (banner, locked screen) based on status in `frontend/src/features/auth/AuthContext.tsx`
 
 **Acceptance Criteria:**
+
 - Error handler intercepts 403 responses from mutation endpoints
 - Error handler detects billing lock ONLY via structured error code `code === "TENANT_BILLING_LOCKED"`
 - Error handler does NOT check message text or keywords (error code is authoritative)
@@ -366,6 +375,7 @@ This document contains the complete task list for implementing Tenant Access Con
 - [ ] T153 Test mid-session status change flow: attempt any API request and verify redirects to `/billing-locked` when error code `TENANT_BILLING_LOCKED` is detected (relies on backend authority)
 
 **Acceptance Criteria:**
+
 - PAST_DUE tenant sees warning banner on all pages
 - PAST_DUE tenant sees disabled buttons and read-only form styling
 - PAST_DUE tenant sees tooltips explaining restrictions
@@ -407,6 +417,7 @@ This document contains the complete task list for implementing Tenant Access Con
 - [ ] T168 Document how to check logs for billing status changes in `specs/006-tenant-access-control/operations-runbook.md`
 
 **Acceptance Criteria:**
+
 - Runbook includes Prisma Studio steps for updating billing status
 - Runbook includes SQL examples for updating billing status
 - Runbook documents billing status transition rules
@@ -433,7 +444,7 @@ Phase 1 (Database Schema & Migration)
   └─> Phase 2 (Backend Core Infrastructure)
       └─> Phase 3 (Backend Authentication Flow)
           └─> Phase 4 (Backend Testing)
-              
+
 Phase 1 (Database Schema & Migration)
   └─> Phase 5 (Frontend Core Infrastructure)
       └─> Phase 6 (Frontend UI Components)
@@ -447,6 +458,7 @@ Phase 1 (Database Schema & Migration)
 ### Critical Path
 
 The critical path for implementation is:
+
 1. **Phase 1** (Database Schema & Migration) - Must complete first
 2. **Phase 2** (Backend Core Infrastructure) - Blocks backend work
 3. **Phase 3** (Backend Authentication Flow) - Blocks backend testing
@@ -470,6 +482,7 @@ The critical path for implementation is:
 ### MVP Scope
 
 **Minimum Viable Product (MVP) includes:**
+
 - Phase 1: Database Schema & Migration
 - Phase 2: Backend Core Infrastructure
 - Phase 3: Backend Authentication Flow Updates
@@ -480,6 +493,7 @@ The critical path for implementation is:
 - Phase 9: Operations Documentation (basic runbook)
 
 **MVP excludes:**
+
 - Phase 8: Frontend Testing (can be done post-MVP)
 - Advanced error handling scenarios
 - Comprehensive E2E test coverage (can be added incrementally)
@@ -563,4 +577,3 @@ The critical path for implementation is:
 ---
 
 **End of Tasks Document**
-

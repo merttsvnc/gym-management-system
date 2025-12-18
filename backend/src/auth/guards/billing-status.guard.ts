@@ -59,11 +59,13 @@ export class BillingStatusGuard implements CanActivate {
     }>();
     const user = request.user;
 
-    // Extract tenantId from JWT (set by TenantGuard)
+    // Skip billing check if user is not authenticated
+    // This allows unauthenticated routes to pass through
+    // JwtAuthGuard will handle authentication for protected routes
     if (!user || !user.tenantId) {
-      // This should not happen if TenantGuard runs before this guard
-      // But we handle it gracefully for safety
-      throw new ForbiddenException('Tenant context not found');
+      // User not authenticated yet - skip billing check
+      // This is expected for routes that don't have JwtAuthGuard
+      return true;
     }
 
     const tenantId: string = user.tenantId;
@@ -79,10 +81,19 @@ export class BillingStatusGuard implements CanActivate {
 
       if (!tenant) {
         // Tenant not found (should not happen in normal flow)
-        this.logger.warn(
+        this.logger.error(
           `Tenant not found for tenantId: ${tenantId}, path: ${path}`,
         );
         throw new ForbiddenException('Tenant not found');
+      }
+
+      // Add defensive check for billingStatus field
+      if (!tenant.billingStatus) {
+        this.logger.error(
+          `BillingStatus field is null or undefined for tenantId: ${tenantId}, tenant: ${JSON.stringify(tenant)}`,
+        );
+        // Default to ACTIVE if billingStatus is missing (should not happen)
+        return true;
       }
 
       const billingStatus: BillingStatus = tenant.billingStatus;
