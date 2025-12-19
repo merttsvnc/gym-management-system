@@ -73,10 +73,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await getCurrentUser();
       setBillingStatus(response.tenant.billingStatus);
       setBillingStatusUpdatedAt(response.tenant.billingStatusUpdatedAt);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch billing status:", error);
-      // Don't clear auth on billing status fetch failure
-      // Error handler will handle billing lock errors
+      // If 401 (token invalid/expired), clear state
+      // The axios interceptor will handle redirect, we just need to clear state
+      if (error?.statusCode === 401) {
+        setUser(null);
+        setAccessToken(null);
+        setRefreshToken(null);
+        setBillingStatus(null);
+        setBillingStatusUpdatedAt(null);
+      }
+      // Other errors (403, 500) are handled by error handlers
     }
   }, [accessToken]);
 
@@ -103,9 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (authData.billingStatusUpdatedAt !== undefined) {
           setBillingStatusUpdatedAt(authData.billingStatusUpdatedAt);
         }
-
-        // Also update the jwt_token for API client compatibility
-        setStorageItem("jwt_token", authData.accessToken);
       } catch (error) {
         console.error(
           "Failed to restore auth session (corrupted data):",
@@ -113,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         // Clear corrupted data and reset to logged-out state
         removeStorageItem(AUTH_STORAGE_KEY);
-        removeStorageItem("jwt_token");
         setUser(null);
         setAccessToken(null);
         setRefreshToken(null);
@@ -122,6 +126,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setIsInitialized(true);
+  }, []);
+
+  // Listen for auth:logout event from axios interceptor
+  useEffect(() => {
+    const handleLogout = () => {
+      // Clear state when axios interceptor detects 401 and clears localStorage
+      setUser(null);
+      setAccessToken(null);
+      setRefreshToken(null);
+      setBillingStatus(null);
+      setBillingStatusUpdatedAt(null);
+    };
+
+    window.addEventListener("auth:logout", handleLogout);
+
+    return () => {
+      window.removeEventListener("auth:logout", handleLogout);
+    };
   }, []);
 
   // Fetch billing status on app boot (after auth is restored)
@@ -148,7 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const authData: AuthStorage = JSON.parse(stored);
           authData.billingStatus = response.tenant.billingStatus;
-          authData.billingStatusUpdatedAt = response.tenant.billingStatusUpdatedAt;
+          authData.billingStatusUpdatedAt =
+            response.tenant.billingStatusUpdatedAt;
           setStorageItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
         } catch {
           // Ignore localStorage update errors
@@ -169,14 +192,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    window.addEventListener("auth:billing-status-changed", handleBillingStatusChanged);
+    window.addEventListener(
+      "auth:billing-status-changed",
+      handleBillingStatusChanged
+    );
 
     return () => {
-      window.removeEventListener("auth:billing-status-changed", handleBillingStatusChanged);
+      window.removeEventListener(
+        "auth:billing-status-changed",
+        handleBillingStatusChanged
+      );
     };
   }, [accessToken, refreshBillingStatus]);
 
   // OPTIONAL: Refresh billing status on window focus (every 5-10 minutes)
+  // DISABLED: This was causing infinite loops when token expired
+  // The billing status is already refreshed on login and via error handlers
+  // Re-enable only if needed, with proper error handling
+  /*
   useEffect(() => {
     if (!accessToken) {
       return;
@@ -204,6 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, [accessToken, refreshBillingStatus]);
+  */
 
   const login = useCallback(async (email: string, password: string) => {
     const response: LoginResponse = await loginApi(email, password);
@@ -222,9 +256,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       billingStatus: response.tenant.billingStatus,
     };
     setStorageItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-
-    // Also update jwt_token for API client compatibility
-    setStorageItem("jwt_token", response.accessToken);
   }, []);
 
   const logout = useCallback(() => {
@@ -234,15 +265,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRefreshToken(null);
     setBillingStatus(null);
     setBillingStatusUpdatedAt(null);
-    
+
     // Clear localStorage
     removeStorageItem(AUTH_STORAGE_KEY);
-    removeStorageItem("jwt_token");
-    
+
     // Invalidate React Query cache (including billing status cache)
     queryClient.invalidateQueries();
     queryClient.clear();
-    
+
     // Navigate to login
     navigate("/login");
   }, [navigate]);

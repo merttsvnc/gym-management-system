@@ -98,10 +98,10 @@ function isBillingLockError(error: ApiError | unknown): boolean {
 function invalidateUserSessionCache(): void {
   // Invalidate all React Query queries to force refetch
   queryClient.invalidateQueries();
-  
+
   // Clear all cached queries
   queryClient.clear();
-  
+
   // Dispatch custom event for auth context to update billing status
   window.dispatchEvent(new CustomEvent("auth:billing-status-changed"));
 }
@@ -111,16 +111,15 @@ function invalidateUserSessionCache(): void {
  * Redirects to /billing-locked and optionally clears JWT
  * Invalidates user session cache before redirect
  */
-function handleBillingLock(_error: ApiError): void {
+function handleBillingLock(): void {
   // Invalidate user session cache first
   invalidateUserSessionCache();
-  
+
   // Optionally clear JWT token for SUSPENDED status
   // Note: For SUSPENDED, we redirect to locked screen, so clearing token is optional
   try {
     // Clear auth tokens if needed
     localStorage.removeItem("gymms_auth");
-    localStorage.removeItem("jwt_token");
   } catch {
     console.warn("⚠️ Could not clear auth tokens from localStorage");
   }
@@ -138,11 +137,11 @@ function handleBillingLock(_error: ApiError): void {
  * Does NOT redirect to login
  * Invalidates cache to trigger UI updates (banner, read-only indicators)
  */
-function handlePastDueError(_error: ApiError): void {
+function handlePastDueError(): void {
   // Invalidate user session cache to trigger UI updates
   // This ensures banner and read-only indicators appear immediately
   invalidateUserSessionCache();
-  
+
   // Preserve JWT token - user remains logged in for read-only access
   // Do NOT redirect to login
   // Do NOT clear JWT token
@@ -188,12 +187,12 @@ export function handleBillingError(error: unknown): void {
   if (billingStatus === "PAST_DUE") {
     // PAST_DUE: Show toast, preserve JWT, do NOT redirect
     // User remains logged in for read-only access
-    handlePastDueError(apiError);
+    handlePastDueError();
   } else {
     // SUSPENDED or unknown: Redirect to /billing-locked
     // Default to SUSPENDED behavior if billing status is not available
     // This handles mid-session transitions from ACTIVE → SUSPENDED
-    handleBillingLock(apiError);
+    handleBillingLock();
   }
 }
 
@@ -224,4 +223,3 @@ export function shouldSkipBillingToast(error: unknown): boolean {
 
   return false;
 }
-

@@ -23,12 +23,20 @@ The app will automatically generate a dev token on startup.
    ```
 
 2. Open browser console and run:
+
    ```javascript
    import { generateDevToken } from "./src/lib/auth-dev";
    const token = generateDevToken("your-tenant-id-here");
-   localStorage.setItem("jwt_token", token);
+   const authData = {
+     user: { id: "dev-user-1", email: "dev@example.com", role: "ADMIN" },
+     accessToken: token,
+     refreshToken: "dev-refresh-token",
+   };
+   localStorage.setItem("gymms_auth", JSON.stringify(authData));
    location.reload();
    ```
+
+   **Note:** It's recommended to use the proper login flow instead of dev tokens.
 
 ### Option 3: Prompt on Startup
 
@@ -84,7 +92,3 @@ The dev token is a base64-encoded JSON object:
 - **401 Unauthorized**: Make sure you have a valid token in localStorage
 - **403 Forbidden**: The tenantId in your token doesn't exist in the database
 - **Token expired**: Tokens don't expire in dev mode, but you can regenerate if needed
-
-
-
-

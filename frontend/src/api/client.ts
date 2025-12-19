@@ -43,15 +43,27 @@ function getStorageItem(key: string): string | null {
 
 /**
  * Request interceptor: Adds Authorization header if token exists
- * Reads JWT token from localStorage (set via dev token utility or auth flow)
+ * Reads JWT token from localStorage gymms_auth (single source of truth)
  */
 axiosInstance.interceptors.request.use((config) => {
-  const token = getStorageItem("jwt_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Read token from gymms_auth (single source of truth)
+  const authDataStr = getStorageItem("gymms_auth");
+  if (authDataStr) {
+    try {
+      const authData = JSON.parse(authDataStr);
+      const token = authData?.accessToken;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      // Invalid JSON in gymms_auth, ignore
+      if (import.meta.env.DEV) {
+        console.warn("⚠️ Invalid auth data in localStorage");
+      }
+    }
   } else if (import.meta.env.DEV) {
     console.warn(
-      '⚠️ No JWT token found. API requests may fail. Check localStorage for "jwt_token"'
+      '⚠️ No auth data found. API requests may fail. Check localStorage for "gymms_auth"'
     );
   }
   return config;
@@ -75,7 +87,6 @@ axiosInstance.interceptors.response.use(
       // Clear auth tokens
       try {
         localStorage.removeItem("gymms_auth");
-        localStorage.removeItem("jwt_token");
       } catch {
         console.warn("⚠️ Could not clear auth tokens from localStorage");
       }
@@ -83,8 +94,10 @@ axiosInstance.interceptors.response.use(
       // Dispatch custom event for components listening
       window.dispatchEvent(new Event("auth:logout"));
 
-      // Redirect to login
-      window.location.href = "/login";
+      // Redirect to login (only if not already on login page to prevent infinite loops)
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
       // Don't show toast for 401 errors as user is being redirected
     } else if (error.response?.status === 403) {
       // Handle billing status errors (403 Forbidden)

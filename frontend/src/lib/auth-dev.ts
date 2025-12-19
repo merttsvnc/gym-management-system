@@ -7,7 +7,10 @@
  * Usage:
  * 1. Get a tenantId from your database or create one via API
  * 2. Call generateDevToken() with the tenantId
- * 3. Store the token in localStorage: localStorage.setItem('jwt_token', token)
+ * 3. Store the token in gymms_auth: localStorage.setItem('gymms_auth', JSON.stringify({accessToken: token, ...}))
+ *
+ * Note: This utility is deprecated in favor of proper login flow.
+ * Use the regular login API instead of dev tokens.
  */
 
 export interface DevTokenPayload {
@@ -85,12 +88,14 @@ function safeSetItem(key: string, value: string): boolean {
  *
  * This will prompt the user to enter a tenantId if no token exists.
  * For automated testing, set VITE_DEV_TENANT_ID in your .env file.
+ *
+ * DEPRECATED: Use proper login flow instead of dev tokens.
  */
 export function initDevToken(): void {
   if (typeof window === "undefined") return;
 
-  // Check if token already exists
-  if (safeGetItem("jwt_token")) {
+  // Check if auth data already exists
+  if (safeGetItem("gymms_auth")) {
     return;
   }
 
@@ -99,7 +104,13 @@ export function initDevToken(): void {
 
   if (envTenantId) {
     const token = generateDevToken(envTenantId);
-    if (safeSetItem("jwt_token", token)) {
+    // Store in gymms_auth format (single source of truth)
+    const authData = {
+      user: { id: "dev-user-1", email: "dev@example.com", role: "ADMIN" },
+      accessToken: token,
+      refreshToken: "dev-refresh-token",
+    };
+    if (safeSetItem("gymms_auth", JSON.stringify(authData))) {
       console.log("✅ Dev token initialized with tenantId:", envTenantId);
       console.log("🔑 Token (first 50 chars):", token.substring(0, 50) + "...");
     }
@@ -116,13 +127,19 @@ export function initDevToken(): void {
 
     if (tenantId && tenantId.trim()) {
       const token = generateDevToken(tenantId.trim());
-      if (safeSetItem("jwt_token", token)) {
+      // Store in gymms_auth format (single source of truth)
+      const authData = {
+        user: { id: "dev-user-1", email: "dev@example.com", role: "ADMIN" },
+        accessToken: token,
+        refreshToken: "dev-refresh-token",
+      };
+      if (safeSetItem("gymms_auth", JSON.stringify(authData))) {
         console.log("✅ Dev token initialized with tenantId:", tenantId.trim());
       }
     } else {
       console.warn(
         "⚠️ No dev token set. API requests will fail with 401 Unauthorized.\n" +
-          "Set VITE_DEV_TENANT_ID in your .env file or call generateDevToken() manually."
+          "Set VITE_DEV_TENANT_ID in your .env file or use proper login flow."
       );
     }
   }

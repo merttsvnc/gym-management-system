@@ -39,7 +39,6 @@ export function LoginPage() {
       if (err.statusCode === 403 && err.code === "TENANT_BILLING_LOCKED") {
         // Clear auth storage
         localStorage.removeItem("gymms_auth");
-        localStorage.removeItem("jwt_token");
         // Redirect to billing locked page with NO error message
         setIsLoading(false);
         navigate("/billing-locked");
