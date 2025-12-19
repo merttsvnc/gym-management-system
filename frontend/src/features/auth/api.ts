@@ -1,6 +1,7 @@
 import axios from "axios";
 import type { LoginResponse, AuthMeResponse } from "@/types/billing";
 import { apiClient } from "@/api/client";
+import { toApiError } from "@/types/error";
 
 /**
  * Base URL for API endpoints
@@ -13,6 +14,7 @@ const apiBaseURL =
  * POST to /api/v1/auth/login with email and password
  *
  * Returns LoginResponse with billing status included
+ * Throws ApiError preserving statusCode and code from backend
  */
 export async function login(
   email: string,
@@ -30,17 +32,9 @@ export async function login(
     );
     return response.data;
   } catch (error: unknown) {
-    // Handle API errors - throw stable error codes, not backend messages
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 401) {
-        // Stable error code for invalid credentials
-        throw new Error("INVALID_CREDENTIALS");
-      }
-      // Generic error for other failures (network, 5xx, etc.)
-      throw new Error("LOGIN_FAILED");
-    }
-    // Catch-all for non-Axios errors
-    throw new Error("LOGIN_FAILED");
+    // Preserve all error details (statusCode, code, etc.) using toApiError
+    // This ensures UI can make deterministic decisions based on backend response
+    throw toApiError(error);
   }
 }
 

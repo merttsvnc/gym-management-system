@@ -14,6 +14,17 @@ export type ApiError = {
  * Converts an Axios error to ApiError format
  */
 export function toApiError(error: unknown): ApiError {
+  // If already an ApiError, return as-is (prevent double parsing)
+  if (
+    error &&
+    typeof error === "object" &&
+    "statusCode" in error &&
+    "message" in error &&
+    !("response" in error)
+  ) {
+    return error as ApiError;
+  }
+
   if (error && typeof error === "object" && "response" in error) {
     const axiosError = error as {
       response?: {
@@ -68,10 +79,3 @@ export function toApiError(error: unknown): ApiError {
     message: "An unexpected error occurred",
   };
 }
-
-
-
-
-
-
-

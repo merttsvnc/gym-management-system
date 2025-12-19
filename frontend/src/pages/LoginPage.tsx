@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/useAuth";
+import { toApiError } from "@/types/error";
 import {
   Card,
   CardHeader,
@@ -30,24 +30,27 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-      // Redirect to dashboard after successful login
+      // Success: redirect to dashboard
       navigate("/settings/tenant");
-    } catch (err) {
-      // Map error codes to Turkish user-friendly messages
-      let errorMessage =
-        "Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.";
-      if (err instanceof Error) {
-        if (err.message === "INVALID_CREDENTIALS") {
-          errorMessage = "E-posta veya şifre hatalı.";
-        } else if (err.message === "LOGIN_FAILED") {
-          errorMessage =
-            "Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.";
-        }
+    } catch (e) {
+      const err = toApiError(e);
+
+      // EXACT DECISION TREE:
+      if (err.statusCode === 403 && err.code === "TENANT_BILLING_LOCKED") {
+        // Clear auth storage
+        localStorage.removeItem("gymms_auth");
+        localStorage.removeItem("jwt_token");
+        // Redirect to billing locked page with NO error message
+        setIsLoading(false);
+        navigate("/billing-locked");
+        return;
+      } else if (err.statusCode === 401 || err.code === "INVALID_CREDENTIALS") {
+        // Invalid credentials
+        setError("E-posta veya şifre hatalı");
+      } else {
+        // Generic error (network, 5xx, etc.)
+        setError("Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.");
       }
-      setError(errorMessage);
-      toast.error("Giriş yapılamadı", {
-        description: "E-posta veya şifre hatalı olabilir.",
-      });
     } finally {
       setIsLoading(false);
     }
