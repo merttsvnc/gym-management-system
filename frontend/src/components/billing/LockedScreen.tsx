@@ -1,6 +1,12 @@
 import { useAuth } from "@/features/auth/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { BILLING_BANNER_MESSAGES } from "@/lib/constants/billing-messages";
 import { XCircle, LogOut } from "lucide-react";
 
@@ -29,14 +35,25 @@ export function LockedScreen() {
         <CardContent className="space-y-4">
           <div className="rounded-lg bg-muted p-4">
             <p className="text-sm text-muted-foreground">
-              Hesabınız askıya alındığı için tüm işlemler geçici olarak
-              durdurulmuştur. Lütfen destek ekibi ile iletişime geçin.
+              Bu süre boyunca yeni kayıt, güncelleme ve silme işlemleri
+              yapılamaz. Mevcut verileriniz korunur ve ödeme onaylandıktan sonra
+              hesabınız yeniden aktif edilir.
             </p>
           </div>
           <div className="flex flex-col gap-2">
             <Button
-              onClick={logout}
+              onClick={() =>
+                (window.location.href = "mailto:support@example.com")
+              }
               variant="default"
+              className="w-full"
+              size="lg"
+            >
+              Destek ile İletişime Geç
+            </Button>
+            <Button
+              onClick={logout}
+              variant="outline"
               className="w-full"
               size="lg"
             >
@@ -44,13 +61,7 @@ export function LockedScreen() {
               Çıkış Yap
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Destek için:{" "}
-              <a
-                href="mailto:support@example.com"
-                className="text-primary hover:underline"
-              >
-                support@example.com
-              </a>
+              Destek için: support@example.com
             </p>
           </div>
         </CardContent>
@@ -58,4 +69,3 @@ export function LockedScreen() {
     </div>
   );
 }
-

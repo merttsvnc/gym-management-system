@@ -14,7 +14,7 @@
  * Used for structured error detection (code === "TENANT_BILLING_LOCKED")
  */
 export const BILLING_ERROR_CODES = {
-  TENANT_BILLING_LOCKED: 'TENANT_BILLING_LOCKED',
+  TENANT_BILLING_LOCKED: "TENANT_BILLING_LOCKED",
 } as const;
 
 /**
@@ -23,16 +23,16 @@ export const BILLING_ERROR_CODES = {
  */
 export const BILLING_BANNER_MESSAGES = {
   PAST_DUE: {
-    title: 'Ödeme Gecikmesi',
+    title: "Ödeme Gecikmesi",
     message:
-      'Ödemeniz gecikti. Hesabınız şu anda salt okunur modda. Lütfen ödemenizi tamamlayın.',
-    variant: 'warning' as const,
+      "Ödemeniz gecikti. Hesabınız şu anda salt okunur modda. Lütfen ödemenizi tamamlayın.",
+    variant: "warning" as const,
   },
   SUSPENDED: {
-    title: 'Hesap Askıya Alındı',
+    title: "Erişim Geçici Olarak Durduruldu",
     message:
-      'Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin.',
-    variant: 'error' as const,
+      "Ödeme durumunuz nedeniyle yönetim paneline erişiminiz geçici olarak kısıtlanmıştır.",
+    variant: "error" as const,
   },
 } as const;
 
@@ -42,6 +42,5 @@ export const BILLING_BANNER_MESSAGES = {
  */
 export const BILLING_TOOLTIP_MESSAGES = {
   PAST_DUE_READ_ONLY:
-    'Ödeme gecikmesi nedeniyle hesabınız salt okunur modda. Bu işlemi gerçekleştirmek için ödemenizi tamamlayın.',
+    "Ödeme gecikmesi nedeniyle hesabınız salt okunur modda. Bu işlemi gerçekleştirmek için ödemenizi tamamlayın.",
 } as const;
-
