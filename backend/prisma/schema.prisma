@@ -64,6 +64,15 @@ enum BillingStatus {
   SUSPENDED
 }
 
+// Payment method enum
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  BANK_TRANSFER
+  CHECK
+  OTHER
+}
+
 // Tenant model
 model Tenant {
   id                     String        @id @default(cuid())
@@ -81,6 +90,7 @@ model Tenant {
   users           User[]
   members         Member[]
   membershipPlans MembershipPlan[]
+  payments        Payment[]
 
   @@index([slug])
   @@index([billingStatus])
@@ -102,6 +112,7 @@ model Branch {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   members         Member[]
   membershipPlans MembershipPlan[]
+  payments        Payment[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -203,9 +214,71 @@ model Member {
   tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branch         Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
   membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id])
+  payments       Payment[]
 
   @@index([tenantId, branchId])
   @@index([tenantId, phone])
   @@index([membershipPlanId])
   @@index([tenantId, membershipPlanId])
+}
+
+// Payment model
+model Payment {
+  id                 String        @id @default(cuid())
+  tenantId           String
+  branchId           String
+  memberId           String
+
+  // Payment details
+  amount             Decimal       @db.Decimal(10, 2)
+  paidOn             DateTime      // DATE-ONLY business date: stored as DateTime set to start-of-day UTC (00:00:00Z); tenant timezone used for date selection/display
+  paymentMethod      PaymentMethod
+  note               String?       @db.VarChar(500)
+
+  // Correction tracking
+  isCorrection       Boolean       @default(false)
+  correctedPaymentId String?       @unique
+  isCorrected        Boolean       @default(false)
+
+  // Optimistic locking
+  version            Int           @default(0)
+
+  // Audit fields (strictly for audit, not business logic)
+  createdBy          String        // User ID
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relations
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch             Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  member             Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  correctedPayment   Payment?      @relation("PaymentCorrection", fields: [correctedPaymentId], references: [id], onDelete: SetNull)
+  correctingPayment  Payment?      @relation("PaymentCorrection")
+
+  @@index([tenantId])
+  @@index([tenantId, branchId])
+  @@index([tenantId, memberId])
+  @@index([tenantId, paidOn])
+  @@index([tenantId, paymentMethod])
+  @@index([tenantId, paidOn, branchId])
+  @@index([tenantId, paidOn, paymentMethod])
+  @@index([memberId])
+  @@index([branchId])
+  @@index([correctedPaymentId])
+  @@index([tenantId, isCorrection])
+  @@index([tenantId, isCorrected])
+}
+
+// IdempotencyKey model (for idempotency support)
+model IdempotencyKey {
+  id           String    @id @default(cuid())
+  key          String    @unique
+  tenantId     String
+  userId       String
+  response     Json      // Cached response
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime  // TTL: 24 hours
+
+  @@index([key])
+  @@index([expiresAt]) // For cleanup job
 }

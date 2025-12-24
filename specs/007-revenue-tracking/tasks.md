@@ -37,17 +37,17 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T001 Add `PaymentMethod` enum to Prisma schema in `backend/prisma/schema.prisma`
-- [ ] T002 Add `Payment` model with all fields including `paidOn` (DATE-only semantics) in `backend/prisma/schema.prisma`
-- [ ] T003 Add `version` field to Payment model for optimistic locking in `backend/prisma/schema.prisma`
-- [ ] T004 Add `isCorrected` and `isCorrection` fields to Payment model in `backend/prisma/schema.prisma`
-- [ ] T005 Add all Payment indexes (tenantId, branchId, memberId, paidOn, paymentMethod, etc.) in `backend/prisma/schema.prisma`
-- [ ] T006 Add Payment relations to Tenant, Branch, and Member models in `backend/prisma/schema.prisma`
-- [ ] T007 Add self-referential Payment correction relation in `backend/prisma/schema.prisma`
-- [ ] T008 Add `IdempotencyKey` model with TTL support in `backend/prisma/schema.prisma`
-- [ ] T009 Generate Prisma migration in `backend/prisma/migrations/`
-- [ ] T010 Test migration on development database
-- [ ] T011 Verify rollback procedure works correctly
+- [X] T001 Add `PaymentMethod` enum to Prisma schema in `backend/prisma/schema.prisma`
+- [X] T002 Add `Payment` model with all fields including `paidOn` (DATE-only semantics) in `backend/prisma/schema.prisma`
+- [X] T003 Add `version` field to Payment model for optimistic locking in `backend/prisma/schema.prisma`
+- [X] T004 Add `isCorrected` and `isCorrection` fields to Payment model in `backend/prisma/schema.prisma`
+- [X] T005 Add all Payment indexes (tenantId, branchId, memberId, paidOn, paymentMethod, etc.) in `backend/prisma/schema.prisma`
+- [X] T006 Add Payment relations to Tenant, Branch, and Member models in `backend/prisma/schema.prisma`
+- [X] T007 Add self-referential Payment correction relation in `backend/prisma/schema.prisma`
+- [X] T008 Add `IdempotencyKey` model with TTL support in `backend/prisma/schema.prisma`
+- [X] T009 Generate Prisma migration in `backend/prisma/migrations/`
+- [X] T010 Test migration on development database
+- [X] T011 Verify rollback procedure works correctly
 
 **Acceptance Criteria:**
 
