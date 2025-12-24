@@ -3,10 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentMethod, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { randomUUID } from 'crypto';
 
 export interface CreatePaymentInput {
   memberId: string;
@@ -46,6 +48,8 @@ export interface RevenueReportFilters {
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -102,6 +106,24 @@ export class PaymentsService {
         branch: true,
       },
     });
+
+    // Structured event logging (excludes amount and note)
+    const correlationId = this.getCorrelationId();
+    this.logger.log(
+      JSON.stringify({
+        event: 'payment.created',
+        paymentId: payment.id,
+        tenantId: payment.tenantId,
+        branchId: payment.branchId,
+        memberId: payment.memberId,
+        paymentMethod: payment.paymentMethod,
+        paidOn: payment.paidOn.toISOString(),
+        actorUserId: userId,
+        result: 'success',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      }),
+    );
 
     return payment;
   }
@@ -217,6 +239,25 @@ export class PaymentsService {
 
       return correctedPayment;
     });
+
+    // Structured event logging (excludes amount and note)
+    const correlationId = this.getCorrelationId();
+    this.logger.log(
+      JSON.stringify({
+        event: 'payment.corrected',
+        originalPaymentId: paymentId,
+        correctedPaymentId: result.id,
+        tenantId: result.tenantId,
+        branchId: result.branchId,
+        memberId: result.memberId,
+        paymentMethod: result.paymentMethod,
+        paidOn: result.paidOn.toISOString(),
+        actorUserId: userId,
+        result: 'success',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      }),
+    );
 
     return result;
   }
@@ -586,6 +627,17 @@ export class PaymentsService {
     const weekStart = new Date(d);
     weekStart.setUTCDate(d.getUTCDate() - daysToSubtract);
     return this.truncateToStartOfDayUTC(weekStart);
+  }
+
+  /**
+   * Generate or retrieve correlation ID for request tracing
+   * Currently generates a UUID. Can be enhanced to retrieve from request context
+   * (e.g., X-Correlation-ID or X-Request-ID header) in the future.
+   */
+  private getCorrelationId(): string {
+    // TODO: Enhance to retrieve from request context when available
+    // For now, generate a UUID for each operation
+    return randomUUID();
   }
 }
 

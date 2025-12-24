@@ -116,13 +116,13 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T028 Add structured logging to `createPayment()` (exclude amount and note) in `backend/src/payments/payments.service.ts`
-- [ ] T029 Add structured logging to `correctPayment()` (exclude amount and note) in `backend/src/payments/payments.service.ts`
-- [ ] T030 Implement correlation ID generation/retrieval in `backend/src/payments/payments.service.ts`
-- [ ] T031 Log payment.created event with metadata (tenantId, branchId, paymentId, memberId, paymentMethod, actorUserId, result, correlationId) in `backend/src/payments/payments.service.ts`
-- [ ] T032 Log payment.corrected event with metadata (exclude amounts/notes) in `backend/src/payments/payments.service.ts`
-- [ ] T033 Verify logs exclude payment amounts in `backend/src/payments/payments.service.ts`
-- [ ] T034 Verify logs exclude payment notes in `backend/src/payments/payments.service.ts`
+- [X] T028 Add structured logging to `createPayment()` (exclude amount and note) in `backend/src/payments/payments.service.ts`
+- [X] T029 Add structured logging to `correctPayment()` (exclude amount and note) in `backend/src/payments/payments.service.ts`
+- [X] T030 Implement correlation ID generation/retrieval in `backend/src/payments/payments.service.ts`
+- [X] T031 Log payment.created event with metadata (tenantId, branchId, paymentId, memberId, paymentMethod, actorUserId, result, correlationId) in `backend/src/payments/payments.service.ts`
+- [X] T032 Log payment.corrected event with metadata (exclude amounts/notes) in `backend/src/payments/payments.service.ts`
+- [X] T033 Verify logs exclude payment amounts in `backend/src/payments/payments.service.ts`
+- [X] T034 Verify logs exclude payment notes in `backend/src/payments/payments.service.ts`
 
 **Acceptance Criteria:**
 
