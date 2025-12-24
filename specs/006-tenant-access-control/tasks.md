@@ -358,21 +358,36 @@ This document contains the complete task list for implementing Tenant Access Con
 **Dependencies:** All frontend phases  
 **Blockers:** T098-T140 must be complete
 
+**Note:** Automated tests deferred. All scenarios verified manually.
+
 ### Tasks
 
-- [ ] T141 Test PAST_DUE tenant UI: login and verify warning banner displays
-- [ ] T142 Test PAST_DUE tenant UI: verify create/update/delete buttons are disabled
-- [ ] T143 Test PAST_DUE tenant UI: verify forms are read-only
-- [ ] T144 Test PAST_DUE tenant UI: verify tooltips display correctly
-- [ ] T145 Test SUSPENDED tenant UI: attempt login and verify login is rejected with error message
-- [ ] T146 Test SUSPENDED tenant UI: verify locked screen displays if somehow logged in
-- [ ] T147 Test mid-session status change flow: login as ACTIVE tenant
-- [ ] T148 Test mid-session status change flow: update billing status to PAST_DUE in database
-- [ ] T149 Test mid-session status change flow: attempt to create/update record and verify mutation is blocked (403)
-- [ ] T150 Test mid-session status change flow: verify JWT is preserved (user remains logged in, can view data)
-- [ ] T151 Test mid-session status change flow: verify read-only mode indicators appear
-- [ ] T152 Test mid-session status change flow: update billing status to SUSPENDED in database
-- [ ] T153 Test mid-session status change flow: attempt any API request and verify redirects to `/billing-locked` when error code `TENANT_BILLING_LOCKED` is detected (relies on backend authority)
+- [x] T141 Test PAST_DUE tenant UI: login and verify warning banner displays  
+  Completed via manual QA and smoke testing
+- [x] T142 Test PAST_DUE tenant UI: verify create/update/delete buttons are disabled  
+  Completed via manual QA and smoke testing
+- [x] T143 Test PAST_DUE tenant UI: verify forms are read-only  
+  Completed via manual QA and smoke testing
+- [x] T144 Test PAST_DUE tenant UI: verify tooltips display correctly  
+  Completed via manual QA and smoke testing
+- [x] T145 Test SUSPENDED tenant UI: attempt login and verify login is rejected with error message  
+  Completed via manual QA and smoke testing
+- [x] T146 Test SUSPENDED tenant UI: verify locked screen displays if somehow logged in  
+  Completed via manual QA and smoke testing
+- [x] T147 Test mid-session status change flow: login as ACTIVE tenant  
+  Completed via manual QA and smoke testing
+- [x] T148 Test mid-session status change flow: update billing status to PAST_DUE in database  
+  Completed via manual QA and smoke testing
+- [x] T149 Test mid-session status change flow: attempt to create/update record and verify mutation is blocked (403)  
+  Completed via manual QA and smoke testing
+- [x] T150 Test mid-session status change flow: verify JWT is preserved (user remains logged in, can view data)  
+  Completed via manual QA and smoke testing
+- [x] T151 Test mid-session status change flow: verify read-only mode indicators appear  
+  Completed via manual QA and smoke testing
+- [x] T152 Test mid-session status change flow: update billing status to SUSPENDED in database  
+  Completed via manual QA and smoke testing
+- [x] T153 Test mid-session status change flow: attempt any API request and verify redirects to `/billing-locked` when error code `TENANT_BILLING_LOCKED` is detected (relies on backend authority)  
+  Completed via manual QA and smoke testing
 
 **Acceptance Criteria:**
 
@@ -398,23 +413,40 @@ This document contains the complete task list for implementing Tenant Access Con
 **Dependencies:** Phase 1  
 **Blockers:** T001-T008 must be complete
 
+**Note:** This phase is intentionally deferred and will be handled after MVP release.
+
 ### Tasks
 
-- [ ] T154 Create manual DB update runbook in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T155 Document Prisma Studio steps for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T156 Document SQL examples for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T157 Document billing status transition rules in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T158 Include examples for common scenarios (SUSPENDED → ACTIVE, ACTIVE → PAST_DUE, PAST_DUE → SUSPENDED) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T159 Include safety checks (verify tenant exists, verify current status) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T160 Document safe rollback considerations in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T161 Document migration rollback steps in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T162 Document data rollback procedures (if billing status needs to be reverted) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T163 Document impact of rollback on tenant access in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T164 Include SQL scripts for rollback scenarios in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T165 Create troubleshooting guide in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T166 Document common issues and solutions (tenant cannot login, tenant cannot create records, billing status not updating) in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T167 Document how to verify billing status enforcement is working in `specs/006-tenant-access-control/operations-runbook.md`
-- [ ] T168 Document how to check logs for billing status changes in `specs/006-tenant-access-control/operations-runbook.md`
+- [ ] T154 Create manual DB update runbook in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T155 Document Prisma Studio steps for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T156 Document SQL examples for updating billing status in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T157 Document billing status transition rules in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T158 Include examples for common scenarios (SUSPENDED → ACTIVE, ACTIVE → PAST_DUE, PAST_DUE → SUSPENDED) in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T159 Include safety checks (verify tenant exists, verify current status) in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T160 Document safe rollback considerations in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T161 Document migration rollback steps in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T162 Document data rollback procedures (if billing status needs to be reverted) in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T163 Document impact of rollback on tenant access in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T164 Include SQL scripts for rollback scenarios in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T165 Create troubleshooting guide in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T166 Document common issues and solutions (tenant cannot login, tenant cannot create records, billing status not updating) in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T167 Document how to verify billing status enforcement is working in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
+- [ ] T168 Document how to check logs for billing status changes in `specs/006-tenant-access-control/operations-runbook.md`  
+  Deferred (Post-MVP)
 
 **Acceptance Criteria:**
 
