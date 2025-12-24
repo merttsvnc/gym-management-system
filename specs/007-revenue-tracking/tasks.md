@@ -175,19 +175,19 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T044 Create `PaymentsController` class in `backend/src/payments/payments.controller.ts`
-- [ ] T045 Implement POST /api/v1/payments endpoint in `backend/src/payments/payments.controller.ts`
-- [ ] T046 Implement GET /api/v1/payments endpoint with filtering in `backend/src/payments/payments.controller.ts`
-- [ ] T047 Implement GET /api/v1/payments/:id endpoint in `backend/src/payments/payments.controller.ts`
-- [ ] T048 Implement GET /api/v1/members/:memberId/payments endpoint in `backend/src/payments/payments.controller.ts`
-- [ ] T049 Implement POST /api/v1/payments/:id/correct endpoint in `backend/src/payments/payments.controller.ts`
-- [ ] T050 Implement GET /api/v1/revenue endpoint in `backend/src/payments/payments.controller.ts`
-- [ ] T051 Add authorization guards (@UseGuards(JwtAuthGuard, RolesGuard)) to all endpoints in `backend/src/payments/payments.controller.ts`
-- [ ] T052 Add error handling for 400 Validation errors in `backend/src/payments/payments.controller.ts`
-- [ ] T053 Add error handling for 403 Forbidden (tenant violations) in `backend/src/payments/payments.controller.ts`
-- [ ] T054 Add error handling for 404 Not Found in `backend/src/payments/payments.controller.ts`
-- [ ] T055 Add error handling for 409 Conflict (version mismatch) in `backend/src/payments/payments.controller.ts`
-- [ ] T056 Add error handling for 400 BadRequest (already corrected payment) in `backend/src/payments/payments.controller.ts`
+- [X] T044 Create `PaymentsController` class in `backend/src/payments/payments.controller.ts`
+- [X] T045 Implement POST /api/v1/payments endpoint in `backend/src/payments/payments.controller.ts`
+- [X] T046 Implement GET /api/v1/payments endpoint with filtering in `backend/src/payments/payments.controller.ts`
+- [X] T047 Implement GET /api/v1/payments/:id endpoint in `backend/src/payments/payments.controller.ts`
+- [X] T048 Implement GET /api/v1/members/:memberId/payments endpoint in `backend/src/payments/payments.controller.ts`
+- [X] T049 Implement POST /api/v1/payments/:id/correct endpoint in `backend/src/payments/payments.controller.ts`
+- [X] T050 Implement GET /api/v1/revenue endpoint in `backend/src/payments/payments.controller.ts`
+- [X] T051 Add authorization guards (@UseGuards(JwtAuthGuard, RolesGuard)) to all endpoints in `backend/src/payments/payments.controller.ts`
+- [X] T052 Add error handling for 400 Validation errors in `backend/src/payments/payments.controller.ts`
+- [X] T053 Add error handling for 403 Forbidden (tenant violations) in `backend/src/payments/payments.controller.ts`
+- [X] T054 Add error handling for 404 Not Found in `backend/src/payments/payments.controller.ts`
+- [X] T055 Add error handling for 409 Conflict (version mismatch) in `backend/src/payments/payments.controller.ts`
+- [X] T056 Add error handling for 400 BadRequest (already corrected payment) in `backend/src/payments/payments.controller.ts`
 
 **Acceptance Criteria:**
 
