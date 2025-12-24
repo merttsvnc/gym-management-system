@@ -1,0 +1,732 @@
+openapi: 3.0.3
+info:
+  title: Collections & Revenue Tracking API
+  version: 1.0.0
+  description: |
+    API for recording payments and tracking revenue in the Gym Management System.
+    Supports payment recording, correction with optimistic locking, and revenue reporting.
+  contact:
+    name: API Support
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Payments
+    description: Payment recording and management operations
+  - name: Revenue
+    description: Revenue reporting operations
+
+paths:
+  /payments:
+    get:
+      tags:
+        - Payments
+      summary: List payments
+      description: |
+        List all payments for the current tenant with filtering and pagination.
+        All queries automatically filtered by tenantId.
+      operationId: listPayments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: memberId
+          in: query
+          description: Filter by member ID
+          schema:
+            type: string
+        - name: branchId
+          in: query
+          description: Filter by branch ID
+          schema:
+            type: string
+        - name: paymentMethod
+          in: query
+          description: Filter by payment method
+          schema:
+            $ref: '#/components/schemas/PaymentMethod'
+        - name: startDate
+          in: query
+          description: Filter payments from this date (inclusive, ISO 8601)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter payments to this date (inclusive, ISO 8601)
+          schema:
+            type: string
+            format: date
+        - name: includeCorrections
+          in: query
+          description: Include corrected payments in results (default: true)
+          schema:
+            type: boolean
+            default: true
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page (default: 20, max: 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Payments
+      summary: Create payment
+      description: |
+        Record a new payment for a member.
+        Requires ADMIN role.
+        Supports idempotency via Idempotency-Key header.
+      operationId: createPayment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: Payment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Validation error (invalid amount, date in future, member not found, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (member belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests (rate limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payments/{id}:
+    get:
+      tags:
+        - Payments
+      summary: Get payment by ID
+      description: Get details of a specific payment
+      operationId: getPayment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (payment belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payments/{id}/correct:
+    post:
+      tags:
+        - Payments
+      summary: Correct payment
+      description: |
+        Correct a payment that contains mistakes.
+        Uses optimistic locking via version field.
+        Returns warning if payment is older than 90 days.
+      operationId: correctPayment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment ID to correct (CUID)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrectPaymentRequest'
+      responses:
+        '201':
+          description: Correction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectPaymentResponse'
+        '400':
+          description: Validation error (payment already corrected, invalid values, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (payment belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (version mismatch - payment was modified by another user)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests (rate limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /members/{memberId}/payments:
+    get:
+      tags:
+        - Payments
+      summary: Get member payment history
+      description: |
+        Get all payments for a specific member (payment history).
+        Automatically filtered by tenantId.
+      operationId: getMemberPayments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          description: Member ID (CUID)
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: Filter payments from this date (inclusive)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter payments to this date (inclusive)
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page (default: 20, max: 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (member belongs to different tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /revenue:
+    get:
+      tags:
+        - Revenue
+      summary: Get revenue report
+      description: |
+        Get revenue report aggregated by time period.
+        Revenue excludes corrected original payments and includes corrected amounts.
+        All queries automatically filtered by tenantId.
+      operationId: getRevenueReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          description: Start date for revenue period (ISO 8601)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          description: End date for revenue period (ISO 8601)
+          schema:
+            type: string
+            format: date
+        - name: branchId
+          in: query
+          description: Filter by branch ID
+          schema:
+            type: string
+        - name: paymentMethod
+          in: query
+          description: Filter by payment method
+          schema:
+            $ref: '#/components/schemas/PaymentMethod'
+        - name: groupBy
+          in: query
+          description: Grouping period (default: "day")
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevenueReportResponse'
+        '400':
+          description: Invalid query parameters (missing dates, invalid date range, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PaymentMethod:
+      type: string
+      enum:
+        - CASH
+        - CREDIT_CARD
+        - BANK_TRANSFER
+        - CHECK
+        - OTHER
+      description: Payment method enumeration
+
+    Payment:
+      type: object
+      required:
+        - id
+        - tenantId
+        - branchId
+        - memberId
+        - amount
+        - paymentDate
+        - paymentMethod
+        - isCorrection
+        - correctedPaymentId
+        - isCorrected
+        - version
+        - createdBy
+        - createdAt
+        - updatedAt
+        - member
+        - branch
+      properties:
+        id:
+          type: string
+          description: Payment ID (CUID)
+        tenantId:
+          type: string
+          description: Tenant ID
+        branchId:
+          type: string
+          description: Branch ID
+        memberId:
+          type: string
+          description: Member ID
+        amount:
+          type: string
+          description: Payment amount as decimal string (e.g., "100.00")
+        paymentDate:
+          type: string
+          format: date
+          description: Payment date (ISO 8601 date string, date-only, no time component)
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        note:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Optional note about the payment
+        isCorrection:
+          type: boolean
+          description: True if this payment corrects another payment
+        correctedPaymentId:
+          type: string
+          nullable: true
+          description: Reference to original payment if this is a correction
+        isCorrected:
+          type: boolean
+          description: True if this payment has been corrected
+        version:
+          type: integer
+          description: Version number for optimistic locking
+        createdBy:
+          type: string
+          description: User ID who created the payment
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when payment was recorded
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when payment was last updated
+        member:
+          type: object
+          required:
+            - id
+            - firstName
+            - lastName
+          properties:
+            id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+        branch:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+
+    CreatePaymentRequest:
+      type: object
+      required:
+        - memberId
+        - amount
+        - paymentDate
+        - paymentMethod
+      properties:
+        memberId:
+          type: string
+          description: CUID of member
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 999999.99
+          multipleOf: 0.01
+          description: Positive number, 2 decimal places
+        paymentDate:
+          type: string
+          format: date
+          description: ISO 8601 date string (YYYY-MM-DD, date-only, no time component), can be in the past
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        note:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Optional note (max 500 characters)
+
+    CorrectPaymentRequest:
+      type: object
+      required:
+        - version
+      properties:
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 999999.99
+          multipleOf: 0.01
+          description: New amount (if correcting amount)
+        paymentDate:
+          type: string
+          format: date
+          description: New date (if correcting date, ISO 8601)
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+          description: New payment method (if correcting method)
+        note:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Updated note (optional)
+        correctionReason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Reason for correction (optional, max 500 chars)
+        version:
+          type: integer
+          description: Current version of payment (for optimistic locking)
+
+    PaymentResponse:
+      allOf:
+        - $ref: '#/components/schemas/Payment'
+
+    PaymentListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentResponse'
+        pagination:
+          type: object
+          required:
+            - page
+            - limit
+            - total
+            - totalPages
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+    CorrectPaymentResponse:
+      type: object
+      required:
+        - payment
+      properties:
+        payment:
+          $ref: '#/components/schemas/PaymentResponse'
+        warning:
+          type: string
+          description: Warning message if payment is older than 90 days
+
+    RevenueReportResponse:
+      type: object
+      required:
+        - totalRevenue
+        - currency
+        - period
+        - breakdown
+        - filters
+      properties:
+        totalRevenue:
+          type: string
+          description: Total revenue as decimal string
+        currency:
+          type: string
+          description: Tenant's default currency
+        period:
+          type: object
+          required:
+            - startDate
+            - endDate
+          properties:
+            startDate:
+              type: string
+              format: date
+              description: ISO 8601 date
+            endDate:
+              type: string
+              format: date
+              description: ISO 8601 date
+        breakdown:
+          type: array
+          items:
+            type: object
+            required:
+              - period
+              - revenue
+              - paymentCount
+            properties:
+              period:
+                type: string
+                description: Period identifier (date, week, or month)
+              revenue:
+                type: string
+                description: Revenue for this period as decimal string
+              paymentCount:
+                type: integer
+                description: Number of payments in this period
+        filters:
+          type: object
+          required:
+            - branchId
+            - paymentMethod
+          properties:
+            branchId:
+              type: string
+              nullable: true
+            paymentMethod:
+              $ref: '#/components/schemas/PaymentMethod'
+              nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+              - field
+              - message
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
