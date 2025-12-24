@@ -28,7 +28,7 @@ model Payment {
   
   // Payment details
   amount             Decimal       @db.Decimal(10, 2)
-  paymentDate        DateTime      // Date-only (time component ignored, uses tenant timezone for display)
+  paidOn             DateTime      // DATE-ONLY business date: stored as DateTime set to start-of-day UTC (00:00:00Z); tenant timezone used for date selection/display
   paymentMethod      PaymentMethod
   note               String?       @db.VarChar(500)
   
@@ -55,10 +55,10 @@ model Payment {
   @@index([tenantId])
   @@index([tenantId, branchId])
   @@index([tenantId, memberId])
-  @@index([tenantId, paymentDate])
+  @@index([tenantId, paidOn])
   @@index([tenantId, paymentMethod])
-  @@index([tenantId, paymentDate, branchId])
-  @@index([tenantId, paymentDate, paymentMethod])
+  @@index([tenantId, paidOn, branchId])
+  @@index([tenantId, paidOn, paymentMethod])
   @@index([memberId])
   @@index([branchId])
   @@index([correctedPaymentId])
@@ -74,7 +74,7 @@ model Payment {
 - `branchId`: Foreign key to Branch (inherited from member's branch, REQUIRED)
 - `memberId`: Foreign key to Member (REQUIRED)
 - `amount`: Payment amount in tenant's currency (Decimal(10,2), positive, 2 decimal places)
-- `paymentDate`: Date payment was received (DateTime, time component ignored, can be in the past)
+- `paidOn`: DATE-ONLY business date (DateTime, stored as start-of-day UTC 00:00:00Z, tenant timezone used for date selection/display, can be in the past)
 - `paymentMethod`: Payment method enum (CASH, CREDIT_CARD, BANK_TRANSFER, CHECK, OTHER)
 - `note`: Optional note about the payment (max 500 characters)
 - `isCorrection`: True if this payment corrects another payment
@@ -92,11 +92,13 @@ model Payment {
    - Maximum value: 999999.99
    - Precision: 2 decimal places
 
-2. **Payment Date:**
+2. **Payment Date (`paidOn`):**
+   - `paidOn` is a DATE-ONLY business date (represents the date payment was received)
+   - Stored as DateTime set to start-of-day UTC (00:00:00Z)
+   - Tenant timezone is used for date selection/display in UI
+   - `createdAt`/`updatedAt` are audit timestamps only, never used for reporting windows
    - Cannot be in the future
    - Can be in the past (backdated payments allowed)
-   - Stored as date-only (time component truncated to 00:00:00 UTC)
-   - Date selection and display use tenant timezone
 
 3. **Member:**
    - Must exist and belong to the same tenant as authenticated user
@@ -223,16 +225,16 @@ Indexes are designed to optimize common query patterns while maintaining tenant 
 
 **Branch Filtering:**
 - `@@index([tenantId, branchId])`: Branch-filtered revenue queries
-- `@@index([tenantId, paymentDate, branchId])`: Branch-filtered revenue by date (composite)
+- `@@index([tenantId, paidOn, branchId])`: Branch-filtered revenue by date (composite)
 
 **Member Payment History:**
 - `@@index([tenantId, memberId])`: Member payment history queries
 - `@@index([memberId])`: Member payment history (without tenant filter for performance)
 
 **Date-Based Queries:**
-- `@@index([tenantId, paymentDate])`: Time-period revenue queries (most important for reports)
-- `@@index([tenantId, paymentDate, branchId])`: Branch-filtered revenue by date
-- `@@index([tenantId, paymentDate, paymentMethod])`: Payment method filtered revenue by date
+- `@@index([tenantId, paidOn])`: Time-period revenue queries (most important for reports)
+- `@@index([tenantId, paidOn, branchId])`: Branch-filtered revenue by date
+- `@@index([tenantId, paidOn, paymentMethod])`: Payment method filtered revenue by date
 
 **Payment Method Filtering:**
 - `@@index([tenantId, paymentMethod])`: Payment method filtering
@@ -258,11 +260,13 @@ Indexes are designed to optimize common query patterns while maintaining tenant 
    - Amount precision: 2 decimal places
    - Maximum amount: 999999.99
 
-2. **Date Validation:**
+2. **Date Validation (`paidOn`):**
+   - `paidOn` is a DATE-ONLY business date (represents the date payment was received)
+   - Stored as DateTime set to start-of-day UTC (00:00:00Z)
+   - Tenant timezone is used for date selection/display in UI
+   - `createdAt`/`updatedAt` are audit timestamps only, never used for reporting windows
    - Payment date CAN be in the past (backdated payments allowed)
    - Payment date CANNOT be in the future
-   - Payment date stored as date-only (no time component)
-   - Date selection and display use tenant timezone
 
 3. **Member Validation:**
    - Member MUST exist and belong to the same tenant as authenticated user
@@ -276,6 +280,7 @@ Indexes are designed to optimize common query patterns while maintaining tenant 
 
 1. **Correction Eligibility:**
    - Only payments with `isCorrected = false` can be corrected
+   - Correction chain is DISALLOWED: If `isCorrected = true`, correction endpoint returns 400 BadRequest
    - Correction uses optimistic locking (version field)
 
 2. **Optimistic Locking:**
@@ -287,7 +292,8 @@ Indexes are designed to optimize common query patterns while maintaining tenant 
    - Correction creates a new Payment record (original is preserved)
    - Corrected payment MUST have `isCorrection = true` and `correctedPaymentId` set
    - Original payment MUST have `isCorrected = true` and `correctedPaymentId` set to new payment's ID
-   - Correction can modify: amount, paymentDate, paymentMethod, or note
+   - Correction chain is DISALLOWED: If `isCorrected = true`, correction endpoint returns 400 BadRequest
+   - Correction can modify: amount, paidOn, paymentMethod, or note
    - Correction preserves member, branch, and tenant associations (cannot be changed)
 
 4. **Time Restrictions:**
@@ -297,14 +303,15 @@ Indexes are designed to optimize common query patterns while maintaining tenant 
 ### Revenue Calculation Rules
 
 1. **Payment Inclusion:**
-   - Revenue includes all payments where `isCorrection = false` OR where payment is a correction (`isCorrection = true`)
-   - Revenue excludes original payments that have been corrected (uses corrected amount instead)
+   - Revenue includes corrected payment amounts (`isCorrection = true`)
+   - Revenue excludes original payments that have been corrected (`isCorrection = false` AND `isCorrected = true`)
+   - Revenue includes regular payments that have not been corrected (`isCorrection = false` AND `isCorrected = false`)
 
 2. **Filtering:**
    - Revenue calculations MUST be filtered by `tenantId` (tenant isolation)
    - Revenue can be filtered by `branchId` (optional)
    - Revenue can be filtered by `paymentMethod` (optional)
-   - Revenue calculations use `paymentDate` for time period filtering
+   - Revenue calculations use `paidOn` for time period filtering
 
 3. **Aggregation:**
    - Revenue calculations use database aggregation (GROUP BY) for performance
@@ -397,7 +404,7 @@ Indexes are designed to optimize common query patterns while maintaining tenant 
    - Composite indexes optimize common query patterns
 
 2. **Date Range Queries:**
-   - Use `@@index([tenantId, paymentDate])` for efficient date filtering
+   - Use `@@index([tenantId, paidOn])` for efficient date filtering
    - Composite indexes support branch and payment method filtering with dates
 
 3. **Member Payment History:**

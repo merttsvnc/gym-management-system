@@ -156,7 +156,8 @@ The Collections & Revenue Tracking module will be considered successful when:
 - Report can be filtered by branch (all branches or specific branch)
 - Report can be filtered by payment method
 - Report shows breakdown by date within the period
-- Revenue calculations include only payments (not corrections or adjustments)
+- Revenue includes corrected payment amounts (`isCorrection = true`)
+- Revenue excludes original payments that have been corrected (`isCorrection = false` AND `isCorrected = true`)
 
 ### US-004: Filter Revenue by Branch
 **As an** Admin with multiple branches  
@@ -323,11 +324,13 @@ A Payment represents a single financial transaction where money was collected fr
 
 **Revenue Calculation Rules:**
 
-- Revenue includes all payments within the selected time period
-- Revenue excludes payments that have been corrected (uses corrected amounts instead)
+- Revenue includes corrected payment amounts (`isCorrection = true`)
+- Revenue excludes original payments that have been corrected (`isCorrection = false` AND `isCorrected = true`)
+- Revenue includes regular payments that have not been corrected (`isCorrection = false` AND `isCorrected = false`)
 - Revenue can be filtered by branch (member's branch determines payment branch)
 - Revenue can be filtered by payment method
 - Revenue calculations are tenant-scoped (only includes payments from admin's tenant)
+- Revenue calculations use `paidOn` for time period filtering
 
 ### Entities
 
@@ -342,7 +345,7 @@ interface Payment {
   
   // Payment details
   amount: Decimal; // Payment amount (positive number, 2 decimal places)
-  paymentDate: Date; // Date payment was received (date-only, no time component; can be in the past)
+  paidOn: Date; // Date payment was received (date-only, no time component; can be in the past)
   paymentMethod: PaymentMethod; // Enum: CASH, CREDIT_CARD, BANK_TRANSFER, CHECK, OTHER
   note: string | null; // Optional note about the payment
   
@@ -392,15 +395,18 @@ Payment (1) ──< (1) Payment (correction relationship)
 
 **Rule 1: Payment Recording**
 - Payment amount MUST be positive (greater than zero)
-- Payment date CAN be in the past (backdated payments allowed)
-- Payment date CANNOT be in the future
-- Payment date stored as date-only (no time component) to avoid timezone conversion issues
-- Date selection and display use tenant's timezone for consistency
+- `paidOn` is a DATE-ONLY business date (represents the date payment was received)
+- `paidOn` is stored as DateTime set to start-of-day UTC (00:00:00Z)
+- Tenant timezone is used for date selection/display in UI
+- `createdAt`/`updatedAt` are audit timestamps only, never used for reporting windows
+- `paidOn` CAN be in the past (backdated payments allowed)
+- `paidOn` CANNOT be in the future
 - Member MUST exist and belong to the same tenant as the admin
 - Branch is automatically set from member's branch (cannot be changed independently)
 
 **Rule 2: Payment Correction**
 - Only payments that have NOT been corrected can be corrected (`isCorrected = false`)
+- **Correction chain is DISALLOWED:** If `isCorrected = true`, correction endpoint returns 400 BadRequest
 - Correction uses optimistic locking: Payment model includes `version` field that increments on each update
 - When correcting, system checks `version` matches expected value; if mismatch detected, correction fails with conflict error
 - Corrections are allowed at any time (no time restrictions)
@@ -408,16 +414,17 @@ Payment (1) ──< (1) Payment (correction relationship)
 - Correction creates a new Payment record (original is preserved)
 - Corrected payment MUST have `isCorrection = true` and `correctedPaymentId` set
 - Original payment MUST have `isCorrected = true` and `correctedPaymentId` set to new payment's ID
-- Correction can modify: amount, paymentDate, paymentMethod, or note
+- Correction can modify: amount, paidOn, paymentMethod, or note
 - Correction preserves member, branch, and tenant associations (cannot be changed)
 
 **Rule 3: Revenue Calculation**
-- Revenue includes all payments where `isCorrection = false` OR where payment is a correction (`isCorrection = true`)
-- Revenue excludes original payments that have been corrected (uses corrected amount instead)
+- Revenue includes corrected payment amounts (`isCorrection = true`)
+- Revenue excludes original payments that have been corrected (`isCorrection = false` AND `isCorrected = true`)
+- Revenue includes regular payments that have not been corrected (`isCorrection = false` AND `isCorrected = false`)
 - Revenue calculations MUST be filtered by `tenantId` (tenant isolation)
 - Revenue can be filtered by `branchId` (optional)
 - Revenue can be filtered by `paymentMethod` (optional)
-- Revenue calculations use `paymentDate` for time period filtering
+- Revenue calculations use `paidOn` for time period filtering
 
 **Rule 4: Tenant Isolation**
 - All payment queries MUST filter by `tenantId` automatically
@@ -439,6 +446,12 @@ Payment (1) ──< (1) Payment (correction relationship)
 
 ## API Specification
 
+**Note on `paidOn` Field Semantics:**
+- `paidOn` is a DATE-ONLY business date (represents the date payment was received)
+- Stored as DateTime set to start-of-day UTC (00:00:00Z)
+- Tenant timezone is used for date selection/display in UI
+- `createdAt`/`updatedAt` are audit timestamps only, never used for reporting windows
+
 ### Endpoints
 
 #### POST /api/v1/payments
@@ -452,7 +465,7 @@ Payment (1) ──< (1) Payment (correction relationship)
 interface CreatePaymentRequest {
   memberId: string; // CUID of member
   amount: number; // Positive number, 2 decimal places
-  paymentDate: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component), can be in the past
+  paidOn: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component), can be in the past
   paymentMethod: PaymentMethod; // Enum: CASH, CREDIT_CARD, BANK_TRANSFER, CHECK, OTHER
   note?: string | null; // Optional note (max 500 characters)
 }
@@ -466,7 +479,7 @@ interface PaymentResponse {
   branchId: string;
   memberId: string;
   amount: string; // Decimal as string (e.g., "100.00")
-  paymentDate: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component)
+  paidOn: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component)
   paymentMethod: PaymentMethod;
   note: string | null;
   isCorrection: boolean;
@@ -500,7 +513,7 @@ interface PaymentResponse {
 **Validation Rules:**
 - `memberId`: Required, must exist and belong to authenticated user's tenant
 - `amount`: Required, must be positive number, max 2 decimal places, max value 999999.99
-- `paymentDate`: Required, must be valid date (YYYY-MM-DD format, date-only), cannot be in the future, uses tenant timezone for validation
+- `paidOn`: Required, must be valid date (YYYY-MM-DD format, date-only), cannot be in the future, uses tenant timezone for validation
 - `paymentMethod`: Required, must be valid PaymentMethod enum value
 - `note`: Optional, max 500 characters if provided
 
@@ -564,7 +577,7 @@ interface PaymentListResponse {
 
 **Behavior:**
 - All queries automatically filtered by `tenantId` from authenticated user
-- Results sorted by `paymentDate` descending (newest first)
+- Results sorted by `paidOn` descending (newest first)
 - Pagination applies to filtered results
 - `includeCorrections` controls whether to include payments that have been corrected (original payments)
 
@@ -628,7 +641,7 @@ interface PaymentListResponse {
 - Returns all payments for the specified member
 - Automatically filtered by tenantId
 - Includes both original and corrected payments
-- Sorted by paymentDate descending (newest first)
+- Sorted by paidOn descending (newest first)
 
 ---
 
@@ -645,7 +658,7 @@ interface PaymentListResponse {
 ```typescript
 interface CorrectPaymentRequest {
   amount?: number; // New amount (if correcting amount)
-  paymentDate?: string; // New date (if correcting date, ISO 8601)
+  paidOn?: string; // New date (if correcting date, ISO 8601)
   paymentMethod?: PaymentMethod; // New payment method (if correcting method)
   note?: string | null; // Updated note (optional)
   correctionReason?: string | null; // Reason for correction (optional, max 500 chars)
@@ -681,9 +694,9 @@ interface CorrectPaymentResponse {
 - Original payment MUST exist and belong to authenticated user's tenant
 - Original payment MUST NOT already be corrected (`isCorrected = false`)
 - `version` MUST match current payment version (optimistic locking check)
-- At least one field must be provided (amount, paymentDate, paymentMethod, or note)
+- At least one field must be provided (amount, paidOn, paymentMethod, or note)
 - If `amount` provided: must be positive number, max 2 decimal places
-- If `paymentDate` provided: must be valid date, cannot be in the future
+- If `paidOn` provided: must be valid date, cannot be in the future
 - If `paymentMethod` provided: must be valid PaymentMethod enum value
 - `correctionReason`: Optional, max 500 characters
 
@@ -769,11 +782,12 @@ interface RevenueReportResponse {
 - `groupBy`: Optional, must be "day", "week", or "month"
 
 **Behavior:**
-- Revenue includes payments where `isCorrection = false` OR where payment is a correction (`isCorrection = true`)
-- Revenue excludes original payments that have been corrected (uses corrected amounts)
+- Revenue includes corrected payment amounts (`isCorrection = true`)
+- Revenue excludes original payments that have been corrected (`isCorrection = false` AND `isCorrected = true`)
+- Revenue includes regular payments that have not been corrected (`isCorrection = false` AND `isCorrected = false`)
 - All queries automatically filtered by `tenantId`
 - Breakdown groups payments by selected period (day, week, or month)
-- Revenue calculations sum amounts from non-corrected payments or corrected payment amounts
+- Revenue calculations use `paidOn` for time period filtering
 
 **Example Response:**
 ```json
@@ -826,7 +840,7 @@ model Payment {
   
   // Payment details
   amount             Decimal       @db.Decimal(10, 2)
-  paymentDate        DateTime      // Stored as date-only (time component ignored, uses tenant timezone for display)
+  paidOn             DateTime      // DATE-ONLY business date: stored as DateTime set to start-of-day UTC (00:00:00Z); tenant timezone used for date selection/display
   paymentMethod      PaymentMethod
   note               String?      @db.VarChar(500)
   
@@ -853,10 +867,10 @@ model Payment {
   @@index([tenantId])
   @@index([tenantId, branchId])
   @@index([tenantId, memberId])
-  @@index([tenantId, paymentDate])
+  @@index([tenantId, paidOn])
   @@index([tenantId, paymentMethod])
-  @@index([tenantId, paymentDate, branchId])
-  @@index([tenantId, paymentDate, paymentMethod])
+  @@index([tenantId, paidOn, branchId])
+  @@index([tenantId, paidOn, paymentMethod])
   @@index([memberId])
   @@index([branchId])
   @@index([correctedPaymentId])
@@ -886,10 +900,10 @@ model Payment {
 - `@@index([tenantId])`: Base tenant isolation index
 - `@@index([tenantId, branchId])`: Branch-filtered revenue queries
 - `@@index([tenantId, memberId])`: Member payment history queries
-- `@@index([tenantId, paymentDate])`: Time-period revenue queries
+- `@@index([tenantId, paidOn])`: Time-period revenue queries
 - `@@index([tenantId, paymentMethod])`: Payment method filtering
-- `@@index([tenantId, paymentDate, branchId])`: Branch-filtered revenue by date
-- `@@index([tenantId, paymentDate, paymentMethod])`: Payment method filtered revenue by date
+- `@@index([tenantId, paidOn, branchId])`: Branch-filtered revenue by date
+- `@@index([tenantId, paidOn, paymentMethod])`: Payment method filtered revenue by date
 - `@@index([memberId])`: Member payment history (without tenant filter for performance)
 - `@@index([branchId])`: Branch payment queries
 - `@@index([correctedPaymentId])`: Correction relationship queries
@@ -1107,6 +1121,7 @@ model Payment {
 - [ ] `createPayment()` validates member belongs to tenant
 - [ ] `createPayment()` validates amount is positive
 - [ ] `createPayment()` validates payment date is not in future
+- [ ] `createPayment()` truncates `paidOn` to start-of-day UTC before storing
 - [ ] `createPayment()` sets branch from member's branch automatically
 - [ ] `createPayment()` sets tenant from authenticated user
 - [ ] `correctPayment()` validates original payment belongs to tenant
@@ -1190,7 +1205,7 @@ model Payment {
 - [ ] Revenue report with date range spanning multiple years
 - [ ] Payment history for member with no payments (empty list)
 - [ ] Payment history for member with 100+ payments (pagination)
-- [ ] Payment correction chain (correcting a corrected payment) - See Open Questions Q1
+- [ ] Payment correction chain DISALLOWED: Attempting to correct an already-corrected payment (`isCorrected = true`) returns 400 BadRequest
 - [ ] Concurrent payment corrections (two admins correcting same payment simultaneously) - Optimistic locking prevents conflicts, second correction returns 409 Conflict
 - [ ] Payment correction for payment older than 90 days (warning displayed but correction allowed)
 - [ ] Payment recorded for archived member - See Open Questions Q2
@@ -1226,10 +1241,10 @@ Required indexes for performance:
 - [ ] `@@index([tenantId])`: Base tenant isolation (critical for all queries)
 - [ ] `@@index([tenantId, branchId])`: Branch-filtered revenue queries
 - [ ] `@@index([tenantId, memberId])`: Member payment history queries
-- [ ] `@@index([tenantId, paymentDate])`: Time-period revenue queries (most important for reports)
+- [ ] `@@index([tenantId, paidOn])`: Time-period revenue queries (most important for reports)
 - [ ] `@@index([tenantId, paymentMethod])`: Payment method filtering
-- [ ] `@@index([tenantId, paymentDate, branchId])`: Branch-filtered revenue by date (composite for common query pattern)
-- [ ] `@@index([tenantId, paymentDate, paymentMethod])`: Payment method filtered revenue by date (composite for common query pattern)
+- [ ] `@@index([tenantId, paidOn, branchId])`: Branch-filtered revenue by date (composite for common query pattern)
+- [ ] `@@index([tenantId, paidOn, paymentMethod])`: Payment method filtered revenue by date (composite for common query pattern)
 - [ ] `@@index([memberId])`: Member payment history (without tenant filter for performance)
 - [ ] `@@index([branchId])`: Branch payment queries
 - [ ] `@@index([correctedPaymentId])`: Correction relationship queries
@@ -1308,11 +1323,8 @@ Required indexes for performance:
 
 **Q1: Payment Correction Chain**
 - **Question:** Should a payment that has been corrected be allowed to be corrected again (creating a chain of corrections)?
-- **Options:**
-  - **Option A:** Allow unlimited corrections (each correction creates new payment, original preserved)
-  - **Option B:** Allow only one correction (if payment is corrected, cannot be corrected again)
-  - **Option C:** Allow corrections but limit to 2-3 corrections maximum
-- **Recommendation:** Option B (only one correction allowed) - simplifies logic and prevents confusion. If multiple corrections needed, admin can create new payment manually.
+- **Decision:** Correction chain is DISALLOWED. If `isCorrected = true`, correction endpoint returns 400 BadRequest. This is enforced by invariant in Rule 2: Payment Correction.
+- **Rationale:** Simplifies logic and prevents confusion. If multiple corrections needed, admin can create new payment manually.
 
 **Q2: Payments for Archived Members**
 - **Question:** Should payments be allowed for members with status ARCHIVED or INACTIVE?
