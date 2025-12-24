@@ -143,15 +143,15 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T035 Create `CreatePaymentDto` with `paidOn` field (not paymentDate) in `backend/src/payments/dto/create-payment.dto.ts`
-- [ ] T036 Add validation decorators to `CreatePaymentDto` (IsString, IsPositive, IsDateString, IsEnum, MaxLength) in `backend/src/payments/dto/create-payment.dto.ts`
-- [ ] T037 Add custom validation for `paidOn` date (not future) in `backend/src/payments/dto/create-payment.dto.ts`
-- [ ] T038 Create `CorrectPaymentDto` with `paidOn` field and version field in `backend/src/payments/dto/correct-payment.dto.ts`
-- [ ] T039 Add validation decorators to `CorrectPaymentDto` in `backend/src/payments/dto/correct-payment.dto.ts`
-- [ ] T040 Create `PaymentListQueryDto` with filtering options in `backend/src/payments/dto/payment-list-query.dto.ts`
-- [ ] T041 Create `RevenueReportQueryDto` with date range and filters in `backend/src/payments/dto/revenue-report-query.dto.ts`
-- [ ] T042 Create `PaymentResponseDto` mapping Prisma Payment to response in `backend/src/payments/dto/payment-response.dto.ts`
-- [ ] T043 Ensure all DTOs use `paidOn` naming consistently (not paymentDate) in `backend/src/payments/dto/`
+- [X] T035 Create `CreatePaymentDto` with `paidOn` field (not paymentDate) in `backend/src/payments/dto/create-payment.dto.ts`
+- [X] T036 Add validation decorators to `CreatePaymentDto` (IsString, IsPositive, IsDateString, IsEnum, MaxLength) in `backend/src/payments/dto/create-payment.dto.ts`
+- [X] T037 Add custom validation for `paidOn` date (not future) in `backend/src/payments/dto/create-payment.dto.ts`
+- [X] T038 Create `CorrectPaymentDto` with `paidOn` field and version field in `backend/src/payments/dto/correct-payment.dto.ts`
+- [X] T039 Add validation decorators to `CorrectPaymentDto` in `backend/src/payments/dto/correct-payment.dto.ts`
+- [X] T040 Create `PaymentListQueryDto` with filtering options in `backend/src/payments/dto/payment-list-query.dto.ts`
+- [X] T041 Create `RevenueReportQueryDto` with date range and filters in `backend/src/payments/dto/revenue-report-query.dto.ts`
+- [X] T042 Create `PaymentResponseDto` mapping Prisma Payment to response in `backend/src/payments/dto/payment-response.dto.ts`
+- [X] T043 Ensure all DTOs use `paidOn` naming consistently (not paymentDate) in `backend/src/payments/dto/`
 
 **Acceptance Criteria:**
 
