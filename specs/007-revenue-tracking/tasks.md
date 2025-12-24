@@ -70,22 +70,22 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T012 Create `PaymentService` class in `backend/src/payments/payments.service.ts`
-- [ ] T013 Implement `createPayment()` method with member validation in `backend/src/payments/payments.service.ts`
-- [ ] T014 Implement `paidOn` date validation (not future, DATE-only semantics) in `backend/src/payments/payments.service.ts`
-- [ ] T015 Implement `paidOn` date truncation (start-of-day UTC) in `backend/src/payments/payments.service.ts`
-- [ ] T016 Implement amount validation (positive, max 999999.99, 2 decimal places) in `backend/src/payments/payments.service.ts`
-- [ ] T017 Implement tenant timezone handling for date validation in `backend/src/payments/payments.service.ts`
-- [ ] T018 Implement `correctPayment()` method with optimistic locking in `backend/src/payments/payments.service.ts`
-- [ ] T019 Implement single-correction rule enforcement (hard-fail if `isCorrected = true`) in `backend/src/payments/payments.service.ts`
-- [ ] T020 Implement version check and conflict detection in `correctPayment()` in `backend/src/payments/payments.service.ts`
-- [ ] T021 Implement atomic correction transaction (create corrected payment + update original) in `backend/src/payments/payments.service.ts`
-- [ ] T022 Implement `getPaymentById()` with tenant validation in `backend/src/payments/payments.service.ts`
-- [ ] T023 Implement `listPayments()` with filtering and pagination in `backend/src/payments/payments.service.ts`
-- [ ] T024 Implement `getMemberPayments()` method in `backend/src/payments/payments.service.ts`
-- [ ] T025 Implement `getRevenueReport()` with corrected originals exclusion in `backend/src/payments/payments.service.ts`
-- [ ] T026 Implement revenue aggregation using database GROUP BY in `backend/src/payments/payments.service.ts`
-- [ ] T027 Implement tenant timezone handling for revenue date range queries in `backend/src/payments/payments.service.ts`
+- [X] T012 Create `PaymentService` class in `backend/src/payments/payments.service.ts`
+- [X] T013 Implement `createPayment()` method with member validation in `backend/src/payments/payments.service.ts`
+- [X] T014 Implement `paidOn` date validation (not future, DATE-only semantics) in `backend/src/payments/payments.service.ts`
+- [X] T015 Implement `paidOn` date truncation (start-of-day UTC) in `backend/src/payments/payments.service.ts`
+- [X] T016 Implement amount validation (positive, max 999999.99, 2 decimal places) in `backend/src/payments/payments.service.ts`
+- [X] T017 Implement tenant timezone handling for date validation in `backend/src/payments/payments.service.ts`
+- [X] T018 Implement `correctPayment()` method with optimistic locking in `backend/src/payments/payments.service.ts`
+- [X] T019 Implement single-correction rule enforcement (hard-fail if `isCorrected = true`) in `backend/src/payments/payments.service.ts`
+- [X] T020 Implement version check and conflict detection in `correctPayment()` in `backend/src/payments/payments.service.ts`
+- [X] T021 Implement atomic correction transaction (create corrected payment + update original) in `backend/src/payments/payments.service.ts`
+- [X] T022 Implement `getPaymentById()` with tenant validation in `backend/src/payments/payments.service.ts`
+- [X] T023 Implement `listPayments()` with filtering and pagination in `backend/src/payments/payments.service.ts`
+- [X] T024 Implement `getMemberPayments()` method in `backend/src/payments/payments.service.ts`
+- [X] T025 Implement `getRevenueReport()` with corrected originals exclusion in `backend/src/payments/payments.service.ts`
+- [X] T026 Implement revenue aggregation using database GROUP BY in `backend/src/payments/payments.service.ts`
+- [X] T027 Implement tenant timezone handling for revenue date range queries in `backend/src/payments/payments.service.ts`
 
 **Acceptance Criteria:**
 
