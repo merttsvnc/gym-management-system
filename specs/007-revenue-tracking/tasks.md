@@ -25,7 +25,7 @@ This document contains the complete task list for implementing Collections & Rev
 
 - [ ] T000 Verify all artifacts (spec.md, data-model.md, tasks.md, contracts) use `paidOn` consistently; update any drift
 
-**Done when:** `grep` shows no `paymentDate` left in `specs/007-revenue-tracking/`
+**Done when:** `grep -R "paymentDate" specs/007-revenue-tracking/ || true` returns no matches (ensures no drift back to paymentDate naming)
 
 ---
 
@@ -671,7 +671,7 @@ This document contains the complete task list for implementing Collections & Rev
 - [ ] T205 Add inline code comments for single-correction rule enforcement in `backend/src/payments/payments.service.ts`
 - [ ] T206 Add inline code comments for revenue calculation logic in `backend/src/payments/payments.service.ts`
 - [ ] T207 Add inline code comments for `paidOn` field semantics (DATE-only) in `backend/src/payments/payments.service.ts`
-- [ ] T208 Update README with payment tracking features
+- [ ] T209 Update README with payment tracking features
 
 **Acceptance Criteria:**
 

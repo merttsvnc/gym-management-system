@@ -437,11 +437,19 @@ Payment (1) ──< (1) Payment (correction relationship)
 - Admin can only record payments for members from their own tenant
 - Payment corrections can only be made on payments from admin's tenant
 
-**Rule 5: Payment Method Validation**
+**Rule 5: Tenant Timezone Handling**
+- Tenant model includes `timezone` field stored as IANA timezone string (e.g., "Asia/Tokyo", "Europe/Istanbul", "America/New_York")
+- Default timezone is "UTC" if not set
+- Service layer retrieves tenant timezone from Tenant context (TenantService or request-scoped tenant info)
+- All `paidOn` date validation uses tenant timezone for determining "today" and "future date" boundaries
+- `paidOn` dates are stored as start-of-day UTC DateTime regardless of tenant timezone
+- UI displays `paidOn` dates using tenant timezone for date selection and display
+
+**Rule 6: Payment Method Validation**
 - Payment method MUST be one of: CASH, CREDIT_CARD, BANK_TRANSFER, CHECK, OTHER
 - Payment method cannot be null or empty
 
-**Rule 6: Audit Trail**
+**Rule 7: Audit Trail**
 - Every payment MUST record `createdBy` (user ID who created the payment)
 - Every payment MUST record `createdAt` (timestamp when payment was recorded)
 - Corrections preserve original `createdAt` timestamp (correction has its own `createdAt`)
