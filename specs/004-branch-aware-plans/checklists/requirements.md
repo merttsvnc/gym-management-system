@@ -36,3 +36,4 @@
 - Scope boundaries are explicit (frontend, payment, accounting logic out of scope)
 - Success criteria are measurable and technology-agnostic
 - Edge cases are comprehensively covered in testing requirements
+

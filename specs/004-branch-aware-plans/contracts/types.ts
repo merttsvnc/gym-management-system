@@ -148,3 +148,4 @@ export function isBranchScoped(plan: MembershipPlan): plan is MembershipPlan & {
   return plan.scope === PlanScope.BRANCH && plan.branchId !== null;
 }
 
+

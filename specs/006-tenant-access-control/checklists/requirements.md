@@ -102,3 +102,4 @@ The spec clearly distinguishes between manual billing (current scope) and automa
 
 No clarifications needed. Ready for planning phase.
 
+
