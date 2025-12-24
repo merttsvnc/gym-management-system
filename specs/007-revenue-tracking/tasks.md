@@ -214,13 +214,13 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T057 Install `@nestjs/throttler` package
-- [ ] T058 Configure ThrottlerModule in `backend/src/app.module.ts`
-- [ ] T059 Apply @Throttle decorator to POST /api/v1/payments (100 requests per 15 minutes per user) in `backend/src/payments/payments.controller.ts`
-- [ ] T060 Apply @Throttle decorator to POST /api/v1/payments/:id/correct (30-50 requests per 15 minutes per user) in `backend/src/payments/payments.controller.ts`
-- [ ] T061 Add error handling for 429 Too Many Requests in `backend/src/payments/payments.controller.ts`
-- [ ] T062 Add rate limit hit logging in `backend/src/payments/payments.controller.ts`
-- [ ] T063 Configure per-user rate limiting (not per-IP) in `backend/src/app.module.ts`
+- [X] T057 Install `@nestjs/throttler` package
+- [X] T058 Configure ThrottlerModule in `backend/src/app.module.ts`
+- [X] T059 Apply @Throttle decorator to POST /api/v1/payments (100 requests per 15 minutes per user) in `backend/src/payments/payments.controller.ts`
+- [X] T060 Apply @Throttle decorator to POST /api/v1/payments/:id/correct (30-50 requests per 15 minutes per user) in `backend/src/payments/payments.controller.ts`
+- [X] T061 Add error handling for 429 Too Many Requests in `backend/src/payments/payments.controller.ts`
+- [X] T062 Add rate limit hit logging in `backend/src/payments/payments.controller.ts`
+- [X] T063 Configure per-user rate limiting (not per-IP) in `backend/src/app.module.ts`
 
 **Acceptance Criteria:**
 

@@ -33,4 +33,6 @@ export const BILLING_ERROR_MESSAGES = {
     'Faturalama durumu API üzerinden güncellenemez.',
   RATE_LIMIT_EXCEEDED:
     'Çok fazla giriş denemesi. Lütfen bir süre sonra tekrar deneyin.',
+  RATE_LIMIT_EXCEEDED_GENERIC:
+    'Çok fazla istek gönderildi. Lütfen bir süre sonra tekrar deneyin.',
 } as const;

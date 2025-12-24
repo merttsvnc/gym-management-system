@@ -8,7 +8,14 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseFilters,
+  Logger,
 } from '@nestjs/common';
+import {
+  Throttle,
+  ThrottlerException,
+  ThrottlerGuard,
+} from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -20,11 +27,14 @@ import { CorrectPaymentDto } from './dto/correct-payment.dto';
 import { PaymentListQueryDto } from './dto/payment-list-query.dto';
 import { RevenueReportQueryDto } from './dto/revenue-report-query.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
+import { PaymentThrottlerExceptionFilter } from '../common/filters/payment-throttler-exception.filter';
 
 @Controller('api/v1/payments')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('ADMIN')
 export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
+
   constructor(private readonly paymentsService: PaymentsService) {}
 
   /**
@@ -35,23 +45,37 @@ export class PaymentsController {
    * - 400: Validation errors (invalid amount, future date, etc.)
    * - 403: Member from different tenant
    * - 404: Member not found
+   * - 429: Rate limit exceeded (100 requests per 15 minutes per user)
    */
   @Post()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 100, ttl: 900000 } }) // 100 requests per 15 minutes per user
+  @UseFilters(PaymentThrottlerExceptionFilter)
   @HttpCode(HttpStatus.CREATED)
   async create(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('sub') userId: string,
     @Body() dto: CreatePaymentDto,
   ) {
-    const payment = await this.paymentsService.createPayment(tenantId, userId, {
-      memberId: dto.memberId,
-      amount: dto.amount,
-      paidOn: dto.paidOn,
-      paymentMethod: dto.paymentMethod,
-      note: dto.note,
-    });
+    try {
+      const payment = await this.paymentsService.createPayment(tenantId, userId, {
+        memberId: dto.memberId,
+        amount: dto.amount,
+        paidOn: dto.paidOn,
+        paymentMethod: dto.paymentMethod,
+        note: dto.note,
+      });
 
-    return PaymentResponseDto.fromPrismaPaymentWithRelations(payment);
+      return PaymentResponseDto.fromPrismaPaymentWithRelations(payment);
+    } catch (error) {
+      // Log rate limit hits for monitoring
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(
+          `Rate limit exceeded for payment creation: userId=${userId}, tenantId=${tenantId}`,
+        );
+      }
+      throw error;
+    }
   }
 
   /**
@@ -166,8 +190,12 @@ export class PaymentsController {
    * - 403: Payment from different tenant
    * - 404: Payment not found
    * - 409: Version mismatch (concurrent correction attempt)
+   * - 429: Rate limit exceeded (40 requests per 15 minutes per user)
    */
   @Post(':id/correct')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 40, ttl: 900000 } }) // 40 requests per 15 minutes per user (stricter than creation)
+  @UseFilters(PaymentThrottlerExceptionFilter)
   @HttpCode(HttpStatus.CREATED)
   async correct(
     @CurrentUser('tenantId') tenantId: string,
@@ -175,33 +203,43 @@ export class PaymentsController {
     @Param('id') id: string,
     @Body() dto: CorrectPaymentDto,
   ) {
-    const payment = await this.paymentsService.correctPayment(
-      tenantId,
-      userId,
-      id,
-      {
-        amount: dto.amount,
-        paidOn: dto.paidOn,
-        paymentMethod: dto.paymentMethod,
-        note: dto.note,
-        correctionReason: dto.correctionReason,
-        version: dto.version,
-      },
-    );
+    try {
+      const payment = await this.paymentsService.correctPayment(
+        tenantId,
+        userId,
+        id,
+        {
+          amount: dto.amount,
+          paidOn: dto.paidOn,
+          paymentMethod: dto.paymentMethod,
+          note: dto.note,
+          correctionReason: dto.correctionReason,
+          version: dto.version,
+        },
+      );
 
-    // Check if payment is older than 90 days and include warning
-    const paymentAgeInDays =
-      (new Date().getTime() - payment.paidOn.getTime()) /
-      (1000 * 60 * 60 * 24);
-    const warning =
-      paymentAgeInDays > 90
-        ? 'Bu ödeme 90 günden eski. Düzeltme işlemi gerçekleştirildi ancak eski bir ödeme olduğu için dikkatli olunmalıdır.'
-        : undefined;
+      // Check if payment is older than 90 days and include warning
+      const paymentAgeInDays =
+        (new Date().getTime() - payment.paidOn.getTime()) /
+        (1000 * 60 * 60 * 24);
+      const warning =
+        paymentAgeInDays > 90
+          ? 'Bu ödeme 90 günden eski. Düzeltme işlemi gerçekleştirildi ancak eski bir ödeme olduğu için dikkatli olunmalıdır.'
+          : undefined;
 
-    return {
-      ...PaymentResponseDto.fromPrismaPaymentWithRelations(payment),
-      warning,
-    };
+      return {
+        ...PaymentResponseDto.fromPrismaPaymentWithRelations(payment),
+        warning,
+      };
+    } catch (error) {
+      // Log rate limit hits for monitoring
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(
+          `Rate limit exceeded for payment correction: userId=${userId}, tenantId=${tenantId}, paymentId=${id}`,
+        );
+      }
+      throw error;
+    }
   }
 }
 
