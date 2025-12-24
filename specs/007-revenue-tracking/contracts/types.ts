@@ -30,7 +30,7 @@ export interface Payment {
   branchId: string;
   memberId: string;
   amount: string; // Decimal as string (e.g., "100.00")
-  paymentDate: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component)
+  paidOn: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component). DATE-ONLY business date stored as start-of-day UTC DateTime.
   paymentMethod: PaymentMethod;
   note: string | null;
   isCorrection: boolean;
@@ -58,14 +58,14 @@ export interface Payment {
 export interface CreatePaymentRequest {
   memberId: string; // CUID of member
   amount: number; // Positive number, 2 decimal places
-  paymentDate: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component), can be in the past
+  paidOn: string; // ISO 8601 date string (YYYY-MM-DD, date-only, no time component), can be in the past. DATE-ONLY business date stored as start-of-day UTC DateTime.
   paymentMethod: PaymentMethod; // Enum: CASH, CREDIT_CARD, BANK_TRANSFER, CHECK, OTHER
   note?: string | null; // Optional note (max 500 characters)
 }
 
 export interface CorrectPaymentRequest {
   amount?: number; // New amount (if correcting amount)
-  paymentDate?: string; // New date (if correcting date, ISO 8601)
+  paidOn?: string; // New date (if correcting date, ISO 8601). DATE-ONLY business date stored as start-of-day UTC DateTime.
   paymentMethod?: PaymentMethod; // New payment method (if correcting method)
   note?: string | null; // Updated note (optional)
   correctionReason?: string | null; // Reason for correction (optional, max 500 chars)

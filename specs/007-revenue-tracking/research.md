@@ -61,7 +61,7 @@ async correctPayment(
         branchId: originalPayment.branchId,
         memberId: originalPayment.memberId,
         amount: correctionData.amount ?? originalPayment.amount,
-        paymentDate: correctionData.paymentDate ?? originalPayment.paymentDate,
+        paidOn: correctionData.paidOn ?? originalPayment.paidOn,
         paymentMethod: correctionData.paymentMethod ?? originalPayment.paymentMethod,
         note: correctionData.note ?? originalPayment.note,
         isCorrection: true,
@@ -244,16 +244,16 @@ async createPayment(
 
   // 2. Create payment
   const payment = await this.prisma.payment.create({
-    data: {
-      tenantId,
-      branchId: data.branchId,
-      memberId: data.memberId,
-      amount: data.amount,
-      paymentDate: data.paymentDate,
-      paymentMethod: data.paymentMethod,
-      note: data.note,
-      createdBy: userId,
-    },
+      data: {
+        tenantId,
+        branchId: data.branchId,
+        memberId: data.memberId,
+        amount: data.amount,
+        paidOn: data.paidOn,
+        paymentMethod: data.paymentMethod,
+        note: data.note,
+        createdBy: userId,
+      },
     include: { member: true, branch: true },
   });
 
@@ -335,7 +335,7 @@ export class PaymentService {
         branchId: data.branchId,
         memberId: data.memberId,
         amount: data.amount, // NOT logged
-        paymentDate: data.paymentDate,
+        paidOn: data.paidOn,
         paymentMethod: data.paymentMethod,
         note: data.note, // NOT logged
         createdBy: userId,
@@ -350,7 +350,7 @@ export class PaymentService {
       branchId: payment.branchId,
       memberId: payment.memberId,
       paymentMethod: payment.paymentMethod,
-      paymentDate: payment.paymentDate.toISOString(),
+      paidOn: payment.paidOn.toISOString(),
       actorUserId: userId,
       result: 'success',
       correlationId: this.getCorrelationId(),
@@ -401,7 +401,7 @@ export class PaymentService {
   "branchId": "clx789...",
   "memberId": "clxabc...",
   "paymentMethod": "CASH",
-  "paymentDate": "2025-12-18T00:00:00.000Z",
+  "paidOn": "2025-12-18T00:00:00.000Z",
   "actorUserId": "clxdef...",
   "result": "success",
   "correlationId": "req-123",
@@ -485,19 +485,19 @@ async createPayment(
   const tenantTimezone = tenant?.timezone || 'UTC';
 
   // 2. Validate payment date is not in future (using tenant timezone)
-  const paymentDateInTenantTz = utcToZonedTime(
-    new Date(data.paymentDate),
+  const paidOnInTenantTz = utcToZonedTime(
+    new Date(data.paidOn),
     tenantTimezone
   );
   const todayInTenantTz = utcToZonedTime(new Date(), tenantTimezone);
 
-  if (paymentDateInTenantTz > todayInTenantTz) {
+  if (paidOnInTenantTz > todayInTenantTz) {
     throw new BadRequestException('Payment date cannot be in the future');
   }
 
   // 3. Truncate time component (store as start of day in UTC)
-  const paymentDateUtc = zonedTimeToUtc(
-    startOfDay(paymentDateInTenantTz),
+  const paidOnUtc = zonedTimeToUtc(
+    startOfDay(paidOnInTenantTz),
     tenantTimezone
   );
 
@@ -508,7 +508,7 @@ async createPayment(
       branchId: data.branchId,
       memberId: data.memberId,
       amount: data.amount,
-      paymentDate: paymentDateUtc, // Stored as DateTime, time component is 00:00:00 UTC
+      paidOn: paidOnUtc, // Stored as DateTime, time component is 00:00:00 UTC (DATE-ONLY business date)
       paymentMethod: data.paymentMethod,
       note: data.note,
       createdBy: this.currentUserId,
@@ -544,7 +544,7 @@ async getPaymentsByDateRange(
   return await this.prisma.payment.findMany({
     where: {
       tenantId,
-      paymentDate: {
+      paidOn: {
         gte: startDateUtc,
         lte: endDateUtc,
       },

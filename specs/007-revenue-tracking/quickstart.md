@@ -75,7 +75,7 @@ model Payment {
   
   // Payment details
   amount             Decimal       @db.Decimal(10, 2)
-  paymentDate        DateTime      // Date-only (time component ignored)
+  paidOn             DateTime      // DATE-ONLY business date: stored as DateTime set to start-of-day UTC (00:00:00Z); tenant timezone used for date selection/display
   paymentMethod      PaymentMethod
   note               String?       @db.VarChar(500)
   
@@ -102,10 +102,10 @@ model Payment {
   @@index([tenantId])
   @@index([tenantId, branchId])
   @@index([tenantId, memberId])
-  @@index([tenantId, paymentDate])
+  @@index([tenantId, paidOn])
   @@index([tenantId, paymentMethod])
-  @@index([tenantId, paymentDate, branchId])
-  @@index([tenantId, paymentDate, paymentMethod])
+  @@index([tenantId, paidOn, branchId])
+  @@index([tenantId, paidOn, paymentMethod])
   @@index([memberId])
   @@index([branchId])
   @@index([correctedPaymentId])
@@ -226,7 +226,7 @@ export class PaymentService {
         branchId: member.branchId, // Inherit from member
         memberId: data.memberId,
         amount: data.amount,
-        paymentDate: paymentDateUtc, // Truncated date
+        paidOn: paymentDateUtc, // Truncated date (DATE-ONLY business date stored as start-of-day UTC)
         paymentMethod: data.paymentMethod,
         note: data.note,
         createdBy: userId,
@@ -242,7 +242,7 @@ export class PaymentService {
       branchId: payment.branchId,
       memberId: payment.memberId,
       paymentMethod: payment.paymentMethod,
-      paymentDate: payment.paymentDate.toISOString(),
+      paidOn: payment.paidOn.toISOString(),
       actorUserId: userId,
       result: 'success',
       correlationId: this.getCorrelationId(),
@@ -286,9 +286,9 @@ export class PaymentService {
           branchId: originalPayment.branchId,
           memberId: originalPayment.memberId,
           amount: correctionData.amount ?? originalPayment.amount,
-          paymentDate: correctionData.paymentDate 
-            ? this.truncateDate(correctionData.paymentDate)
-            : originalPayment.paymentDate,
+          paidOn: correctionData.paidOn 
+            ? this.truncateDate(correctionData.paidOn)
+            : originalPayment.paidOn,
           paymentMethod: correctionData.paymentMethod ?? originalPayment.paymentMethod,
           note: correctionData.note ?? originalPayment.note,
           isCorrection: true,
@@ -344,7 +344,7 @@ export class PaymentService {
     // 2. Build where clause
     const where = {
       tenantId,
-      paymentDate: { gte: startDateUtc, lte: endDateUtc },
+      paidOn: { gte: startDateUtc, lte: endDateUtc },
       // Exclude corrected original payments: isCorrection = false OR (isCorrection = true)
       OR: [
         { isCorrection: false, isCorrected: false },
@@ -356,7 +356,7 @@ export class PaymentService {
 
     // 3. Aggregate revenue using database GROUP BY
     const breakdown = await this.prisma.payment.groupBy({
-      by: ['paymentDate'], // Group by date
+      by: ['paidOn'], // Group by date
       where,
       _sum: { amount: true },
       _count: { id: true },
@@ -377,7 +377,7 @@ export class PaymentService {
         endDate: query.endDate,
       },
       breakdown: breakdown.map(item => ({
-        period: item.paymentDate.toISOString().split('T')[0],
+        period: item.paidOn.toISOString().split('T')[0],
         revenue: item._sum.amount?.toString() || '0.00',
         paymentCount: item._count.id,
       })),
@@ -446,7 +446,7 @@ export class CreatePaymentDto {
   amount: number;
 
   @IsDateString()
-  paymentDate: string;
+  paidOn: string; // DATE-ONLY business date (stored as start-of-day UTC DateTime)
 
   @IsEnum(PaymentMethod)
   paymentMethod: PaymentMethod;
@@ -472,7 +472,7 @@ export class CorrectPaymentDto {
 
   @IsOptional()
   @IsDateString()
-  paymentDate?: string;
+  paidOn?: string; // DATE-ONLY business date (stored as start-of-day UTC DateTime)
 
   @IsOptional()
   @IsEnum(PaymentMethod)
@@ -888,6 +888,7 @@ Update:
 - Always use tenant timezone for date validation and display
 - Store dates as start of day in UTC (00:00:00 UTC)
 - Use date-fns-tz for timezone conversions
+- **Note:** `paidOn` is a DATE-ONLY business date. Tenant timezone is used for date selection/display, but dates are stored as start-of-day UTC DateTime.
 
 ### Issue 3: Rate Limiting False Positives
 

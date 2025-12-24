@@ -10,7 +10,7 @@
 
 This document contains the complete task list for implementing Collections & Revenue Tracking feature. Tasks are organized by implementation phase and must be completed sequentially unless marked as parallelizable `[P]`.
 
-**Total Tasks:** 128  
+**Total Tasks:** 130  
 **Estimated Effort:** 11-14 person-days
 
 ---
@@ -410,6 +410,7 @@ This document contains the complete task list for implementing Collections & Rev
 - [ ] T139 Add loading states to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
 - [ ] T140 Add error handling to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
 - [ ] T141 Ensure PaymentForm uses `paidOn` naming consistently in `frontend/src/components/payments/PaymentForm.tsx`
+- [ ] T142 Add non-blocking warning banner in PaymentForm when member is archived/inactive or branch is archived in `frontend/src/components/payments/PaymentForm.tsx`
 
 **Acceptance Criteria:**
 
@@ -425,6 +426,7 @@ This document contains the complete task list for implementing Collections & Rev
 - Error messages displayed clearly
 - Component uses `paidOn` naming (not paymentDate)
 - Verify request payload uses `paidOn` matching backend DTOs
+- Warning banner displayed (non-blocking) when member is archived/inactive or branch is archived
 
 ---
 
@@ -436,7 +438,7 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T142 Create `PaymentHistoryTable` component in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [ ] T208 Create `PaymentHistoryTable` component in `frontend/src/components/payments/PaymentHistoryTable.tsx`
 - [ ] T143 Add table columns (date, amount, payment method, note, status, actions) to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
 - [ ] T144 Add correction indicator badge to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
 - [ ] T145 Add pagination controls to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
@@ -554,11 +556,12 @@ This document contains the complete task list for implementing Collections & Rev
 - [ ] T173 Open correction form modal on "Correct Payment" click in `frontend/src/components/payments/PaymentHistoryTable.tsx`
 - [ ] T174 Pre-fill original payment values in correction form in `frontend/src/components/payments/PaymentForm.tsx`
 - [ ] T175 Show warning if payment >90 days old in correction form in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T176 Handle 400 BadRequest error for already corrected payment (show appropriate message) in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T177 Handle 409 Conflict error (show refresh message) in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T178 Handle 429 Rate Limit error (show retry message) in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T179 Include version field in correction request in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T180 Refresh payment data on 409 conflict in `frontend/src/components/payments/PaymentForm.tsx`
+- [ ] T176 Show non-blocking warning if member is archived/inactive or branch is archived in correction form in `frontend/src/components/payments/PaymentForm.tsx`
+- [ ] T177 Handle 400 BadRequest error for already corrected payment (show appropriate message) in `frontend/src/components/payments/PaymentForm.tsx`
+- [ ] T178 Handle 409 Conflict error (show refresh message) in `frontend/src/components/payments/PaymentForm.tsx`
+- [ ] T179 Handle 429 Rate Limit error (show retry message) in `frontend/src/components/payments/PaymentForm.tsx`
+- [ ] T180 Include version field in correction request in `frontend/src/components/payments/PaymentForm.tsx`
+- [ ] T181 Refresh payment data on 409 conflict in `frontend/src/components/payments/PaymentForm.tsx`
 
 **Acceptance Criteria:**
 
@@ -566,6 +569,7 @@ This document contains the complete task list for implementing Collections & Rev
 - Correct Payment button disabled/hidden when `isCorrected = true` (single-correction rule)
 - Correction form opens with original values pre-filled
 - Warning shown for payments older than 90 days
+- Warning shown (non-blocking) if member is archived/inactive or branch is archived
 - 400 error handled with clear message for already corrected payment
 - 409 error handled with refresh message and data refresh
 - 429 error handled with retry message
@@ -582,10 +586,10 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T181 Create revenue reports page in `frontend/src/pages/RevenuePage.tsx`
-- [ ] T182 Create new route `/revenue` in frontend routing
-- [ ] T183 Integrate RevenueReport component into revenue page in `frontend/src/pages/RevenuePage.tsx`
-- [ ] T184 Add revenue page to navigation menu
+- [ ] T182 Create revenue reports page in `frontend/src/pages/RevenuePage.tsx`
+- [ ] T183 Create new route `/revenue` in frontend routing
+- [ ] T184 Integrate RevenueReport component into revenue page in `frontend/src/pages/RevenuePage.tsx`
+- [ ] T185 Add revenue page to navigation menu
 
 **Acceptance Criteria:**
 
@@ -605,14 +609,14 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T185 Create `usePayments` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T186 Create `useCreatePayment` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T187 Create `useCorrectPayment` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T188 Create `useRevenueReport` hook in `frontend/src/hooks/useRevenue.ts`
-- [ ] T189 Create `useMemberPayments` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T190 Configure cache invalidation for payment operations in `frontend/src/hooks/usePayments.ts`
-- [ ] T191 Configure optimistic updates for payment creation in `frontend/src/hooks/usePayments.ts`
-- [ ] T192 Configure cache invalidation for payment correction in `frontend/src/hooks/usePayments.ts`
+- [ ] T186 Create `usePayments` hook in `frontend/src/hooks/usePayments.ts`
+- [ ] T187 Create `useCreatePayment` hook in `frontend/src/hooks/usePayments.ts`
+- [ ] T188 Create `useCorrectPayment` hook in `frontend/src/hooks/usePayments.ts`
+- [ ] T189 Create `useRevenueReport` hook in `frontend/src/hooks/useRevenue.ts`
+- [ ] T190 Create `useMemberPayments` hook in `frontend/src/hooks/usePayments.ts`
+- [ ] T191 Configure cache invalidation for payment operations in `frontend/src/hooks/usePayments.ts`
+- [ ] T192 Configure optimistic updates for payment creation in `frontend/src/hooks/usePayments.ts`
+- [ ] T193 Configure cache invalidation for payment correction in `frontend/src/hooks/usePayments.ts`
 
 **Acceptance Criteria:**
 
@@ -632,13 +636,13 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T193 Create E2E test file for payment workflows in `frontend/test/payments.e2e.spec.ts`
-- [ ] T194 Test payment recording workflow end-to-end in `frontend/test/payments.e2e.spec.ts`
-- [ ] T195 Test payment correction workflow end-to-end in `frontend/test/payments.e2e.spec.ts`
-- [ ] T196 Test 409 Conflict handling in frontend (refresh and retry) in `frontend/test/payments.e2e.spec.ts`
-- [ ] T197 Test 429 Rate Limit handling in frontend (retry message) in `frontend/test/payments.e2e.spec.ts`
-- [ ] T198 Test single-correction rule enforcement in UI (button disabled when isCorrected=true) in `frontend/test/payments.e2e.spec.ts`
-- [ ] T199 Test revenue report generation workflow end-to-end in `frontend/test/payments.e2e.spec.ts`
+- [ ] T194 Create E2E test file for payment workflows in `frontend/test/payments.e2e.spec.ts`
+- [ ] T195 Test payment recording workflow end-to-end in `frontend/test/payments.e2e.spec.ts`
+- [ ] T196 Test payment correction workflow end-to-end in `frontend/test/payments.e2e.spec.ts`
+- [ ] T197 Test 409 Conflict handling in frontend (refresh and retry) in `frontend/test/payments.e2e.spec.ts`
+- [ ] T198 Test 429 Rate Limit handling in frontend (retry message) in `frontend/test/payments.e2e.spec.ts`
+- [ ] T199 Test single-correction rule enforcement in UI (button disabled when isCorrected=true) in `frontend/test/payments.e2e.spec.ts`
+- [ ] T200 Test revenue report generation workflow end-to-end in `frontend/test/payments.e2e.spec.ts`
 
 **Acceptance Criteria:**
 
@@ -660,14 +664,14 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T200 Update API documentation (OpenAPI spec) with payment endpoints in `specs/007-revenue-tracking/contracts/openapi.yaml`
-- [ ] T201 Document payment correction workflow in `specs/007-revenue-tracking/spec.md`
-- [ ] T202 Document revenue calculation rules in `specs/007-revenue-tracking/spec.md`
-- [ ] T203 Add inline code comments for optimistic locking implementation in `backend/src/payments/payments.service.ts`
-- [ ] T204 Add inline code comments for single-correction rule enforcement in `backend/src/payments/payments.service.ts`
-- [ ] T205 Add inline code comments for revenue calculation logic in `backend/src/payments/payments.service.ts`
-- [ ] T206 Add inline code comments for `paidOn` field semantics (DATE-only) in `backend/src/payments/payments.service.ts`
-- [ ] T207 Update README with payment tracking features
+- [ ] T201 Update API documentation (OpenAPI spec) with payment endpoints in `specs/007-revenue-tracking/contracts/openapi.yaml`
+- [ ] T202 Document payment correction workflow in `specs/007-revenue-tracking/spec.md`
+- [ ] T203 Document revenue calculation rules in `specs/007-revenue-tracking/spec.md`
+- [ ] T204 Add inline code comments for optimistic locking implementation in `backend/src/payments/payments.service.ts`
+- [ ] T205 Add inline code comments for single-correction rule enforcement in `backend/src/payments/payments.service.ts`
+- [ ] T206 Add inline code comments for revenue calculation logic in `backend/src/payments/payments.service.ts`
+- [ ] T207 Add inline code comments for `paidOn` field semantics (DATE-only) in `backend/src/payments/payments.service.ts`
+- [ ] T208 Update README with payment tracking features
 
 **Acceptance Criteria:**
 

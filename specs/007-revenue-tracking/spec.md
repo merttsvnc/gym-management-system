@@ -61,7 +61,7 @@ This feature aligns with multiple constitutional principles:
 
 - Q: What should happen if two admins try to correct the same payment simultaneously? → A: Optimistic locking (version field, second correction detects conflict and fails)
 - Q: What level of logging should be implemented for payment operations? → A: Structured event logging (payment created/corrected events with metadata, excluding amounts)
-- Q: Should payment recording and correction endpoints have rate limiting? → A: Standard rate limiting (e.g., 100 requests per 15 minutes per user, consistent with other endpoints)
+- Q: Should payment recording and correction endpoints have rate limiting? → A: Yes, with specific limits: Payment creation endpoint (POST /api/v1/payments): 100 requests per 15 minutes per user. Payment correction endpoint (POST /api/v1/payments/:id/correct): 30-50 requests per 15 minutes per user (stricter than creation). See plan.md for implementation details.
 - Q: How should payment dates be stored and handled across different timezones? → A: Store as date-only (no time component), use tenant timezone for date selection/display
 - Q: Should there be any time restrictions on when payments can be corrected? → A: Warning but allow (show warning for old payments but allow correction)
 
@@ -94,7 +94,7 @@ The Collections & Revenue Tracking module will be considered successful when:
    - Payment corrections preserve original payment record with audit trail
    - Corrected payments are clearly marked in payment history
    - Revenue reports use corrected amounts (not original incorrect amounts)
-   - Correction workflow prevents correcting already-corrected payments (if restriction implemented)
+   - Correction workflow prevents correcting already-corrected payments (single-correction rule enforced)
 
 5. **Tenant Isolation:**
    - 100% of payment queries are automatically filtered by tenantId
@@ -110,10 +110,12 @@ The Collections & Revenue Tracking module will be considered successful when:
    - Revenue calculations match sum of individual payments within date range
 
 7. **User Experience:**
-   - Payment recording form is intuitive and requires minimal training
-   - Payment history is easy to navigate and understand
-   - Revenue reports provide actionable insights (clear totals and breakdowns)
-   - Error messages are user-friendly and in Turkish (if applicable)
+   - Payment recording form: A user can record a payment in ≤ 60 seconds on a typical dataset (member selection, amount entry, date selection, payment method, optional note)
+   - Form validation: Forms have clear validation; invalid submit rate < 5% during manual QA (validation errors prevent submission before API call)
+   - Loading/error states: Key flows have explicit empty/loading/error states (payment history table shows skeleton loader, form shows loading spinner, error messages displayed clearly)
+   - Payment history navigation: Payment history displays payments in chronological order with clear correction indicators; pagination works correctly
+   - Revenue reports: Revenue reports provide actionable insights (clear totals and breakdowns displayed prominently)
+   - Error messages: Error messages are user-friendly, clear, and in Turkish (if applicable)
 
 ---
 
@@ -402,7 +404,10 @@ Payment (1) ──< (1) Payment (correction relationship)
 - `paidOn` CAN be in the past (backdated payments allowed)
 - `paidOn` CANNOT be in the future
 - Member MUST exist and belong to the same tenant as the admin
+- Payments ARE allowed for archived/inactive members (UI shows non-blocking warning)
+- Payments ARE allowed if member's branch is archived (UI shows non-blocking warning)
 - Branch is automatically set from member's branch (cannot be changed independently)
+- Revenue reporting uses `paidOn` date and stored `branchId`/`memberId` for historical reporting accuracy
 
 **Rule 2: Payment Correction**
 - Only payments that have NOT been corrected can be corrected (`isCorrected = false`)
@@ -925,6 +930,7 @@ model Payment {
 - Payment date picker (defaults to today in tenant timezone, can select past dates, date-only selection)
 - Payment method dropdown (CASH, CREDIT_CARD, BANK_TRANSFER, CHECK, OTHER)
 - Optional note textarea (max 500 characters)
+- Non-blocking warning banner displayed if member is archived/inactive or branch is archived (informational only, does not prevent submission)
 - Save and Cancel buttons
 
 **2. Member Payment History View**
@@ -960,6 +966,7 @@ model Payment {
 - Correction reason field (optional textarea)
 - Original payment details displayed (read-only, for reference)
 - Warning banner displayed if payment is older than 90 days (e.g., "This payment is over 90 days old. Please verify the correction is accurate.")
+- Non-blocking warning banner displayed if member is archived/inactive or branch is archived (informational only, does not block correction)
 - Warning is informational only (does not block correction)
 - Save Correction and Cancel buttons
 
@@ -1088,12 +1095,14 @@ model Payment {
 ### Rate Limiting
 
 **Payment Endpoints:**
-- Payment recording endpoint (POST /api/v1/payments) has standard rate limiting: 100 requests per 15 minutes per user
-- Payment correction endpoint (POST /api/v1/payments/:id/correct) has standard rate limiting: 100 requests per 15 minutes per user
+- Payment recording endpoint (POST /api/v1/payments): 100 requests per 15 minutes per user
+- Payment correction endpoint (POST /api/v1/payments/:id/correct): 30-50 requests per 15 minutes per user (stricter than creation)
 - Rate limiting applies per authenticated user (tracked by user ID from JWT token)
 - When rate limit exceeded, return 429 Too Many Requests with clear error message
 - Rate limit hits logged for monitoring and abuse detection
 - Read-only endpoints (GET /api/v1/payments, GET /api/v1/revenue) do not require rate limiting (pagination provides natural limits)
+
+**Note on MVP Scope:** Rate limiting and idempotency are REQUIRED features for production readiness. If MVP scope is constrained, these may be delivered in Phase 2, but they must be implemented before production deployment. See plan.md for MVP scope decisions.
 
 ### Data Sensitivity
 
@@ -1328,18 +1337,15 @@ Required indexes for performance:
 
 **Q2: Payments for Archived Members**
 - **Question:** Should payments be allowed for members with status ARCHIVED or INACTIVE?
-- **Options:**
-  - **Option A:** Allow payments for any member regardless of status (supports backdated payments)
-  - **Option B:** Only allow payments for ACTIVE members (prevent mistakes)
-  - **Option C:** Allow payments for ACTIVE and PAUSED members, but not ARCHIVED or INACTIVE
-- **Recommendation:** Option A (allow for any member) - supports backdated payments and historical record-keeping. Status check can be warning but not blocking.
+- **Decision:** Payments ARE allowed for archived/inactive members (supports backdated payments and historical accuracy).
+- **Behavior:** UI displays a non-blocking warning banner when recording or correcting a payment if the member is archived/inactive. Payment submission is still allowed.
+- **Rationale:** Historical record-keeping and backdated payment support require allowing payments regardless of member status. Revenue reporting uses `paidOn` date and stored `memberId`/`branchId` for historical reporting accuracy.
 
 **Q3: Payments for Archived Branches**
 - **Question:** Should payments be allowed for members whose branch is archived?
-- **Options:**
-  - **Option A:** Allow payments regardless of branch status (branch archived doesn't affect payment recording)
-  - **Option B:** Only allow payments for members in active branches
-- **Recommendation:** Option A (allow regardless of branch status) - archived branch doesn't mean payments shouldn't be recorded. Historical accuracy is important.
+- **Decision:** Payments ARE allowed even if the member's branch is archived (historical accuracy).
+- **Behavior:** UI displays a non-blocking warning banner when recording or correcting a payment if the branch is archived. Payment submission is still allowed.
+- **Rationale:** Historical accuracy is important. Revenue reporting uses `paidOn` date and stored `branchId`/`memberId` for historical reporting, regardless of current branch status.
 
 ---
 
