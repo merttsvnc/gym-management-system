@@ -1,6 +1,6 @@
 # Implementation Plan: Collections & Revenue Tracking
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Created:** 2025-12-18  
 **Updated:** 2025-12-18  
 **Status:** Planning
@@ -31,7 +31,7 @@ Before proceeding, verify alignment with core constitutional principles:
 
 - [x] **Security & Correctness:** Tenant isolation enforced at all layers. Payment amounts excluded from application logs (security requirement). Optimistic locking prevents concurrent correction conflicts. Rate limiting prevents abuse.
 
-- [x] **Explicit Domain Rules:** Payment recording rules, correction workflows, and revenue calculation logic are explicit in service layer with comprehensive unit tests. Business rules documented in spec.
+- [x] **Explicit Domain Rules:** Payment recording rules, correction workflows, and revenue calculation logic are explicit in service layer with comprehensive unit tests. Business rules documented in spec. Single-correction rule enforced as non-negotiable invariant. `paidOn` field naming clarified (DATE-ONLY business date).
 
 - [x] **Layered Architecture:** Business logic in PaymentService, controllers handle HTTP only. React components handle presentation only. No business logic in controllers or UI.
 
@@ -44,6 +44,32 @@ Before proceeding, verify alignment with core constitutional principles:
 - [x] **Performance & Scalability:** Comprehensive indexes for tenant-scoped queries, date filtering, branch filtering, and payment method filtering. Pagination on all list endpoints. Revenue aggregation uses database GROUP BY.
 
 - [x] **Testing Coverage:** Unit tests for payment validation, correction logic, revenue calculation. Integration tests for all API endpoints. E2E tests for payment workflows including conflict scenarios.
+
+---
+
+## Domain Rules & Invariants
+
+### Payment Date Naming (`paidOn`)
+- **Field Name:** `paidOn` (not `paymentDate`) represents the DATE-ONLY business date
+- **Storage:** Stored as DateTime at start-of-day UTC (time component is truncated/ignored)
+- **Usage:** Used for all reporting, filtering, and business logic
+- **Audit Fields:** `createdAt` and `updatedAt` are strictly for audit purposes, not business logic
+- **Prisma Type:** Remains DateTime (not raw SQL DATE type)
+
+### Single-Correction Rule (Non-Negotiable Invariant)
+- **Domain Rule:** If `isCorrected = true`, the payment CANNOT be corrected again
+- **Backend Enforcement:** Correction endpoint must hard-fail with 400 BadRequest if payment is already corrected
+- **Frontend Enforcement:** "Correct Payment" action must be disabled or hidden when `isCorrected = true`
+- **Testing Requirement:** Explicit test coverage required for this rule at all layers
+- **Rationale:** Prevents correction chains and maintains audit trail integrity
+
+### Rate Limiting Strategy
+- **Purpose:** Rate limiting complements idempotency and optimistic locking
+- **Important:** Rate limiting does NOT replace idempotency or optimistic locking
+- **Recommended Limits:**
+  - Payment creation: 100 requests per 15 minutes per user (standard)
+  - Payment correction: 30-50 requests per 15 minutes per user (stricter than creation)
+- **Implementation:** Use @nestjs/throttler with per-user tracking
 
 ---
 
@@ -105,7 +131,8 @@ Before proceeding, verify alignment with core constitutional principles:
 5. **Date-Only Storage in Prisma:**
    - How to store date-only (no time component) in PostgreSQL
    - Timezone handling for date selection
-   - Decision: Use DateTime type, truncate time component, use tenant timezone for display
+   - Decision: Use DateTime type for `paidOn` field, stored as start-of-day UTC, truncate time component, use tenant timezone for display
+   - **Naming:** Field named `paidOn` (not `paymentDate`) to represent DATE-ONLY business date
 
 ### Dependencies
 
@@ -184,7 +211,9 @@ Before proceeding, verify alignment with core constitutional principles:
    - Estimated effort: 1 hour
    - Dependencies: Task 1
    - Files affected: `backend/prisma/schema.prisma`
-   - Add all fields: id, tenantId, branchId, memberId, amount, paymentDate, paymentMethod, note, isCorrection, correctedPaymentId, isCorrected, version, createdBy, createdAt, updatedAt
+   - Add all fields: id, tenantId, branchId, memberId, amount, paidOn, paymentMethod, note, isCorrection, correctedPaymentId, isCorrected, version, createdBy, createdAt, updatedAt
+   - **Note:** `paidOn` represents DATE-ONLY business date, stored as DateTime at start-of-day UTC
+   - **Note:** `createdAt` and `updatedAt` are strictly for audit purposes
    - Add relations: tenant, branch, member, correctedPayment, correctingPayment
    - Add all indexes as specified in spec
 
@@ -245,7 +274,7 @@ Before proceeding, verify alignment with core constitutional principles:
    - Dependencies: Task 1
    - Files affected: `backend/src/payments/payments.service.ts`
    - Validate amount is positive
-   - Validate payment date is not in future
+   - Validate `paidOn` date is not in future (DATE-ONLY business date, stored as start-of-day UTC)
    - Validate member belongs to tenant
    - Validate payment method is valid enum
 
@@ -253,9 +282,12 @@ Before proceeding, verify alignment with core constitutional principles:
    - Estimated effort: 2 hours
    - Dependencies: Task 1
    - Files affected: `backend/src/payments/payments.service.ts`
+   - **INVARIANT:** Enforce single-correction rule: If `isCorrected = true`, payment CANNOT be corrected again
+   - **INVARIANT:** Correction endpoint must hard-fail with 400 BadRequest if payment is already corrected
    - Check version field matches expected value
    - Use Prisma transaction for atomic update
    - Throw ConflictException on version mismatch
+   - Throw BadRequestException if payment is already corrected (`isCorrected = true`)
    - Increment version on successful correction
 
 4. [ ] Implement revenue calculation logic
@@ -306,15 +338,17 @@ Before proceeding, verify alignment with core constitutional principles:
    - Estimated effort: 30 minutes
    - Dependencies: Phase 2
    - Files affected: `backend/src/payments/dto/create-payment.dto.ts`
-   - Add memberId, amount, paymentDate, paymentMethod, note fields
+   - Add memberId, amount, paidOn, paymentMethod, note fields
+   - **Note:** `paidOn` represents DATE-ONLY business date (stored as DateTime at start-of-day UTC)
    - Add validation decorators (IsString, IsPositive, IsDateString, IsEnum, MaxLength)
-   - Add custom validation for payment date (not future)
+   - Add custom validation for `paidOn` date (not future)
 
 2. [ ] Create CorrectPaymentDto
    - Estimated effort: 30 minutes
    - Dependencies: Phase 2
    - Files affected: `backend/src/payments/dto/correct-payment.dto.ts`
-   - Add optional amount, paymentDate, paymentMethod, note, correctionReason fields
+   - Add optional amount, paidOn, paymentMethod, note, correctionReason fields
+   - **Note:** `paidOn` represents DATE-ONLY business date (stored as DateTime at start-of-day UTC)
    - Add required version field
    - Add validation decorators
 
@@ -377,8 +411,10 @@ Before proceeding, verify alignment with core constitutional principles:
    - Estimated effort: 1 hour
    - Dependencies: Task 1
    - Files affected: `backend/src/payments/payments.controller.ts`
-   - Apply @Throttle decorator to POST /api/v1/payments (100 requests per 15 minutes)
-   - Apply @Throttle decorator to POST /api/v1/payments/:id/correct (100 requests per 15 minutes)
+   - **Rate Limiting Strategy:** Standard rate limiting complements idempotency and optimistic locking
+   - **Rate Limiting Strategy:** Rate limiting does NOT replace idempotency or optimistic locking
+   - Apply @Throttle decorator to POST /api/v1/payments (recommended: 100 requests per 15 minutes per user)
+   - Apply @Throttle decorator to POST /api/v1/payments/:id/correct (recommended: 30-50 requests per 15 minutes per user, stricter than creation)
    - Configure throttler module
 
 3. [ ] Add idempotency support
@@ -395,6 +431,7 @@ Before proceeding, verify alignment with core constitutional principles:
    - Dependencies: Task 1
    - Files affected: `backend/src/payments/payments.controller.ts`
    - Handle 409 Conflict for version mismatch
+   - Handle 400 BadRequest for already corrected payment (`isCorrected = true`) - **INVARIANT:** Single-correction rule enforcement
    - Handle 429 Too Many Requests for rate limit
    - Handle 400 Validation errors
    - Handle 403 Forbidden for tenant violations
@@ -440,9 +477,10 @@ Before proceeding, verify alignment with core constitutional principles:
    - Files affected: `backend/src/payments/payments.service.spec.ts`
    - Test createPayment validation
    - Test correctPayment optimistic locking
+   - Test correctPayment single-correction rule (hard-fail if `isCorrected = true`)
    - Test revenue calculation logic
    - Test tenant isolation
-   - Test payment date validation
+   - Test `paidOn` date validation (DATE-ONLY, not future)
 
 2. [ ] Integration tests for API endpoints
    - Estimated effort: 6 hours
@@ -453,6 +491,7 @@ Before proceeding, verify alignment with core constitutional principles:
    - Test GET /api/v1/payments/:id (success, not found, tenant violation)
    - Test GET /api/v1/members/:memberId/payments (success, tenant violation)
    - Test POST /api/v1/payments/:id/correct (happy path, version conflict, tenant violation)
+   - Test POST /api/v1/payments/:id/correct returns 400 for already corrected payment (single-correction rule)
    - Test GET /api/v1/revenue (aggregation, filtering, tenant isolation)
    - Test rate limiting (429 responses)
    - Test idempotency (cached responses)
@@ -465,7 +504,7 @@ Before proceeding, verify alignment with core constitutional principles:
    - Test payment with very large amount
    - Test payment date exactly today
    - Test payment date many years in past
-   - Test correction of corrected payment (if restriction implemented)
+   - Test correction of corrected payment (must fail with 400 BadRequest - single-correction rule)
    - Test concurrent corrections (optimistic locking)
    - Test revenue report with no payments
    - Test revenue report spanning multiple years
@@ -632,10 +671,12 @@ Before proceeding, verify alignment with core constitutional principles:
    - Estimated effort: 2 hours
    - Dependencies: Phase 7
    - Files affected: `frontend/src/components/payments/PaymentHistoryTable.tsx`, `frontend/src/components/payments/PaymentForm.tsx`
-   - Add "Correct Payment" button to payment row
+   - **INVARIANT:** Disable or hide "Correct Payment" action when `isCorrected = true` (single-correction rule)
+   - Add "Correct Payment" button to payment row (only if `isCorrected = false`)
    - Open correction form modal
    - Pre-fill original payment values
    - Show warning if payment >90 days old
+   - Handle 400 BadRequest error for already corrected payment (show appropriate message)
    - Handle 409 Conflict error (show refresh message)
    - Handle 429 Rate Limit error (show retry message)
 
@@ -705,19 +746,19 @@ model Payment {
   
   // Payment details
   amount             Decimal       @db.Decimal(10, 2)
-  paymentDate        DateTime      // Date-only (time component ignored)
+  paidOn             DateTime      // DATE-ONLY business date (stored as start-of-day UTC, time component ignored)
   paymentMethod      PaymentMethod
   note               String?       @db.VarChar(500)
   
   // Correction tracking
   isCorrection       Boolean       @default(false)
   correctedPaymentId String?
-  isCorrected        Boolean       @default(false)
+  isCorrected        Boolean       @default(false)  // INVARIANT: If true, payment CANNOT be corrected again
   
   // Optimistic locking
   version            Int           @default(0)
   
-  // Audit fields
+  // Audit fields (strictly for audit, not business logic)
   createdBy          String        // User ID
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -732,10 +773,10 @@ model Payment {
   @@index([tenantId])
   @@index([tenantId, branchId])
   @@index([tenantId, memberId])
-  @@index([tenantId, paymentDate])
+  @@index([tenantId, paidOn])
   @@index([tenantId, paymentMethod])
-  @@index([tenantId, paymentDate, branchId])
-  @@index([tenantId, paymentDate, paymentMethod])
+  @@index([tenantId, paidOn, branchId])
+  @@index([tenantId, paidOn, paymentMethod])
   @@index([memberId])
   @@index([branchId])
   @@index([correctedPaymentId])
@@ -792,16 +833,16 @@ model IdempotencyKey {
      "branchId" TEXT NOT NULL,
      "memberId" TEXT NOT NULL,
      "amount" DECIMAL(10,2) NOT NULL,
-     "paymentDate" TIMESTAMP(3) NOT NULL,
+     "paidOn" TIMESTAMP(3) NOT NULL,  -- DATE-ONLY business date (stored as start-of-day UTC)
      "paymentMethod" "PaymentMethod" NOT NULL,
      "note" VARCHAR(500),
      "isCorrection" BOOLEAN NOT NULL DEFAULT false,
      "correctedPaymentId" TEXT,
-     "isCorrected" BOOLEAN NOT NULL DEFAULT false,
+     "isCorrected" BOOLEAN NOT NULL DEFAULT false,  -- INVARIANT: If true, payment CANNOT be corrected again
      "version" INTEGER NOT NULL DEFAULT 0,
      "createdBy" TEXT NOT NULL,
-     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-     "updatedAt" TIMESTAMP(3) NOT NULL,
+     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Audit field
+     "updatedAt" TIMESTAMP(3) NOT NULL,  -- Audit field
      PRIMARY KEY ("id")
    );
    ```
@@ -823,10 +864,10 @@ model IdempotencyKey {
    CREATE INDEX "Payment_tenantId_idx" ON "Payment"("tenantId");
    CREATE INDEX "Payment_tenantId_branchId_idx" ON "Payment"("tenantId", "branchId");
    CREATE INDEX "Payment_tenantId_memberId_idx" ON "Payment"("tenantId", "memberId");
-   CREATE INDEX "Payment_tenantId_paymentDate_idx" ON "Payment"("tenantId", "paymentDate");
+   CREATE INDEX "Payment_tenantId_paidOn_idx" ON "Payment"("tenantId", "paidOn");
    CREATE INDEX "Payment_tenantId_paymentMethod_idx" ON "Payment"("tenantId", "paymentMethod");
-   CREATE INDEX "Payment_tenantId_paymentDate_branchId_idx" ON "Payment"("tenantId", "paymentDate", "branchId");
-   CREATE INDEX "Payment_tenantId_paymentDate_paymentMethod_idx" ON "Payment"("tenantId", "paymentDate", "paymentMethod");
+   CREATE INDEX "Payment_tenantId_paidOn_branchId_idx" ON "Payment"("tenantId", "paidOn", "branchId");
+   CREATE INDEX "Payment_tenantId_paidOn_paymentMethod_idx" ON "Payment"("tenantId", "paidOn", "paymentMethod");
    CREATE INDEX "Payment_memberId_idx" ON "Payment"("memberId");
    CREATE INDEX "Payment_branchId_idx" ON "Payment"("branchId");
    CREATE INDEX "Payment_correctedPaymentId_idx" ON "Payment"("correctedPaymentId");
@@ -864,10 +905,10 @@ Required indexes and rationale:
 - `Payment(tenantId)`: Base tenant isolation (critical for all queries)
 - `Payment(tenantId, branchId)`: Branch-filtered revenue queries
 - `Payment(tenantId, memberId)`: Member payment history queries
-- `Payment(tenantId, paymentDate)`: Time-period revenue queries (most important for reports)
+- `Payment(tenantId, paidOn)`: Time-period revenue queries (most important for reports, filters by DATE-ONLY business date)
 - `Payment(tenantId, paymentMethod)`: Payment method filtering
-- `Payment(tenantId, paymentDate, branchId)`: Branch-filtered revenue by date (composite for common query pattern)
-- `Payment(tenantId, paymentDate, paymentMethod)`: Payment method filtered revenue by date (composite for common query pattern)
+- `Payment(tenantId, paidOn, branchId)`: Branch-filtered revenue by date (composite for common query pattern)
+- `Payment(tenantId, paidOn, paymentMethod)`: Payment method filtered revenue by date (composite for common query pattern)
 - `Payment(memberId)`: Member payment history (without tenant filter for performance)
 - `Payment(branchId)`: Branch payment queries
 - `Payment(correctedPaymentId)`: Correction relationship queries
@@ -907,6 +948,7 @@ Required indexes and rationale:
 - Correct a payment
 - Request: CorrectPaymentRequest (includes version for optimistic locking)
 - Response: CorrectPaymentResponse (201 Created, includes warning if payment >90 days old)
+- **INVARIANT:** Returns 400 BadRequest if payment is already corrected (`isCorrected = true`) - single-correction rule enforcement
 - Errors: 400 (validation, already corrected), 401 (unauthorized), 403 (payment from different tenant), 404 (not found), 409 (version conflict), 429 (rate limit)
 
 **GET /api/v1/revenue**
@@ -945,12 +987,13 @@ Required indexes and rationale:
 **PaymentForm:**
 - Reusable form for recording and correcting payments
 - Props: memberId (optional, pre-filled), initialValues (for corrections), onSubmit, onCancel
-- Features: member selector, amount input, date picker, payment method dropdown, note textarea, validation, loading states
+- Features: member selector, amount input, `paidOn` date picker (DATE-ONLY, tenant timezone), payment method dropdown, note textarea, validation, loading states
 
 **PaymentHistoryTable:**
 - Table component for displaying payment history
 - Props: memberId (optional), filters, pagination
-- Features: columns (date, amount, payment method, note, status, actions), correction indicator, pagination, date range filter, loading skeleton
+- Features: columns (`paidOn` date, amount, payment method, note, status, actions), correction indicator, pagination, date range filter, loading skeleton
+- **INVARIANT:** "Correct Payment" action disabled/hidden when `isCorrected = true` (single-correction rule)
 
 **RevenueReport:**
 - Component for displaying revenue reports with filters
@@ -1012,11 +1055,11 @@ Required indexes and rationale:
 **PaymentService:**
 - `createPayment()` validates member belongs to tenant
 - `createPayment()` validates amount is positive
-- `createPayment()` validates payment date is not in future
+- `createPayment()` validates `paidOn` date is not in future (DATE-ONLY business date, stored as start-of-day UTC)
 - `createPayment()` sets branch from member's branch automatically
 - `createPayment()` sets tenant from authenticated user
 - `correctPayment()` validates original payment belongs to tenant
-- `correctPayment()` validates original payment is not already corrected
+- `correctPayment()` **INVARIANT:** Hard-fails with BadRequestException if payment is already corrected (`isCorrected = true`) - single-correction rule
 - `correctPayment()` validates version matches (optimistic locking)
 - `correctPayment()` throws conflict error when version mismatch detected
 - `correctPayment()` creates new payment record with corrected values
@@ -1032,9 +1075,9 @@ Required indexes and rationale:
 - Amount validation: rejects negative amounts
 - Amount validation: rejects zero amounts
 - Amount validation: accepts positive amounts with 2 decimal places
-- Payment date validation: rejects future dates
-- Payment date validation: accepts past dates
-- Payment date validation: accepts today's date
+- `paidOn` date validation: rejects future dates (DATE-ONLY business date)
+- `paidOn` date validation: accepts past dates
+- `paidOn` date validation: accepts today's date
 - Payment method validation: rejects invalid enum values
 - Payment method validation: accepts all valid enum values
 - Note validation: accepts null or empty string
@@ -1045,7 +1088,7 @@ Required indexes and rationale:
 **API Endpoints:**
 - POST /api/v1/payments creates payment successfully
 - POST /api/v1/payments returns 400 for invalid amount
-- POST /api/v1/payments returns 400 for future date
+- POST /api/v1/payments returns 400 for future `paidOn` date
 - POST /api/v1/payments returns 403 for member from different tenant
 - POST /api/v1/payments returns 429 when rate limit exceeded
 - GET /api/v1/payments returns only payments from authenticated user's tenant
@@ -1088,8 +1131,8 @@ Required indexes and rationale:
 
 - Payment with amount exactly 0.01 (minimum positive amount)
 - Payment with very large amount (999999.99)
-- Payment recorded on same day as today (edge case for date validation)
-- Payment recorded many years in the past (backdated payment)
+- Payment recorded on same day as today (edge case for `paidOn` date validation)
+- Payment recorded many years in the past (backdated payment, `paidOn` stored as start-of-day UTC)
 - Payment correction where all fields are changed
 - Payment correction where only note is changed
 - Revenue report with no payments in date range (returns zero revenue)
@@ -1158,9 +1201,11 @@ Required indexes and rationale:
 
 - [ ] Inline comments for complex logic
   - Optimistic locking implementation
+  - Single-correction rule enforcement (if `isCorrected = true`, cannot correct again)
   - Revenue calculation logic (excluding corrected originals)
   - Payment correction workflow
   - Tenant isolation validation
+  - `paidOn` field: DATE-ONLY business date stored as DateTime at start-of-day UTC
 - [ ] JSDoc/TSDoc for public APIs
   - All service methods with parameter descriptions
   - DTOs with field descriptions and validation rules
@@ -1215,7 +1260,8 @@ Required indexes and rationale:
 - **Likelihood:** Low
 - **Impact:** Low
 - **Mitigation:**
-  - Rate limits set appropriately (100 requests per 15 minutes)
+  - Rate limits set appropriately (recommended: 100 requests per 15 minutes for creation, 30-50 for correction)
+  - Rate limiting complements idempotency and optimistic locking (does not replace them)
   - Clear error messages guide users
   - Monitoring for rate limit hit rate
 
@@ -1252,10 +1298,12 @@ How will we know this feature is successfully implemented?
 - [ ] Documentation complete
 - [ ] Migration tested and successful
 - [ ] Optimistic locking prevents concurrent conflicts
-- [ ] Rate limiting works correctly
+- [ ] Single-correction rule enforced (payments with `isCorrected = true` cannot be corrected again)
+- [ ] Rate limiting works correctly (complements idempotency and optimistic locking)
 - [ ] Idempotency works correctly
 - [ ] Structured logging excludes sensitive data
 - [ ] Tenant isolation enforced at all layers
+- [ ] `paidOn` field correctly represents DATE-ONLY business date (stored as start-of-day UTC)
 
 ---
 
