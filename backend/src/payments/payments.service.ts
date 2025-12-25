@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentMethod, Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Decimal } from 'decimal.js';
 import { randomUUID } from 'crypto';
 
 export interface CreatePaymentInput {
@@ -60,7 +60,7 @@ export class PaymentsService {
    * - Validates paidOn date is not in future (using tenant timezone)
    * - Truncates paidOn to start-of-day UTC before storing
    * - Sets branchId from member's branch automatically
-   * 
+   *
    * Idempotency:
    * - If idempotencyKey is provided, checks for existing key
    * - Returns cached response if key exists and not expired
@@ -102,10 +102,7 @@ export class PaymentsService {
     this.validateAmount(input.amount);
 
     // Validate and truncate paidOn date
-    const paidOnDate = this.validateAndTruncatePaidOn(
-      input.paidOn,
-      tenantId,
-    );
+    const paidOnDate = this.validateAndTruncatePaidOn(input.paidOn, tenantId);
 
     // Create payment
     let payment;
@@ -161,12 +158,7 @@ export class PaymentsService {
 
     // Store idempotency key with response if provided
     if (idempotencyKey) {
-      await this.storeIdempotencyKey(
-        idempotencyKey,
-        tenantId,
-        userId,
-        payment,
-      );
+      await this.storeIdempotencyKey(idempotencyKey, tenantId, userId, payment);
     }
 
     return payment;
@@ -458,10 +450,7 @@ export class PaymentsService {
    * - Filters by tenant automatically
    * - Uses database GROUP BY for period breakdown
    */
-  async getRevenueReport(
-    tenantId: string,
-    filters: RevenueReportFilters,
-  ) {
+  async getRevenueReport(tenantId: string, filters: RevenueReportFilters) {
     const {
       startDate,
       endDate,
@@ -540,9 +529,7 @@ export class PaymentsService {
     }
 
     if (amount > 999999.99) {
-      throw new BadRequestException(
-        'Ödeme tutarı maksimum 999999.99 olabilir',
-      );
+      throw new BadRequestException('Ödeme tutarı maksimum 999999.99 olabilir');
     }
 
     // Check decimal places (max 2)
@@ -589,7 +576,9 @@ export class PaymentsService {
    */
   private truncateToStartOfDayUTC(date: Date | string): Date {
     const d = typeof date === 'string' ? new Date(date) : new Date(date);
-    const truncated = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const truncated = new Date(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+    );
     return truncated;
   }
 
@@ -714,16 +703,18 @@ export class PaymentsService {
     // Key expired
     if (idempotencyKey.expiresAt < now) {
       // Clean up expired key
-      await this.prisma.idempotencyKey.delete({
-        where: { id: idempotencyKey.id },
-      }).catch(() => {
-        // Ignore errors during cleanup
-      });
+      await this.prisma.idempotencyKey
+        .delete({
+          where: { id: idempotencyKey.id },
+        })
+        .catch(() => {
+          // Ignore errors during cleanup
+        });
       return null;
     }
 
     // Return cached response
-    const cachedResponse = idempotencyKey.response as {
+    const cachedResponse = idempotencyKey.response as unknown as {
       id: string;
       tenantId: string;
       branchId: string;
@@ -754,11 +745,13 @@ export class PaymentsService {
 
     // If payment was deleted, return null (key is stale)
     if (!payment) {
-      await this.prisma.idempotencyKey.delete({
-        where: { id: idempotencyKey.id },
-      }).catch(() => {
-        // Ignore errors during cleanup
-      });
+      await this.prisma.idempotencyKey
+        .delete({
+          where: { id: idempotencyKey.id },
+        })
+        .catch(() => {
+          // Ignore errors during cleanup
+        });
       return null;
     }
 
@@ -841,4 +834,3 @@ export class PaymentsService {
     }
   }
 }
-

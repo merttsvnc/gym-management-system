@@ -25,19 +25,6 @@ import { BillingStatusGuard } from './auth/guards/billing-status.guard';
         name: 'default',
         ttl: 900000, // 15 minutes in milliseconds
         limit: 5, // 5 requests per 15 minutes (for login endpoint)
-        // Per-user tracking: keyGenerator extracts user ID from request.user (set by JwtAuthGuard)
-        // Falls back to IP address for unauthenticated requests
-        keyGenerator: (context) => {
-          const request = context.switchToHttp().getRequest();
-          const user = request.user;
-          // If user is authenticated (set by JwtAuthGuard), use user ID for tracking
-          if (user && user.sub) {
-            return `user:${user.sub}`;
-          }
-          // Fallback to IP address for unauthenticated requests
-          const ip = request.ip || request.connection?.remoteAddress || 'unknown';
-          return `ip:${ip}`;
-        },
       },
     ]),
     PrismaModule,
