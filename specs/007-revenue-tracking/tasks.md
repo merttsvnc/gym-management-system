@@ -269,22 +269,22 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T070 Create unit test file for `PaymentService` in `backend/src/payments/payments.service.spec.ts`
-- [ ] T071 Test `createPayment()` validates member belongs to tenant in `backend/src/payments/payments.service.spec.ts`
-- [ ] T072 Test `createPayment()` validates amount is positive in `backend/src/payments/payments.service.spec.ts`
-- [ ] T073 Test `createPayment()` validates `paidOn` date is not in future in `backend/src/payments/payments.service.spec.ts`
-- [ ] T074 Test `createPayment()` truncates `paidOn` to start-of-day UTC in `backend/src/payments/payments.service.spec.ts`
-- [ ] T075 Test `createPayment()` sets branchId from member's branch in `backend/src/payments/payments.service.spec.ts`
-- [ ] T076 Test `correctPayment()` validates original payment belongs to tenant in `backend/src/payments/payments.service.spec.ts`
-- [ ] T077 Test `correctPayment()` hard-fails if payment is already corrected (`isCorrected = true`) in `backend/src/payments/payments.service.spec.ts`
-- [ ] T078 Test `correctPayment()` validates version matches (optimistic locking) in `backend/src/payments/payments.service.spec.ts`
-- [ ] T079 Test `correctPayment()` throws ConflictException on version mismatch in `backend/src/payments/payments.service.spec.ts`
-- [ ] T080 Test `correctPayment()` creates new payment record with corrected values in `backend/src/payments/payments.service.spec.ts`
-- [ ] T081 Test `correctPayment()` marks original payment as corrected and increments version in `backend/src/payments/payments.service.spec.ts`
-- [ ] T082 Test `getRevenueReport()` excludes corrected original payments in `backend/src/payments/payments.service.spec.ts`
-- [ ] T083 Test `getRevenueReport()` includes corrected payment amounts in `backend/src/payments/payments.service.spec.ts`
-- [ ] T084 Test `getRevenueReport()` filters by tenant automatically in `backend/src/payments/payments.service.spec.ts`
-- [ ] T085 Test structured logging excludes amounts and notes in `backend/src/payments/payments.service.spec.ts`
+- [X] T070 Create unit test file for `PaymentService` in `backend/src/payments/payments.service.spec.ts`
+- [X] T071 Test `createPayment()` validates member belongs to tenant in `backend/src/payments/payments.service.spec.ts`
+- [X] T072 Test `createPayment()` validates amount is positive in `backend/src/payments/payments.service.spec.ts`
+- [X] T073 Test `createPayment()` validates `paidOn` date is not in future in `backend/src/payments/payments.service.spec.ts`
+- [X] T074 Test `createPayment()` truncates `paidOn` to start-of-day UTC in `backend/src/payments/payments.service.spec.ts`
+- [X] T075 Test `createPayment()` sets branchId from member's branch in `backend/src/payments/payments.service.spec.ts`
+- [X] T076 Test `correctPayment()` validates original payment belongs to tenant in `backend/src/payments/payments.service.spec.ts`
+- [X] T077 Test `correctPayment()` hard-fails if payment is already corrected (`isCorrected = true`) in `backend/src/payments/payments.service.spec.ts`
+- [X] T078 Test `correctPayment()` validates version matches (optimistic locking) in `backend/src/payments/payments.service.spec.ts`
+- [X] T079 Test `correctPayment()` throws ConflictException on version mismatch in `backend/src/payments/payments.service.spec.ts`
+- [X] T080 Test `correctPayment()` creates new payment record with corrected values in `backend/src/payments/payments.service.spec.ts`
+- [X] T081 Test `correctPayment()` marks original payment as corrected and increments version in `backend/src/payments/payments.service.spec.ts`
+- [X] T082 Test `getRevenueReport()` excludes corrected original payments in `backend/src/payments/payments.service.spec.ts`
+- [X] T083 Test `getRevenueReport()` includes corrected payment amounts in `backend/src/payments/payments.service.spec.ts`
+- [X] T084 Test `getRevenueReport()` filters by tenant automatically in `backend/src/payments/payments.service.spec.ts`
+- [X] T085 Test structured logging excludes amounts and notes in `backend/src/payments/payments.service.spec.ts`
 
 **Acceptance Criteria:**
 
