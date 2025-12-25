@@ -307,34 +307,34 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T086 Create integration test file for payments API in `backend/test/payments.e2e-spec.ts`
-- [ ] T087 Test POST /api/v1/payments creates payment successfully in `backend/test/payments.e2e-spec.ts`
-- [ ] T088 Test POST /api/v1/payments returns 400 for invalid amount in `backend/test/payments.e2e-spec.ts`
-- [ ] T089 Test POST /api/v1/payments returns 400 for future `paidOn` date in `backend/test/payments.e2e-spec.ts`
-- [ ] T090 Test POST /api/v1/payments returns 403 for member from different tenant in `backend/test/payments.e2e-spec.ts`
-- [ ] T091 Test GET /api/v1/payments returns only payments from authenticated user's tenant in `backend/test/payments.e2e-spec.ts`
-- [ ] T092 Test GET /api/v1/payments filters by memberId correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T093 Test GET /api/v1/payments filters by branchId correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T094 Test GET /api/v1/payments filters by paymentMethod correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T095 Test GET /api/v1/payments filters by date range correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T096 Test GET /api/v1/members/:memberId/payments returns payment history for member in `backend/test/payments.e2e-spec.ts`
-- [ ] T097 Test GET /api/v1/members/:memberId/payments returns 403 for member from different tenant in `backend/test/payments.e2e-spec.ts`
-- [ ] T098 Test POST /api/v1/payments/:id/correct creates correction successfully in `backend/test/payments.e2e-spec.ts`
-- [ ] T099 Test POST /api/v1/payments/:id/correct returns 400 for already corrected payment (single-correction rule) in `backend/test/payments.e2e-spec.ts`
-- [ ] T100 Test POST /api/v1/payments/:id/correct returns 403 for payment from different tenant in `backend/test/payments.e2e-spec.ts`
-- [ ] T101 Test POST /api/v1/payments/:id/correct returns 409 for version mismatch (concurrent correction attempt) in `backend/test/payments.e2e-spec.ts`
-- [ ] T102 Test POST /api/v1/payments/:id/correct includes warning in response for payments older than 90 days in `backend/test/payments.e2e-spec.ts`
-- [ ] T103 Test POST /api/v1/payments returns 429 when rate limit exceeded in `backend/test/payments.e2e-spec.ts`
-- [ ] T104 Test POST /api/v1/payments/:id/correct returns 429 when rate limit exceeded in `backend/test/payments.e2e-spec.ts`
-- [ ] T105 Test POST /api/v1/payments returns cached response on idempotency key retry in `backend/test/payments.e2e-spec.ts`
-- [ ] T106 Test GET /api/v1/revenue calculates total revenue correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T107 Test GET /api/v1/revenue excludes corrected original payments in `backend/test/payments.e2e-spec.ts`
-- [ ] T108 Test GET /api/v1/revenue includes corrected payment amounts in `backend/test/payments.e2e-spec.ts`
-- [ ] T109 Test GET /api/v1/revenue filters by branch correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T110 Test GET /api/v1/revenue filters by payment method correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T111 Test GET /api/v1/revenue groups by day correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T112 Test GET /api/v1/revenue groups by week correctly in `backend/test/payments.e2e-spec.ts`
-- [ ] T113 Test GET /api/v1/revenue groups by month correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T086 Create integration test file for payments API in `backend/test/payments.e2e-spec.ts`
+- [X] T087 Test POST /api/v1/payments creates payment successfully in `backend/test/payments.e2e-spec.ts`
+- [X] T088 Test POST /api/v1/payments returns 400 for invalid amount in `backend/test/payments.e2e-spec.ts`
+- [X] T089 Test POST /api/v1/payments returns 400 for future `paidOn` date in `backend/test/payments.e2e-spec.ts`
+- [X] T090 Test POST /api/v1/payments returns 403 for member from different tenant in `backend/test/payments.e2e-spec.ts`
+- [X] T091 Test GET /api/v1/payments returns only payments from authenticated user's tenant in `backend/test/payments.e2e-spec.ts`
+- [X] T092 Test GET /api/v1/payments filters by memberId correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T093 Test GET /api/v1/payments filters by branchId correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T094 Test GET /api/v1/payments filters by paymentMethod correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T095 Test GET /api/v1/payments filters by date range correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T096 Test GET /api/v1/members/:memberId/payments returns payment history for member in `backend/test/payments.e2e-spec.ts`
+- [X] T097 Test GET /api/v1/members/:memberId/payments returns 403 for member from different tenant in `backend/test/payments.e2e-spec.ts`
+- [X] T098 Test POST /api/v1/payments/:id/correct creates correction successfully in `backend/test/payments.e2e-spec.ts`
+- [X] T099 Test POST /api/v1/payments/:id/correct returns 400 for already corrected payment (single-correction rule) in `backend/test/payments.e2e-spec.ts`
+- [X] T100 Test POST /api/v1/payments/:id/correct returns 403 for payment from different tenant in `backend/test/payments.e2e-spec.ts`
+- [X] T101 Test POST /api/v1/payments/:id/correct returns 409 for version mismatch (concurrent correction attempt) in `backend/test/payments.e2e-spec.ts`
+- [X] T102 Test POST /api/v1/payments/:id/correct includes warning in response for payments older than 90 days in `backend/test/payments.e2e-spec.ts`
+- [X] T103 Test POST /api/v1/payments returns 429 when rate limit exceeded in `backend/test/payments.e2e-spec.ts`
+- [X] T104 Test POST /api/v1/payments/:id/correct returns 429 when rate limit exceeded in `backend/test/payments.e2e-spec.ts`
+- [X] T105 Test POST /api/v1/payments returns cached response on idempotency key retry in `backend/test/payments.e2e-spec.ts`
+- [X] T106 Test GET /api/v1/revenue calculates total revenue correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T107 Test GET /api/v1/revenue excludes corrected original payments in `backend/test/payments.e2e-spec.ts`
+- [X] T108 Test GET /api/v1/revenue includes corrected payment amounts in `backend/test/payments.e2e-spec.ts`
+- [X] T109 Test GET /api/v1/revenue filters by branch correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T110 Test GET /api/v1/revenue filters by payment method correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T111 Test GET /api/v1/revenue groups by day correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T112 Test GET /api/v1/revenue groups by week correctly in `backend/test/payments.e2e-spec.ts`
+- [X] T113 Test GET /api/v1/revenue groups by month correctly in `backend/test/payments.e2e-spec.ts`
 
 **Acceptance Criteria:**
 
