@@ -537,7 +537,12 @@ describe('PaymentsService', () => {
         return callback(tx);
       });
 
-      await service.correctPayment(tenantId, userId, paymentId, partialCorrectInput);
+      await service.correctPayment(
+        tenantId,
+        userId,
+        paymentId,
+        partialCorrectInput,
+      );
 
       const transactionCallback =
         mockPrismaService.$transaction.mock.calls[0][0];
@@ -576,9 +581,9 @@ describe('PaymentsService', () => {
     it('should throw NotFoundException when payment not found', async () => {
       mockPrismaService.payment.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.getPaymentById(tenantId, paymentId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getPaymentById(tenantId, paymentId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException when payment belongs to different tenant', async () => {
@@ -590,9 +595,9 @@ describe('PaymentsService', () => {
         otherTenantPayment,
       );
 
-      await expect(
-        service.getPaymentById(tenantId, paymentId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getPaymentById(tenantId, paymentId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -760,10 +765,7 @@ describe('PaymentsService', () => {
       expect(prismaService.payment.findMany).toHaveBeenCalledWith({
         where: expect.objectContaining({
           tenantId,
-          OR: [
-            { isCorrection: true },
-            { isCorrected: false },
-          ],
+          OR: [{ isCorrection: true }, { isCorrected: false }],
         }),
         select: {
           amount: true,
@@ -969,4 +971,3 @@ describe('PaymentsService', () => {
     });
   });
 });
-
