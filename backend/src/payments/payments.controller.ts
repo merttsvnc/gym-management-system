@@ -10,6 +10,7 @@ import {
   HttpStatus,
   UseFilters,
   Logger,
+  Headers,
 } from '@nestjs/common';
 import {
   Throttle,
@@ -46,6 +47,10 @@ export class PaymentsController {
    * - 403: Member from different tenant
    * - 404: Member not found
    * - 429: Rate limit exceeded (100 requests per 15 minutes per user)
+   * 
+   * Idempotency:
+   * - If Idempotency-Key header is provided, returns cached response if key exists and not expired
+   * - Idempotency keys expire after 24 hours
    */
   @Post()
   @UseGuards(ThrottlerGuard)
@@ -56,15 +61,21 @@ export class PaymentsController {
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('sub') userId: string,
     @Body() dto: CreatePaymentDto,
+    @Headers('idempotency-key') idempotencyKey?: string, // Standard header: Idempotency-Key (case-insensitive in NestJS)
   ) {
     try {
-      const payment = await this.paymentsService.createPayment(tenantId, userId, {
-        memberId: dto.memberId,
-        amount: dto.amount,
-        paidOn: dto.paidOn,
-        paymentMethod: dto.paymentMethod,
-        note: dto.note,
-      });
+      const payment = await this.paymentsService.createPayment(
+        tenantId,
+        userId,
+        {
+          memberId: dto.memberId,
+          amount: dto.amount,
+          paidOn: dto.paidOn,
+          paymentMethod: dto.paymentMethod,
+          note: dto.note,
+        },
+        idempotencyKey,
+      );
 
       return PaymentResponseDto.fromPrismaPaymentWithRelations(payment);
     } catch (error) {

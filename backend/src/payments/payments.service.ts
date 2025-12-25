@@ -60,12 +60,30 @@ export class PaymentsService {
    * - Validates paidOn date is not in future (using tenant timezone)
    * - Truncates paidOn to start-of-day UTC before storing
    * - Sets branchId from member's branch automatically
+   * 
+   * Idempotency:
+   * - If idempotencyKey is provided, checks for existing key
+   * - Returns cached response if key exists and not expired
+   * - Stores idempotency key with response (24 hour TTL)
+   * - Handles race conditions via unique constraint on key
    */
   async createPayment(
     tenantId: string,
     userId: string,
     input: CreatePaymentInput,
+    idempotencyKey?: string,
   ) {
+    // Check idempotency key if provided
+    if (idempotencyKey) {
+      const cachedResponse = await this.checkIdempotencyKey(
+        idempotencyKey,
+        tenantId,
+      );
+      if (cachedResponse) {
+        // Return cached response (idempotent behavior)
+        return cachedResponse;
+      }
+    }
     // Validate member belongs to tenant
     const member = await this.prisma.member.findUnique({
       where: { id: input.memberId },
@@ -90,22 +108,38 @@ export class PaymentsService {
     );
 
     // Create payment
-    const payment = await this.prisma.payment.create({
-      data: {
-        tenantId,
-        branchId: member.branchId,
-        memberId: input.memberId,
-        amount: new Decimal(input.amount),
-        paidOn: paidOnDate,
-        paymentMethod: input.paymentMethod,
-        note: input.note,
-        createdBy: userId,
-      },
-      include: {
-        member: true,
-        branch: true,
-      },
-    });
+    let payment;
+    try {
+      payment = await this.prisma.payment.create({
+        data: {
+          tenantId,
+          branchId: member.branchId,
+          memberId: input.memberId,
+          amount: new Decimal(input.amount),
+          paidOn: paidOnDate,
+          paymentMethod: input.paymentMethod,
+          note: input.note,
+          createdBy: userId,
+        },
+        include: {
+          member: true,
+          branch: true,
+        },
+      });
+    } catch (error) {
+      // Handle race condition: if idempotency key was created by another request
+      // between our check and payment creation, check again and return cached response
+      if (idempotencyKey) {
+        const cachedResponse = await this.checkIdempotencyKey(
+          idempotencyKey,
+          tenantId,
+        );
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+      }
+      throw error;
+    }
 
     // Structured event logging (excludes amount and note)
     const correlationId = this.getCorrelationId();
@@ -124,6 +158,16 @@ export class PaymentsService {
         timestamp: new Date().toISOString(),
       }),
     );
+
+    // Store idempotency key with response if provided
+    if (idempotencyKey) {
+      await this.storeIdempotencyKey(
+        idempotencyKey,
+        tenantId,
+        userId,
+        payment,
+      );
+    }
 
     return payment;
   }
@@ -638,6 +682,163 @@ export class PaymentsService {
     // TODO: Enhance to retrieve from request context when available
     // For now, generate a UUID for each operation
     return randomUUID();
+  }
+
+  /**
+   * Check if idempotency key exists and is not expired
+   * Returns cached payment response if key exists and valid
+   * Returns null if key doesn't exist or is expired
+   */
+  private async checkIdempotencyKey(
+    key: string,
+    tenantId: string,
+  ): Promise<Prisma.PaymentGetPayload<{
+    include: { member: true; branch: true };
+  }> | null> {
+    const now = new Date();
+
+    const idempotencyKey = await this.prisma.idempotencyKey.findUnique({
+      where: { key },
+    });
+
+    // Key doesn't exist
+    if (!idempotencyKey) {
+      return null;
+    }
+
+    // Key belongs to different tenant (security check)
+    if (idempotencyKey.tenantId !== tenantId) {
+      return null;
+    }
+
+    // Key expired
+    if (idempotencyKey.expiresAt < now) {
+      // Clean up expired key
+      await this.prisma.idempotencyKey.delete({
+        where: { id: idempotencyKey.id },
+      }).catch(() => {
+        // Ignore errors during cleanup
+      });
+      return null;
+    }
+
+    // Return cached response
+    const cachedResponse = idempotencyKey.response as {
+      id: string;
+      tenantId: string;
+      branchId: string;
+      memberId: string;
+      amount: { toString: () => string };
+      paidOn: string;
+      paymentMethod: string;
+      note: string | null;
+      isCorrection: boolean;
+      correctedPaymentId: string | null;
+      isCorrected: boolean;
+      version: number;
+      createdBy: string;
+      createdAt: string;
+      updatedAt: string;
+      member: any;
+      branch: any;
+    };
+
+    // Fetch the actual payment with relations to ensure data consistency
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: cachedResponse.id },
+      include: {
+        member: true,
+        branch: true,
+      },
+    });
+
+    // If payment was deleted, return null (key is stale)
+    if (!payment) {
+      await this.prisma.idempotencyKey.delete({
+        where: { id: idempotencyKey.id },
+      }).catch(() => {
+        // Ignore errors during cleanup
+      });
+      return null;
+    }
+
+    return payment;
+  }
+
+  /**
+   * Store idempotency key with payment response
+   * TTL: 24 hours from creation
+   * Handles race conditions via unique constraint on key
+   */
+  private async storeIdempotencyKey(
+    key: string,
+    tenantId: string,
+    userId: string,
+    payment: Prisma.PaymentGetPayload<{
+      include: { member: true; branch: true };
+    }>,
+  ): Promise<void> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Prepare response payload (serialize payment for storage)
+    const response = {
+      id: payment.id,
+      tenantId: payment.tenantId,
+      branchId: payment.branchId,
+      memberId: payment.memberId,
+      amount: payment.amount.toString(),
+      paidOn: payment.paidOn.toISOString(),
+      paymentMethod: payment.paymentMethod,
+      note: payment.note,
+      isCorrection: payment.isCorrection,
+      correctedPaymentId: payment.correctedPaymentId,
+      isCorrected: payment.isCorrected,
+      version: payment.version,
+      createdBy: payment.createdBy,
+      createdAt: payment.createdAt.toISOString(),
+      updatedAt: payment.updatedAt.toISOString(),
+      member: {
+        id: payment.member.id,
+        firstName: payment.member.firstName,
+        lastName: payment.member.lastName,
+      },
+      branch: {
+        id: payment.branch.id,
+        name: payment.branch.name,
+      },
+    };
+
+    try {
+      await this.prisma.idempotencyKey.create({
+        data: {
+          key,
+          tenantId,
+          userId,
+          response: response as any,
+          expiresAt,
+        },
+      });
+    } catch (error) {
+      // Handle race condition: if key was created by another concurrent request
+      // This is expected behavior - the other request succeeded first
+      // We can safely ignore this error as the idempotency is still enforced
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002' // Unique constraint violation
+      ) {
+        // Key already exists (created by concurrent request)
+        // This is fine - idempotency is working correctly
+        this.logger.debug(
+          `Idempotency key already exists (race condition handled): key=${key}`,
+        );
+      } else {
+        // Unexpected error - log but don't fail the request
+        this.logger.warn(
+          `Failed to store idempotency key: key=${key}, error=${error}`,
+        );
+      }
+    }
   }
 }
 

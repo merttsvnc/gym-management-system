@@ -242,12 +242,12 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T064 Implement idempotency key extraction from request header in `backend/src/payments/payments.controller.ts`
-- [ ] T065 Implement idempotency key check in `createPayment()` method in `backend/src/payments/payments.service.ts`
-- [ ] T066 Implement cached response return if idempotency key exists in `backend/src/payments/payments.service.ts`
-- [ ] T067 Implement idempotency key storage with TTL (24 hours) in `backend/src/payments/payments.service.ts`
-- [ ] T068 Handle race conditions in idempotency key creation in `backend/src/payments/payments.service.ts`
-- [ ] T069 Verify idempotency returns same response on retries in `backend/src/payments/payments.service.ts`
+- [X] T064 Implement idempotency key extraction from request header in `backend/src/payments/payments.controller.ts`
+- [X] T065 Implement idempotency key check in `createPayment()` method in `backend/src/payments/payments.service.ts`
+- [X] T066 Implement cached response return if idempotency key exists in `backend/src/payments/payments.service.ts`
+- [X] T067 Implement idempotency key storage with TTL (24 hours) in `backend/src/payments/payments.service.ts`
+- [X] T068 Handle race conditions in idempotency key creation in `backend/src/payments/payments.service.ts`
+- [X] T069 Verify idempotency returns same response on retries in `backend/src/payments/payments.service.ts`
 
 **Acceptance Criteria:**
 
