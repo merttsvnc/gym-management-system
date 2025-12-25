@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentMethod, Prisma } from '@prisma/client';
+import { PaymentMethod } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 
 describe('PaymentsService', () => {
@@ -731,13 +731,6 @@ describe('PaymentsService', () => {
     // T083: Test getRevenueReport() includes corrected payment amounts
     // T084: Test getRevenueReport() filters by tenant automatically
     it('should exclude corrected original payments and include corrected amounts', async () => {
-      const correctedOriginal = {
-        ...mockPayment,
-        id: 'original-123',
-        isCorrection: false,
-        isCorrected: true,
-        amount: new Decimal('100.00'),
-      };
       const correctedPayment = {
         ...mockPayment,
         id: 'corrected-123',

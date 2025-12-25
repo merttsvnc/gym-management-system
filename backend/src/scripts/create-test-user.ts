@@ -7,7 +7,9 @@ const connectionString =
   process.env.DATABASE_URL ||
   'postgresql://postgres:postgres@localhost:5432/gym_management_dev';
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
 const pool = new Pool({ connectionString });
+
 const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({

@@ -2,10 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
+import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
@@ -18,23 +18,30 @@ import {
   createTestMember,
   cleanupTestMembers,
 } from './members/e2e/test-helpers';
-import { PaymentMethod } from '@prisma/client';
+import {
+  PaymentMethod,
+  Tenant,
+  User,
+  Branch,
+  Member,
+  Payment,
+} from '@prisma/client';
 import { Decimal } from 'decimal.js';
 
 describe('Payments E2E Tests', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let tenant1: any;
-  let user1: any;
-  let branch1: any;
+  let tenant1: Tenant;
+  let user1: User;
+  let branch1: Branch;
   let token1: string;
-  let tenant2: any;
-  let user2: any;
-  let branch2: any;
-  let token2: string;
-  let member1: any;
-  let member2: any;
-  let member3: any; // For tenant2
+  let tenant2: Tenant;
+  let user2: User;
+  let branch2: Branch;
+  let token2: string; // eslint-disable-line @typescript-eslint/no-unused-vars
+  let member1: Member;
+  let member2: Member;
+  let member3: Member; // For tenant2
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -646,7 +653,9 @@ describe('Payments E2E Tests', () => {
       expect(Array.isArray(response.body.data)).toBe(true);
       expect(response.body.data.length).toBe(2);
       expect(
-        response.body.data.every((p: any) => p.memberId === member1.id),
+        response.body.data.every(
+          (p: { memberId: string }) => p.memberId === member1.id,
+        ),
       ).toBe(true);
     });
   });
@@ -740,7 +749,7 @@ describe('Payments E2E Tests', () => {
       });
 
       // Create correction
-      const correction = await prisma.payment.create({
+      await prisma.payment.create({
         data: {
           tenantId: tenant1.id,
           branchId: branch1.id,
@@ -923,7 +932,7 @@ describe('Payments E2E Tests', () => {
       // Make many requests quickly to exceed rate limit
       // Note: Rate limit is 100 requests per 15 minutes per user
       // Simplified test: just verify throttler is configured (not actually hitting limit)
-      const requests = [];
+      const requests: Promise<Response>[] = [];
       for (let i = 0; i < 5; i++) {
         requests.push(
           request(app.getHttpServer())
@@ -951,7 +960,7 @@ describe('Payments E2E Tests', () => {
       today.setHours(0, 0, 0, 0);
 
       // Create multiple payments to correct
-      const payments = [];
+      const payments: Payment[] = [];
       for (let i = 0; i < 55; i++) {
         const payment = await prisma.payment.create({
           data: {
@@ -1106,7 +1115,7 @@ describe('Payments E2E Tests', () => {
       });
 
       // Create correction
-      const correction = await prisma.payment.create({
+      await prisma.payment.create({
         data: {
           tenantId: tenant1.id,
           branchId: branch1.id,
@@ -1170,7 +1179,7 @@ describe('Payments E2E Tests', () => {
       });
 
       // Create correction with higher amount
-      const correction = await prisma.payment.create({
+      await prisma.payment.create({
         data: {
           tenantId: tenant1.id,
           branchId: branch1.id,
