@@ -1,4 +1,22 @@
 import { ExecutionContext } from '@nestjs/common';
+import { Request } from 'express';
+
+/**
+ * JWT payload structure that is attached to request by JwtAuthGuard
+ */
+interface JwtPayload {
+  sub: string;
+  email: string;
+  tenantId: string;
+  role: string;
+}
+
+/**
+ * Extended Express Request with optional user property
+ */
+interface RequestWithUser extends Request {
+  user?: JwtPayload;
+}
 
 /**
  * Custom key generator for ThrottlerGuard that tracks by user ID instead of IP address
@@ -11,7 +29,7 @@ import { ExecutionContext } from '@nestjs/common';
  */
 export class UserThrottlerKeyGenerator {
   generateKey(context: ExecutionContext): string {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const user = request.user;
 
     // If user is authenticated (set by JwtAuthGuard), use user ID for tracking
@@ -20,7 +38,7 @@ export class UserThrottlerKeyGenerator {
     }
 
     // Fallback to IP address for unauthenticated requests
-    const ip = request.ip || request.connection?.remoteAddress || 'unknown';
+    const ip = request.ip || request.socket?.remoteAddress || 'unknown';
     return `ip:${ip}`;
   }
 

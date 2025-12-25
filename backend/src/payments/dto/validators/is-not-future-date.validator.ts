@@ -16,11 +16,13 @@ export function IsNotFutureDate(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        validate(value: any, _args: ValidationArguments) {
           if (!value) {
             return true; // Let @IsDateString handle empty values
           }
 
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           const date = new Date(value);
           if (isNaN(date.getTime())) {
             return false; // Invalid date
@@ -37,11 +39,11 @@ export function IsNotFutureDate(validationOptions?: ValidationOptions) {
           // Date should not be in the future
           return inputDate <= today;
         },
-        defaultMessage(args: ValidationArguments) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        defaultMessage(_args: ValidationArguments) {
           return 'Ödeme tarihi gelecekte olamaz';
         },
       },
     });
   };
 }
-

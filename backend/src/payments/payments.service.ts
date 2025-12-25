@@ -81,6 +81,7 @@ export class PaymentsService {
       );
       if (cachedResponse) {
         // Return cached response (idempotent behavior)
+
         return cachedResponse;
       }
     }
@@ -105,7 +106,11 @@ export class PaymentsService {
     const paidOnDate = this.validateAndTruncatePaidOn(input.paidOn, tenantId);
 
     // Create payment
-    let payment;
+    type PaymentWithRelations = Prisma.PaymentGetPayload<{
+      include: { member: true; branch: true };
+    }>;
+
+    let payment: PaymentWithRelations;
     try {
       payment = await this.prisma.payment.create({
         data: {
@@ -547,7 +552,8 @@ export class PaymentsService {
    */
   private validateAndTruncatePaidOn(
     paidOn: Date | string,
-    tenantId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _tenantId: string,
   ): Date {
     const date = typeof paidOn === 'string' ? new Date(paidOn) : paidOn;
 
@@ -586,7 +592,8 @@ export class PaymentsService {
    * Get today's date in specified timezone
    * Currently simplified - can be enhanced with timezone library when Tenant timezone is added
    */
-  private getTodayInTimezone(timezone: string): Date {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private getTodayInTimezone(_timezone: string): Date {
     // For now, return today in UTC
     // TODO: Use timezone library (e.g., date-fns-tz) when Tenant timezone is added
     const now = new Date();
@@ -597,7 +604,8 @@ export class PaymentsService {
    * Get date in specified timezone
    * Currently simplified - can be enhanced with timezone library when Tenant timezone is added
    */
-  private getDateInTimezone(date: Date, timezone: string): Date {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private getDateInTimezone(date: Date, _timezone: string): Date {
     // For now, return date truncated to start of day
     // TODO: Use timezone library (e.g., date-fns-tz) when Tenant timezone is added
     return this.truncateToStartOfDayUTC(date);
@@ -619,11 +627,12 @@ export class PaymentsService {
         case 'day':
           periodKey = payment.paidOn.toISOString().split('T')[0]; // YYYY-MM-DD
           break;
-        case 'week':
+        case 'week': {
           // Get week start date (Monday)
           const weekStart = this.getWeekStart(payment.paidOn);
           periodKey = weekStart.toISOString().split('T')[0];
           break;
+        }
         case 'month':
           periodKey = `${payment.paidOn.getUTCFullYear()}-${String(payment.paidOn.getUTCMonth() + 1).padStart(2, '0')}`; // YYYY-MM
           break;
@@ -714,7 +723,7 @@ export class PaymentsService {
     }
 
     // Return cached response
-    const cachedResponse = idempotencyKey.response as unknown as {
+    interface CachedPaymentResponse {
       id: string;
       tenantId: string;
       branchId: string;
@@ -730,9 +739,19 @@ export class PaymentsService {
       createdBy: string;
       createdAt: string;
       updatedAt: string;
-      member: any;
-      branch: any;
-    };
+      member: {
+        id: string;
+        firstName: string;
+        lastName: string;
+      };
+      branch: {
+        id: string;
+        name: string;
+      };
+    }
+
+    const cachedResponse =
+      idempotencyKey.response as unknown as CachedPaymentResponse;
 
     // Fetch the actual payment with relations to ensure data consistency
     const payment = await this.prisma.payment.findUnique({
@@ -808,7 +827,7 @@ export class PaymentsService {
           key,
           tenantId,
           userId,
-          response: response as any,
+          response: response as unknown as Prisma.InputJsonValue,
           expiresAt,
         },
       });

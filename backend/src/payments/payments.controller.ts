@@ -47,7 +47,7 @@ export class PaymentsController {
    * - 403: Member from different tenant
    * - 404: Member not found
    * - 429: Rate limit exceeded (100 requests per 15 minutes per user)
-   * 
+   *
    * Idempotency:
    * - If Idempotency-Key header is provided, returns cached response if key exists and not expired
    * - Idempotency keys expire after 24 hours
@@ -155,7 +155,13 @@ export class PaymentsController {
   async getMemberPayments(
     @CurrentUser('tenantId') tenantId: string,
     @Param('memberId') memberId: string,
-    @Query() query: { startDate?: string; endDate?: string; page?: number; limit?: number },
+    @Query()
+    query: {
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      limit?: number;
+    },
   ) {
     const result = await this.paymentsService.getMemberPayments(
       tenantId,
@@ -253,4 +259,3 @@ export class PaymentsController {
     }
   }
 }
-

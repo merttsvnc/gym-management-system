@@ -40,4 +40,3 @@ export class CreatePaymentDto {
   @MaxLength(500, { message: 'Not en fazla 500 karakter olabilir' })
   note?: string;
 }
-

@@ -51,4 +51,3 @@ export class CorrectPaymentDto {
   @Min(0, { message: 'Versiyon negatif olamaz' })
   version: number;
 }
-

@@ -59,4 +59,3 @@ export class PaymentListQueryDto {
   @Max(100, { message: 'Limit en fazla 100 olabilir' })
   limit?: number = 20;
 }
-

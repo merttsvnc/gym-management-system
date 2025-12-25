@@ -7,4 +7,3 @@ export class DashboardSummaryDto {
   inactiveMembers: number;
   expiringSoon: number;
 }
-
