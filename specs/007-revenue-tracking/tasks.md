@@ -525,12 +525,12 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T165 Add "Payment History" tab to member detail page in `frontend/src/pages/MemberDetailPage.tsx`
-- [ ] T166 Integrate PaymentHistoryTable component into member detail page in `frontend/src/pages/MemberDetailPage.tsx`
-- [ ] T167 Add "Record Payment" button to member detail page in `frontend/src/pages/MemberDetailPage.tsx`
-- [ ] T168 Add payment recording modal to member detail page in `frontend/src/pages/MemberDetailPage.tsx`
-- [ ] T169 Pre-fill member in PaymentForm when opened from member detail page in `frontend/src/pages/MemberDetailPage.tsx`
-- [ ] T170 Refresh payment history on successful payment creation in `frontend/src/pages/MemberDetailPage.tsx`
+- [X] T165 Add "Payment History" tab to member detail page in `frontend/src/pages/MemberDetailPage.tsx`
+- [X] T166 Integrate PaymentHistoryTable component into member detail page in `frontend/src/pages/MemberDetailPage.tsx`
+- [X] T167 Add "Record Payment" button to member detail page in `frontend/src/pages/MemberDetailPage.tsx`
+- [X] T168 Add payment recording modal to member detail page in `frontend/src/pages/MemberDetailPage.tsx`
+- [X] T169 Pre-fill member in PaymentForm when opened from member detail page in `frontend/src/pages/MemberDetailPage.tsx`
+- [X] T170 Refresh payment history on successful payment creation in `frontend/src/pages/MemberDetailPage.tsx`
 
 **Acceptance Criteria:**
 

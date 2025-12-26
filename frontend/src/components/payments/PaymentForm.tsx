@@ -302,6 +302,8 @@ export function PaymentForm({
         };
 
         await createPaymentMutation.mutateAsync(payload);
+        // Clear errors on success
+        setErrors({});
         onSubmit?.();
       } else if (mode === "correct" && initialPayment) {
         const payload: CorrectPaymentRequest = {
@@ -335,6 +337,8 @@ export function PaymentForm({
           paymentId: initialPayment.id,
           payload,
         });
+        // Clear errors on success
+        setErrors({});
         onSubmit?.();
       }
     } catch (err) {
@@ -632,7 +636,10 @@ export function PaymentForm({
           <Button
             type="button"
             variant="outline"
-            onClick={onCancel}
+            onClick={() => {
+              setErrors({});
+              onCancel();
+            }}
             disabled={isLoading}
           >
             İptal

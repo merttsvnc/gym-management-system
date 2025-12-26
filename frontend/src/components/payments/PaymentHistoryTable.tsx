@@ -42,6 +42,7 @@ interface PaymentHistoryTableProps {
   tenantId: string;
   memberId?: string; // Optional: if provided, shows only this member's payments
   onCorrectPayment?: (payment: Payment) => void; // Callback when "Correct Payment" is clicked
+  onPaymentLinkClick?: (paymentId: string) => void; // Callback when payment link is clicked (for navigation)
   readOnly?: boolean; // If true, hides correction actions
 }
 
@@ -90,6 +91,7 @@ export function PaymentHistoryTable({
   tenantId,
   memberId,
   onCorrectPayment,
+  onPaymentLinkClick,
   readOnly = false,
 }: PaymentHistoryTableProps) {
   // Filter state
@@ -302,6 +304,7 @@ export function PaymentHistoryTable({
                         correctedPaymentId={payment.correctedPaymentId}
                         // Note: correctingPaymentId is not available in Payment type
                         // It would need to be fetched separately or added to the API response
+                        onLinkClick={onPaymentLinkClick}
                       />
                     </TableCell>
                     {!readOnly && (
