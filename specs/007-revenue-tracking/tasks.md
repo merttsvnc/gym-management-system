@@ -609,14 +609,14 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T186 Create `usePayments` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T187 Create `useCreatePayment` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T188 Create `useCorrectPayment` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T189 Create `useRevenueReport` hook in `frontend/src/hooks/useRevenue.ts`
-- [ ] T190 Create `useMemberPayments` hook in `frontend/src/hooks/usePayments.ts`
-- [ ] T191 Configure cache invalidation for payment operations in `frontend/src/hooks/usePayments.ts`
-- [ ] T192 Configure optimistic updates for payment creation in `frontend/src/hooks/usePayments.ts`
-- [ ] T193 Configure cache invalidation for payment correction in `frontend/src/hooks/usePayments.ts`
+- [X] T186 Create `usePayments` hook in `frontend/src/hooks/usePayments.ts`
+- [X] T187 Create `useCreatePayment` hook in `frontend/src/hooks/usePayments.ts`
+- [X] T188 Create `useCorrectPayment` hook in `frontend/src/hooks/usePayments.ts`
+- [X] T189 Create `useRevenueReport` hook in `frontend/src/hooks/useRevenue.ts`
+- [X] T190 Create `useMemberPayments` hook in `frontend/src/hooks/usePayments.ts`
+- [X] T191 Configure cache invalidation for payment operations in `frontend/src/hooks/usePayments.ts`
+- [X] T192 Configure optimistic updates for payment creation in `frontend/src/hooks/usePayments.ts`
+- [X] T193 Configure cache invalidation for payment correction in `frontend/src/hooks/usePayments.ts`
 
 **Acceptance Criteria:**
 
