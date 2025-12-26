@@ -400,17 +400,17 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T132 Create `PaymentForm` component in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T133 Add member selector (searchable dropdown) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T134 Add amount input (currency formatted) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T135 Add `paidOn` date picker (date-only, tenant timezone) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T136 Add payment method dropdown to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T137 Add note textarea (optional, max 500 chars) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T138 Add form validation to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T139 Add loading states to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T140 Add error handling to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T141 Ensure PaymentForm uses `paidOn` naming consistently in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T142 Add non-blocking warning banner in PaymentForm when member is archived/inactive or branch is archived in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T132 Create `PaymentForm` component in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T133 Add member selector (searchable dropdown) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T134 Add amount input (currency formatted) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T135 Add `paidOn` date picker (date-only, tenant timezone) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T136 Add payment method dropdown to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T137 Add note textarea (optional, max 500 chars) to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T138 Add form validation to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T139 Add loading states to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T140 Add error handling to PaymentForm in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T141 Ensure PaymentForm uses `paidOn` naming consistently in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T142 Add non-blocking warning banner in PaymentForm when member is archived/inactive or branch is archived in `frontend/src/components/payments/PaymentForm.tsx`
 
 **Acceptance Criteria:**
 
