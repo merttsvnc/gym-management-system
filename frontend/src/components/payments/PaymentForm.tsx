@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,11 +48,39 @@ function formatAmount(value: number): string {
 
 /**
  * Parse amount from input string (remove currency symbols, commas, etc.)
+ * Handles Turkish format: "1.234,50" -> 1234.50
+ * Also handles standard format: "1234.50" -> 1234.50
  */
 function parseAmount(value: string): number {
-  // Remove all non-numeric characters except decimal point
-  const cleaned = value.replace(/[^\d.,]/g, "").replace(",", ".");
-  const parsed = parseFloat(cleaned);
+  if (!value || value.trim() === "") return 0;
+  
+  // Remove all non-numeric characters except decimal separators
+  const cleaned = value.replace(/[^\d.,]/g, "");
+  
+  // Handle Turkish format (dot = thousand separator, comma = decimal)
+  // If last comma exists and there are dots, assume Turkish format
+  const lastCommaIndex = cleaned.lastIndexOf(",");
+  const hasDots = cleaned.includes(".");
+  
+  let normalized: string;
+  if (lastCommaIndex !== -1 && hasDots) {
+    // Turkish format: remove dots (thousand separators), replace comma with dot
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if (lastCommaIndex !== -1) {
+    // Only comma exists: could be Turkish decimal or thousand separator
+    // If comma is in last 3 chars, assume decimal separator
+    if (cleaned.length - lastCommaIndex <= 3) {
+      normalized = cleaned.replace(",", ".");
+    } else {
+      // Comma is likely thousand separator, remove it
+      normalized = cleaned.replace(/,/g, "");
+    }
+  } else {
+    // No comma, just dots (standard format) or no separators
+    normalized = cleaned;
+  }
+  
+  const parsed = parseFloat(normalized);
   return isNaN(parsed) ? 0 : parsed;
 }
 
@@ -63,11 +92,15 @@ function formatAmountForInput(value: number): string {
 }
 
 /**
- * Get today's date in YYYY-MM-DD format (tenant timezone)
- * Uses local date to respect tenant timezone
+ * Get today's date in YYYY-MM-DD format (local date, no timezone shift)
+ * Uses local date to respect tenant timezone and avoid UTC conversion issues
  */
 function getTodayDate(): string {
-  return new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -146,6 +179,7 @@ export function PaymentForm({
   // Mutations
   const createPaymentMutation = useCreatePayment(tenantId);
   const correctPaymentMutation = useCorrectPayment(tenantId);
+  const queryClient = useQueryClient();
 
   const isLoading =
     createPaymentMutation.isPending || correctPaymentMutation.isPending;
@@ -320,9 +354,21 @@ export function PaymentForm({
         }
       } else if (apiError.statusCode === 409) {
         // Version conflict - refresh payment data
+        // The hook already invalidates queries, but we also explicitly refetch
+        // the payment detail to get the updated version for retry
+        if (mode === "correct" && initialPayment) {
+          // Refetch payment detail to get updated version
+          queryClient.invalidateQueries({
+            queryKey: ["payments", tenantId, "detail", initialPayment.id],
+          });
+          // Refetch member payments to ensure consistency
+          queryClient.invalidateQueries({
+            queryKey: ["payments", tenantId, "member", initialPayment.memberId],
+          });
+        }
         setErrors({
           general:
-            "Ödeme başka bir kullanıcı tarafından güncellenmiş. Lütfen sayfayı yenileyip tekrar deneyin.",
+            "Ödeme başka bir kullanıcı tarafından güncellenmiş. Veriler yenileniyor, lütfen tekrar deneyin.",
         });
       }
     }
