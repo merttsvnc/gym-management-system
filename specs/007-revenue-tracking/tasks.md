@@ -438,14 +438,14 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T208 Create `PaymentHistoryTable` component in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T143 Add table columns (date, amount, payment method, note, status, actions) to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T144 Add correction indicator badge to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T145 Add pagination controls to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T146 Add date range filter to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T147 Add loading skeleton to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T148 Display `paidOn` date using tenant timezone in PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T149 Ensure PaymentHistoryTable uses `paidOn` naming consistently in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T208 Create `PaymentHistoryTable` component in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T143 Add table columns (date, amount, payment method, note, status, actions) to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T144 Add correction indicator badge to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T145 Add pagination controls to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T146 Add date range filter to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T147 Add loading skeleton to PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T148 Display `paidOn` date using tenant timezone in PaymentHistoryTable in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T149 Ensure PaymentHistoryTable uses `paidOn` naming consistently in `frontend/src/components/payments/PaymentHistoryTable.tsx`
 
 **Acceptance Criteria:**
 
