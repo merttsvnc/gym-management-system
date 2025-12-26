@@ -551,17 +551,17 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T171 Add "Correct Payment" button to payment row (only if `isCorrected = false`) in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T172 Disable or hide "Correct Payment" action when `isCorrected = true` (single-correction rule) in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T173 Open correction form modal on "Correct Payment" click in `frontend/src/components/payments/PaymentHistoryTable.tsx`
-- [ ] T174 Pre-fill original payment values in correction form in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T175 Show warning if payment >90 days old in correction form in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T176 Show non-blocking warning if member is archived/inactive or branch is archived in correction form in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T177 Handle 400 BadRequest error for already corrected payment (show appropriate message) in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T178 Handle 409 Conflict error (show refresh message) in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T179 Handle 429 Rate Limit error (show retry message) in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T180 Include version field in correction request in `frontend/src/components/payments/PaymentForm.tsx`
-- [ ] T181 Refresh payment data on 409 conflict in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T171 Add "Correct Payment" button to payment row (only if `isCorrected = false`) in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T172 Disable or hide "Correct Payment" action when `isCorrected = true` (single-correction rule) in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T173 Open correction form modal on "Correct Payment" click in `frontend/src/components/payments/PaymentHistoryTable.tsx`
+- [X] T174 Pre-fill original payment values in correction form in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T175 Show warning if payment >90 days old in correction form in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T176 Show non-blocking warning if member is archived/inactive or branch is archived in correction form in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T177 Handle 400 BadRequest error for already corrected payment (show appropriate message) in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T178 Handle 409 Conflict error (show refresh message) in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T179 Handle 429 Rate Limit error (show retry message) in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T180 Include version field in correction request in `frontend/src/components/payments/PaymentForm.tsx`
+- [X] T181 Refresh payment data on 409 conflict in `frontend/src/components/payments/PaymentForm.tsx`
 
 **Acceptance Criteria:**
 

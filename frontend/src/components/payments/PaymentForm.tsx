@@ -346,9 +346,17 @@ export function PaymentForm({
       // Error handling is done in the mutation hooks
       // But we can set form-level errors here if needed
       if (apiError.statusCode === 400) {
-        // Validation errors are already shown via toast
-        // But we can parse and set field-specific errors if API returns them
-        if (apiError.message?.includes("tarih") || apiError.message?.includes("date")) {
+        // Check if it's the single-correction rule violation (already corrected)
+        const message = apiError.message || "";
+        if (
+          message.includes("zaten düzeltilmiş") ||
+          message.includes("already corrected")
+        ) {
+          setErrors({
+            general:
+              "Bu ödeme zaten düzeltilmiş. Bir ödeme yalnızca bir kez düzeltilebilir.",
+          });
+        } else if (apiError.message?.includes("tarih") || apiError.message?.includes("date")) {
           setErrors({ ...errors, paidOn: apiError.message });
         } else if (
           apiError.message?.includes("tutar") ||
@@ -373,6 +381,12 @@ export function PaymentForm({
         setErrors({
           general:
             "Ödeme başka bir kullanıcı tarafından güncellenmiş. Veriler yenileniyor, lütfen tekrar deneyin.",
+        });
+      } else if (apiError.statusCode === 429) {
+        // Rate limit exceeded - show retry message
+        setErrors({
+          general:
+            "Çok fazla istek gönderildi. Lütfen birkaç dakika sonra tekrar deneyin.",
         });
       }
     }
