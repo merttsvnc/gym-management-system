@@ -361,24 +361,24 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T114 Add Payment types to shared types in `frontend/src/types/payment.ts`
-- [ ] T115 Ensure Payment interface uses `paidOn` field (not paymentDate) in `frontend/src/types/payment.ts`
-- [ ] T116 Add PaymentMethod enum to frontend types in `frontend/src/types/payment.ts`
-- [ ] T117 Add CreatePaymentRequest interface with `paidOn` field in `frontend/src/types/payment.ts`
-- [ ] T118 Add CorrectPaymentRequest interface with version field in `frontend/src/types/payment.ts`
-- [ ] T119 Add PaymentListResponse interface in `frontend/src/types/payment.ts`
-- [ ] T120 Add RevenueReportResponse interface in `frontend/src/types/payment.ts`
-- [ ] T121 Create payment API client methods in `frontend/src/api/payments.ts`
-- [ ] T122 Implement createPayment method with error handling in `frontend/src/api/payments.ts`
-- [ ] T123 Implement getPayments method in `frontend/src/api/payments.ts`
-- [ ] T124 Implement getPaymentById method in `frontend/src/api/payments.ts`
-- [ ] T125 Implement getMemberPayments method in `frontend/src/api/payments.ts`
-- [ ] T126 Implement correctPayment method with error handling in `frontend/src/api/payments.ts`
-- [ ] T127 Implement getRevenueReport method in `frontend/src/api/payments.ts`
-- [ ] T128 Add error handling for 409 Conflict in API client in `frontend/src/api/payments.ts`
-- [ ] T129 Add error handling for 429 Rate Limit in API client in `frontend/src/api/payments.ts`
-- [ ] T130 Add error handling for 400 BadRequest in API client in `frontend/src/api/payments.ts`
-- [ ] T131 Add error handling for 403 Forbidden in API client in `frontend/src/api/payments.ts`
+- [X] T114 Add Payment types to shared types in `frontend/src/types/payment.ts`
+- [X] T115 Ensure Payment interface uses `paidOn` field (not paymentDate) in `frontend/src/types/payment.ts`
+- [X] T116 Add PaymentMethod enum to frontend types in `frontend/src/types/payment.ts`
+- [X] T117 Add CreatePaymentRequest interface with `paidOn` field in `frontend/src/types/payment.ts`
+- [X] T118 Add CorrectPaymentRequest interface with version field in `frontend/src/types/payment.ts`
+- [X] T119 Add PaymentListResponse interface in `frontend/src/types/payment.ts`
+- [X] T120 Add RevenueReportResponse interface in `frontend/src/types/payment.ts`
+- [X] T121 Create payment API client methods in `frontend/src/api/payments.ts`
+- [X] T122 Implement createPayment method with error handling in `frontend/src/api/payments.ts`
+- [X] T123 Implement getPayments method in `frontend/src/api/payments.ts`
+- [X] T124 Implement getPaymentById method in `frontend/src/api/payments.ts`
+- [X] T125 Implement getMemberPayments method in `frontend/src/api/payments.ts`
+- [X] T126 Implement correctPayment method with error handling in `frontend/src/api/payments.ts`
+- [X] T127 Implement getRevenueReport method in `frontend/src/api/payments.ts`
+- [X] T128 Add error handling for 409 Conflict in API client in `frontend/src/api/payments.ts`
+- [X] T129 Add error handling for 429 Rate Limit in API client in `frontend/src/api/payments.ts`
+- [X] T130 Add error handling for 400 BadRequest in API client in `frontend/src/api/payments.ts`
+- [X] T131 Add error handling for 403 Forbidden in API client in `frontend/src/api/payments.ts`
 
 **Acceptance Criteria:**
 
