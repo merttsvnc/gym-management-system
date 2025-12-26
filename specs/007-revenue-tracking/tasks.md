@@ -468,15 +468,15 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T150 Create `RevenueReport` component in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T151 Add time period selector (daily, weekly, monthly) to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T152 Add date range picker to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T153 Add branch filter dropdown to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T154 Add payment method filter dropdown to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T155 Add generate report button to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T156 Add report display (total revenue, breakdown table) to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T157 Add loading states to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
-- [ ] T158 Add error handling to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T150 Create `RevenueReport` component in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T151 Add time period selector (daily, weekly, monthly) to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T152 Add date range picker to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T153 Add branch filter dropdown to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T154 Add payment method filter dropdown to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T155 Add generate report button to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T156 Add report display (total revenue, breakdown table) to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T157 Add loading states to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
+- [X] T158 Add error handling to RevenueReport in `frontend/src/components/payments/RevenueReport.tsx`
 
 **Acceptance Criteria:**
 
