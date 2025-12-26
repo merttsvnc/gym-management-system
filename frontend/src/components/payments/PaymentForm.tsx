@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useMembers } from "@/hooks/useMembers";
 import { useMember } from "@/hooks/useMembers";
 import { useBranches } from "@/hooks/useBranches";
-import { useCreatePayment, useCorrectPayment } from "@/hooks/usePayments";
+import { useCreatePayment, useCorrectPayment, usePayment } from "@/hooks/usePayments";
 import { PaymentMethod } from "@/types/payment";
 import type {
   CreatePaymentRequest,
@@ -181,6 +181,12 @@ export function PaymentForm({
   const correctPaymentMutation = useCorrectPayment(tenantId);
   const queryClient = useQueryClient();
 
+  // Subscribe to live payment data in correction mode to get updated version after conflicts
+  const { data: livePayment } = usePayment(
+    tenantId,
+    mode === "correct" && initialPayment?.id ? initialPayment.id : ""
+  );
+
   const isLoading =
     createPaymentMutation.isPending || correctPaymentMutation.isPending;
 
@@ -213,19 +219,21 @@ export function PaymentForm({
     }
   }, [initialMemberId, mode]);
 
-  // Reset form when initialPayment changes (for correction mode)
+  // Reset form when initialPayment or livePayment changes (for correction mode)
+  // Use livePayment when available (after refetch) to get updated version
   useEffect(() => {
-    if (initialPayment && mode === "correct") {
-      setMemberId(initialPayment.memberId);
-      setAmount(parseAmount(initialPayment.amount));
-      setAmountDisplay(formatAmountForInput(parseAmount(initialPayment.amount)));
-      setPaidOn(initialPayment.paidOn.split("T")[0]);
-      setPaymentMethod(initialPayment.paymentMethod);
-      setNote(initialPayment.note || "");
-      setVersion(initialPayment.version);
+    const paymentToUse = livePayment || initialPayment;
+    if (paymentToUse && mode === "correct") {
+      setMemberId(paymentToUse.memberId);
+      setAmount(parseAmount(paymentToUse.amount));
+      setAmountDisplay(formatAmountForInput(parseAmount(paymentToUse.amount)));
+      setPaidOn(paymentToUse.paidOn.split("T")[0]);
+      setPaymentMethod(paymentToUse.paymentMethod);
+      setNote(paymentToUse.note || "");
+      setVersion(paymentToUse.version); // This will update with latest version after 409 conflict
       setMemberSearch("");
     }
-  }, [initialPayment, mode]);
+  }, [livePayment, initialPayment, mode]);
 
   // Handle amount input change (format for display)
   const handleAmountChange = (value: string) => {
@@ -365,19 +373,8 @@ export function PaymentForm({
           setErrors({ ...errors, amount: apiError.message });
         }
       } else if (apiError.statusCode === 409) {
-        // Version conflict - refresh payment data
-        // The hook already invalidates queries, but we also explicitly refetch
-        // the payment detail to get the updated version for retry
-        if (mode === "correct" && initialPayment) {
-          // Refetch payment detail to get updated version
-          queryClient.invalidateQueries({
-            queryKey: ["payments", tenantId, "detail", initialPayment.id],
-          });
-          // Refetch member payments to ensure consistency
-          queryClient.invalidateQueries({
-            queryKey: ["payments", tenantId, "member", initialPayment.memberId],
-          });
-        }
+        // Version conflict - hook already invalidates queries
+        // usePayment hook will automatically refetch and update form state via useEffect
         setErrors({
           general:
             "Ödeme başka bir kullanıcı tarafından güncellenmiş. Veriler yenileniyor, lütfen tekrar deneyin.",
