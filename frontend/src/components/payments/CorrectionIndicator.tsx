@@ -87,7 +87,9 @@ export function CorrectionIndicator({
     return (
       <Badge
         variant="outline"
-        className={`text-orange-600 dark:text-orange-400 border-orange-500/20 ${className || ""}`}
+        className={`text-orange-600 dark:text-orange-400 border-orange-500/20 ${
+          className || ""
+        }`}
         aria-label="Bu ödeme düzeltilmiştir"
       >
         <IconEdit className="h-3 w-3 mr-1" aria-hidden="true" />
@@ -101,7 +103,9 @@ export function CorrectionIndicator({
     return (
       <Badge
         variant="secondary"
-        className={`bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 ${className || ""}`}
+        className={`bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 ${
+          className || ""
+        }`}
         aria-label="Bu ödeme bir düzeltmedir"
       >
         <IconEdit className="h-3 w-3 mr-1" aria-hidden="true" />
@@ -114,11 +118,12 @@ export function CorrectionIndicator({
   return (
     <Badge
       variant="outline"
-      className={`text-green-600 dark:text-green-400 border-green-500/20 ${className || ""}`}
+      className={`text-green-600 dark:text-green-400 border-green-500/20 ${
+        className || ""
+      }`}
       aria-label="Normal ödeme"
     >
       Normal
     </Badge>
   );
 }
-
