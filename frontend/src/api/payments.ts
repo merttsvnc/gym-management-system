@@ -304,7 +304,7 @@ export async function getRevenueReport(
     searchParams.append("groupBy", queryParams.groupBy);
   }
 
-  const url = `/revenue?${searchParams.toString()}`;
+  const url = `/payments/revenue?${searchParams.toString()}`;
 
   try {
     return await apiClient.get<RevenueReportResponse>(url, { tenantId });

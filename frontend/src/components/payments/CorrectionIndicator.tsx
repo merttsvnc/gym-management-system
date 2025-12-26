@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { IconEdit, IconLink } from "@tabler/icons-react";
-import { Link } from "react-router-dom";
 
 interface CorrectionIndicatorProps {
   /**
@@ -45,13 +44,6 @@ export function CorrectionIndicator({
 }: CorrectionIndicatorProps) {
   // If payment is a correction, show link to original payment
   if (isCorrection && correctedPaymentId) {
-    const handleLinkClick = (e: React.MouseEvent) => {
-      if (onLinkClick) {
-        e.preventDefault();
-        onLinkClick(correctedPaymentId!);
-      }
-    };
-
     return (
       <div className={`flex items-center gap-2 ${className || ""}`}>
         <Badge
@@ -62,40 +54,16 @@ export function CorrectionIndicator({
           <IconEdit className="h-3 w-3 mr-1" aria-hidden="true" />
           Düzeltme
         </Badge>
-        {correctedPaymentId && (
-          onLinkClick ? (
-            <button
-              onClick={handleLinkClick}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 underline bg-transparent border-none cursor-pointer p-0"
-              aria-label={`Orijinal ödemeye git: ${correctedPaymentId}`}
-            >
-              <IconLink className="h-3 w-3" aria-hidden="true" />
-              <span>Orijinal ödeme</span>
-            </button>
-          ) : (
-            <Link
-              to={`/payments/${correctedPaymentId}`}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 underline"
-              aria-label={`Orijinal ödemeye git: ${correctedPaymentId}`}
-            >
-              <IconLink className="h-3 w-3" aria-hidden="true" />
-              <span>Orijinal ödeme</span>
-            </Link>
-          )
-        )}
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <IconLink className="h-3 w-3" aria-hidden="true" />
+          <span>Orijinal ödeme</span>
+        </span>
       </div>
     );
   }
 
   // If payment has been corrected, show link to correcting payment
   if (isCorrected && correctingPaymentId) {
-    const handleLinkClick = (e: React.MouseEvent) => {
-      if (onLinkClick) {
-        e.preventDefault();
-        onLinkClick(correctingPaymentId!);
-      }
-    };
-
     return (
       <div className={`flex items-center gap-2 ${className || ""}`}>
         <Badge
@@ -106,27 +74,10 @@ export function CorrectionIndicator({
           <IconEdit className="h-3 w-3 mr-1" aria-hidden="true" />
           Düzeltilmiş
         </Badge>
-        {correctingPaymentId && (
-          onLinkClick ? (
-            <button
-              onClick={handleLinkClick}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 underline bg-transparent border-none cursor-pointer p-0"
-              aria-label={`Düzeltme ödemesine git: ${correctingPaymentId}`}
-            >
-              <IconLink className="h-3 w-3" aria-hidden="true" />
-              <span>Düzeltme ödemesi</span>
-            </button>
-          ) : (
-            <Link
-              to={`/payments/${correctingPaymentId}`}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 underline"
-              aria-label={`Düzeltme ödemesine git: ${correctingPaymentId}`}
-            >
-              <IconLink className="h-3 w-3" aria-hidden="true" />
-              <span>Düzeltme ödemesi</span>
-            </Link>
-          )
-        )}
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <IconLink className="h-3 w-3" aria-hidden="true" />
+          <span>Düzeltme ödemesi</span>
+        </span>
       </div>
     );
   }
