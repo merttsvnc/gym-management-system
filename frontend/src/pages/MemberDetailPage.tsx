@@ -330,27 +330,22 @@ export function MemberDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="payments" className="w-full">
-            <TabsList>
-              <TabsTrigger value="payments">Ödeme Geçmişi</TabsTrigger>
-            </TabsList>
-            <TabsContent value="payments" className="mt-4">
-              <PaymentHistoryTable
-                tenantId={tenant.id}
-                memberId={member.id}
-                onCorrectPayment={(payment) => {
-                  setSelectedPaymentForCorrection(payment);
-                  setCorrectionFormKey((prev) => prev + 1);
-                  setCorrectionModalOpen(true);
-                }}
-                onPaymentLinkClick={(paymentId) => {
-                  // Payment detail route doesn't exist yet, show toast or handle gracefully
-                  // TODO: Navigate to payment detail page when route is added
-                  console.warn(`Payment detail route not implemented. Payment ID: ${paymentId}`);
-                }}
-              />
-            </TabsContent>
-          </Tabs>
+          <PaymentHistoryTable
+            tenantId={tenant.id}
+            memberId={member.id}
+            onCorrectPayment={(payment) => {
+              setSelectedPaymentForCorrection(payment);
+              setCorrectionFormKey((prev) => prev + 1);
+              setCorrectionModalOpen(true);
+            }}
+            onPaymentLinkClick={(paymentId) => {
+              // Payment detail route doesn't exist yet, show toast or handle gracefully
+              // TODO: Navigate to payment detail page when route is added
+              console.warn(
+                `Payment detail route not implemented. Payment ID: ${paymentId}`
+              );
+            }}
+          />
         </CardContent>
       </Card>
 
