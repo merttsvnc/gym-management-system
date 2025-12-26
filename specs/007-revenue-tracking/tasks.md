@@ -499,12 +499,12 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T159 Create `PaymentMethodBadge` component in `frontend/src/components/payments/PaymentMethodBadge.tsx`
-- [ ] T160 Create `CorrectionIndicator` component in `frontend/src/components/payments/CorrectionIndicator.tsx`
-- [ ] T161 Add badge with payment method icon/color to PaymentMethodBadge in `frontend/src/components/payments/PaymentMethodBadge.tsx`
-- [ ] T162 Add accessible labels to PaymentMethodBadge in `frontend/src/components/payments/PaymentMethodBadge.tsx`
-- [ ] T163 Add badge indicating correction status to CorrectionIndicator in `frontend/src/components/payments/CorrectionIndicator.tsx`
-- [ ] T164 Add link to original/corrected payment to CorrectionIndicator in `frontend/src/components/payments/CorrectionIndicator.tsx`
+- [X] T159 Create `PaymentMethodBadge` component in `frontend/src/components/payments/PaymentMethodBadge.tsx`
+- [X] T160 Create `CorrectionIndicator` component in `frontend/src/components/payments/CorrectionIndicator.tsx`
+- [X] T161 Add badge with payment method icon/color to PaymentMethodBadge in `frontend/src/components/payments/PaymentMethodBadge.tsx`
+- [X] T162 Add accessible labels to PaymentMethodBadge in `frontend/src/components/payments/PaymentMethodBadge.tsx`
+- [X] T163 Add badge indicating correction status to CorrectionIndicator in `frontend/src/components/payments/CorrectionIndicator.tsx`
+- [X] T164 Add link to original/corrected payment to CorrectionIndicator in `frontend/src/components/payments/CorrectionIndicator.tsx`
 
 **Acceptance Criteria:**
 

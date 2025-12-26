@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -36,6 +35,8 @@ import { usePayments, useMemberPayments } from "@/hooks/usePayments";
 import { PaymentMethod } from "@/types/payment";
 import type { Payment, PaymentListQuery } from "@/types/payment";
 import type { ApiError } from "@/types/error";
+import { PaymentMethodBadge } from "./PaymentMethodBadge";
+import { CorrectionIndicator } from "./CorrectionIndicator";
 
 interface PaymentHistoryTableProps {
   tenantId: string;
@@ -80,35 +81,6 @@ function formatDate(dateString: string): string {
   });
 }
 
-/**
- * Get payment method display name in Turkish
- */
-function getPaymentMethodLabel(method: PaymentMethod): string {
-  const labels: Record<PaymentMethod, string> = {
-    [PaymentMethod.CASH]: "Nakit",
-    [PaymentMethod.CREDIT_CARD]: "Kredi/Banka Kartı",
-    [PaymentMethod.BANK_TRANSFER]: "Havale/EFT",
-    [PaymentMethod.CHECK]: "Çek",
-    [PaymentMethod.OTHER]: "Diğer",
-  };
-  return labels[method] || method;
-}
-
-/**
- * Get payment method badge variant
- */
-function getPaymentMethodBadgeVariant(
-  method: PaymentMethod
-): "default" | "secondary" | "outline" {
-  const variants: Record<PaymentMethod, "default" | "secondary" | "outline"> = {
-    [PaymentMethod.CASH]: "default",
-    [PaymentMethod.CREDIT_CARD]: "secondary",
-    [PaymentMethod.BANK_TRANSFER]: "secondary",
-    [PaymentMethod.CHECK]: "outline",
-    [PaymentMethod.OTHER]: "outline",
-  };
-  return variants[method] || "outline";
-}
 
 /**
  * PaymentHistoryTable component for displaying payment history
@@ -318,34 +290,19 @@ export function PaymentHistoryTable({
                     </TableCell>
                     <TableCell>{formatAmount(payment.amount)}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={getPaymentMethodBadgeVariant(
-                          payment.paymentMethod
-                        )}
-                      >
-                        {getPaymentMethodLabel(payment.paymentMethod)}
-                      </Badge>
+                      <PaymentMethodBadge paymentMethod={payment.paymentMethod} />
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {payment.note || "-"}
                     </TableCell>
                     <TableCell>
-                      {/* Correction Indicator Badge */}
-                      {payment.isCorrection && (
-                        <Badge variant="secondary" className="mr-2">
-                          Düzeltme
-                        </Badge>
-                      )}
-                      {payment.isCorrected && (
-                        <Badge variant="outline" className="text-orange-600 dark:text-orange-400">
-                          Düzeltilmiş
-                        </Badge>
-                      )}
-                      {!payment.isCorrection && !payment.isCorrected && (
-                        <Badge variant="outline" className="text-green-600 dark:text-green-400">
-                          Normal
-                        </Badge>
-                      )}
+                      <CorrectionIndicator
+                        isCorrection={payment.isCorrection}
+                        isCorrected={payment.isCorrected}
+                        correctedPaymentId={payment.correctedPaymentId}
+                        // Note: correctingPaymentId is not available in Payment type
+                        // It would need to be fetched separately or added to the API response
+                      />
                     </TableCell>
                     {!readOnly && (
                       <TableCell className="text-right">
