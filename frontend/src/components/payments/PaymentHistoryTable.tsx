@@ -34,7 +34,6 @@ import {
 import { usePayments, useMemberPayments } from "@/hooks/usePayments";
 import { PaymentMethod } from "@/types/payment";
 import type { Payment, PaymentListQuery } from "@/types/payment";
-import type { ApiError } from "@/types/error";
 import { PaymentMethodBadge } from "./PaymentMethodBadge";
 import { CorrectionIndicator } from "./CorrectionIndicator";
 
@@ -71,7 +70,7 @@ function formatDate(dateString: string): string {
   const datePart = dateString.includes("T")
     ? dateString.split("T")[0]
     : dateString.split(" ")[0]; // Handle space-separated formats too
-  
+
   // Parse YYYY-MM-DD and format using Turkish locale
   const [year, month, day] = datePart.split("-");
   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -81,7 +80,6 @@ function formatDate(dateString: string): string {
     day: "2-digit",
   });
 }
-
 
 /**
  * PaymentHistoryTable component for displaying payment history
@@ -128,19 +126,33 @@ export function PaymentHistoryTable({
     }
 
     return q;
-  }, [memberId, startDate, endDate, paymentMethodFilter, includeCorrections, page, limit]);
+  }, [
+    memberId,
+    startDate,
+    endDate,
+    paymentMethodFilter,
+    includeCorrections,
+    page,
+    limit,
+  ]);
 
   // Fetch payments
   // Note: When memberId is provided, useMemberPayments only supports date range filters
   // Payment method and includeCorrections filters are only available for general payment list
+  // Both hooks are called unconditionally to follow React Hooks rules
+  const memberPaymentsResult = useMemberPayments(tenantId, memberId || "", {
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    page,
+    limit,
+  });
+
+  const allPaymentsResult = usePayments(tenantId, query);
+
+  // Select the appropriate result based on whether memberId is provided
   const { data, isLoading, error } = memberId
-    ? useMemberPayments(tenantId, memberId, {
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        page,
-        limit,
-      })
-    : usePayments(tenantId, query);
+    ? memberPaymentsResult
+    : allPaymentsResult;
 
   const payments = data?.data || [];
   const pagination = data?.pagination;
@@ -242,7 +254,7 @@ export function PaymentHistoryTable({
                 handleFilterChange();
               }}
             >
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-40">
                 <SelectValue placeholder="Düzeltmeler" />
               </SelectTrigger>
               <SelectContent>
@@ -281,7 +293,9 @@ export function PaymentHistoryTable({
                   <TableHead>Ödeme Yöntemi</TableHead>
                   <TableHead>Not</TableHead>
                   <TableHead>Durum</TableHead>
-                  {!readOnly && <TableHead className="text-right">İşlemler</TableHead>}
+                  {!readOnly && (
+                    <TableHead className="text-right">İşlemler</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -292,7 +306,9 @@ export function PaymentHistoryTable({
                     </TableCell>
                     <TableCell>{formatAmount(payment.amount)}</TableCell>
                     <TableCell>
-                      <PaymentMethodBadge paymentMethod={payment.paymentMethod} />
+                      <PaymentMethodBadge
+                        paymentMethod={payment.paymentMethod}
+                      />
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {payment.note || "-"}
@@ -383,4 +399,3 @@ export function PaymentHistoryTable({
     </div>
   );
 }
-

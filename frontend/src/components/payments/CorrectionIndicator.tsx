@@ -54,10 +54,21 @@ export function CorrectionIndicator({
           <IconEdit className="h-3 w-3 mr-1" aria-hidden="true" />
           Düzeltme
         </Badge>
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <IconLink className="h-3 w-3" aria-hidden="true" />
-          <span>Orijinal ödeme</span>
-        </span>
+        {onLinkClick ? (
+          <button
+            onClick={() => onLinkClick(correctedPaymentId)}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            type="button"
+          >
+            <IconLink className="h-3 w-3" aria-hidden="true" />
+            <span>Orijinal ödeme</span>
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <IconLink className="h-3 w-3" aria-hidden="true" />
+            <span>Orijinal ödeme</span>
+          </span>
+        )}
       </div>
     );
   }
@@ -74,10 +85,21 @@ export function CorrectionIndicator({
           <IconEdit className="h-3 w-3 mr-1" aria-hidden="true" />
           Düzeltilmiş
         </Badge>
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <IconLink className="h-3 w-3" aria-hidden="true" />
-          <span>Düzeltme ödemesi</span>
-        </span>
+        {onLinkClick ? (
+          <button
+            onClick={() => onLinkClick(correctingPaymentId)}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            type="button"
+          >
+            <IconLink className="h-3 w-3" aria-hidden="true" />
+            <span>Düzeltme ödemesi</span>
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <IconLink className="h-3 w-3" aria-hidden="true" />
+            <span>Düzeltme ödemesi</span>
+          </span>
+        )}
       </div>
     );
   }
