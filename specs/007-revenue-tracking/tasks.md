@@ -586,10 +586,10 @@ This document contains the complete task list for implementing Collections & Rev
 
 ### Tasks
 
-- [ ] T182 Create revenue reports page in `frontend/src/pages/RevenuePage.tsx`
-- [ ] T183 Create new route `/revenue` in frontend routing
-- [ ] T184 Integrate RevenueReport component into revenue page in `frontend/src/pages/RevenuePage.tsx`
-- [ ] T185 Add revenue page to navigation menu
+- [X] T182 Create revenue reports page in `frontend/src/pages/RevenuePage.tsx`
+- [X] T183 Create new route `/revenue` in frontend routing
+- [X] T184 Integrate RevenueReport component into revenue page in `frontend/src/pages/RevenuePage.tsx`
+- [X] T185 Add revenue page to navigation menu
 
 **Acceptance Criteria:**
 

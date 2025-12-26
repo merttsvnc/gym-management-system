@@ -13,6 +13,7 @@ import { CreatePlanPage } from "./pages/CreatePlanPage";
 import { EditPlanPage } from "./pages/EditPlanPage";
 import { LoginPage } from "./pages/LoginPage";
 import { BillingLockedPage } from "./pages/BillingLockedPage";
+import { RevenuePage } from "./pages/RevenuePage";
 import { ProtectedRoute } from "./features/auth/ProtectedRoute";
 import { BillingStatusGuard } from "./features/auth/BillingStatusGuard";
 import { Toaster } from "@/components/ui/sonner";
@@ -45,6 +46,7 @@ function App() {
           <Route path="/membership-plans" element={<MembershipPlansPage />} />
           <Route path="/membership-plans/new" element={<CreatePlanPage />} />
           <Route path="/membership-plans/:id/edit" element={<EditPlanPage />} />
+          <Route path="/revenue" element={<RevenuePage />} />
           <Route path="/" element={<Navigate to="/panel" replace />} />
         </Route>
       </Routes>

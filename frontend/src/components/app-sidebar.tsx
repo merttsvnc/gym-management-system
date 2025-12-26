@@ -6,6 +6,7 @@ import {
   IconLayoutDashboard,
   IconUsers,
   IconCreditCard,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -40,6 +41,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Üyelik Planları",
       url: "/membership-plans",
       icon: IconCreditCard,
+    },
+    {
+      title: "Gelir Raporları",
+      url: "/revenue",
+      icon: IconChartBar,
     },
     {
       title: "Salon Ayarları",
