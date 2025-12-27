@@ -193,12 +193,18 @@ export function MemberList({
                   <TableCell>{member.phone}</TableCell>
                   <TableCell>{member.membershipPlan?.name || "-"}</TableCell>
                   <TableCell>
-                    <MemberStatusBadge status={member.status} />
+                    <MemberStatusBadge member={member} />
                   </TableCell>
                   <TableCell>
-                    {member.remainingDays >= 0 ? (
-                      <span className="text-green-600 dark:text-green-400">
-                        {member.remainingDays} gün
+                    {member.isMembershipActive ? (
+                      <span
+                        className={
+                          member.isExpiringSoon
+                            ? "text-yellow-600 dark:text-yellow-400"
+                            : "text-green-600 dark:text-green-400"
+                        }
+                      >
+                        {member.daysRemaining} gün
                       </span>
                     ) : (
                       <span className="text-red-600 dark:text-red-400">

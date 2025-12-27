@@ -4,6 +4,11 @@ import { DashboardSummaryDto } from './dto/dashboard-summary.dto';
 import { MembershipDistributionItemDto } from './dto/membership-distribution.dto';
 import { MonthlyMembersItemDto } from './dto/monthly-members.dto';
 import { Prisma } from '@prisma/client';
+import {
+  getTodayStart,
+  getActiveMembershipWhere,
+  getExpiringSoonMembershipWhere,
+} from '../common/utils/membership-status.util';
 
 @Injectable()
 export class DashboardService {
@@ -32,52 +37,30 @@ export class DashboardService {
   }
 
   /**
-   * Get today's date at start of day (00:00:00) in server local time
-   */
-  private getTodayStart(): Date {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  }
-
-  /**
-   * Get date N days from today at start of day
-   */
-  private getDateNDaysFromToday(days: number): Date {
-    const date = new Date();
-    date.setDate(date.getDate() + days);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }
-
-  /**
    * Get dashboard summary statistics
    * Returns total, active, inactive members, and expiring soon count
+   *
+   * BUSINESS RULE: Uses derived membership status based on membershipEndDate only.
+   * Active = membershipEndDate >= today (start of day)
    */
   async getSummary(
     tenantId: string,
     branchId?: string,
   ): Promise<DashboardSummaryDto> {
     const where = this.buildMemberWhere(tenantId, branchId);
-    const today = this.getTodayStart();
+    const today = getTodayStart();
 
-    // Active member definition: status === 'ACTIVE' AND membershipEndDate >= today
+    // Active member definition: membershipEndDate >= today
+    // No longer checking status field - using derived status only
     const activeWhere: Prisma.MemberWhereInput = {
       ...where,
-      status: 'ACTIVE',
-      membershipEndDate: {
-        gte: today,
-      },
+      ...getActiveMembershipWhere(today),
     };
 
     // Expiring soon: active members with membershipEndDate between today and today+7 days
-    const expiringSoonDate = this.getDateNDaysFromToday(7);
     const expiringSoonWhere: Prisma.MemberWhereInput = {
-      ...activeWhere,
-      membershipEndDate: {
-        gte: today,
-        lte: expiringSoonDate,
-      },
+      ...where,
+      ...getExpiringSoonMembershipWhere(today),
     };
 
     // Execute all counts in parallel
@@ -87,10 +70,8 @@ export class DashboardService {
       this.prisma.member.count({ where: expiringSoonWhere }),
     ]);
 
-    // Inactive members calculation:
-    // Since Member.status field exists, we use: totalMembers - activeMembers
-    // This handles all non-active statuses (INACTIVE, PAUSED, ARCHIVED, etc.)
-    // without requiring a separate query
+    // Inactive/expired members calculation:
+    // totalMembers - activeMembers (includes expired, paused, archived)
     const inactiveMembers = totalMembers - activeMembers;
 
     return {
@@ -104,21 +85,22 @@ export class DashboardService {
   /**
    * Get membership distribution (active member count per plan)
    * Uses Prisma aggregation to avoid N+1 queries
+   *
+   * BUSINESS RULE: Uses derived membership status based on membershipEndDate only.
+   * Active = membershipEndDate >= today (start of day)
    */
   async getMembershipDistribution(
     tenantId: string,
     branchId?: string,
   ): Promise<MembershipDistributionItemDto[]> {
     const where = this.buildMemberWhere(tenantId, branchId);
-    const today = this.getTodayStart();
+    const today = getTodayStart();
 
-    // Active member definition: status === 'ACTIVE' AND membershipEndDate >= today
+    // Active member definition: membershipEndDate >= today
+    // No longer checking status field - using derived status only
     const activeMemberWhere: Prisma.MemberWhereInput = {
       ...where,
-      status: 'ACTIVE',
-      membershipEndDate: {
-        gte: today,
-      },
+      ...getActiveMembershipWhere(today),
     };
 
     // Use groupBy to get counts per planId in a single query
@@ -189,7 +171,7 @@ export class DashboardService {
     const where = this.buildMemberWhere(tenantId, branchId);
 
     // Calculate date range: from (today - N months) to today
-    const today = this.getTodayStart();
+    const today = getTodayStart();
     const startDate = new Date(today);
     startDate.setMonth(startDate.getMonth() - months);
     startDate.setDate(1); // First day of the month

@@ -228,9 +228,9 @@ export function MemberDetailPage() {
               </div>
             )}
             <div>
-              <p className="text-sm text-muted-foreground">Durum</p>
+              <p className="text-sm text-muted-foreground">Üyelik Durumu</p>
               <div className="mt-1">
-                <MemberStatusBadge status={member.status} />
+                <MemberStatusBadge member={member} />
               </div>
             </div>
             <div>
@@ -249,13 +249,15 @@ export function MemberDetailPage() {
               <p className="text-sm text-muted-foreground">Kalan Gün</p>
               <p
                 className={`font-medium ${
-                  member.remainingDays >= 0
-                    ? "text-green-600 dark:text-green-400"
+                  member.isMembershipActive
+                    ? member.isExpiringSoon
+                      ? "text-yellow-600 dark:text-yellow-400"
+                      : "text-green-600 dark:text-green-400"
                     : "text-red-600 dark:text-red-400"
                 }`}
               >
-                {member.remainingDays >= 0
-                  ? `${member.remainingDays} gün`
+                {member.isMembershipActive
+                  ? `${member.daysRemaining} gün`
                   : "Süresi dolmuş"}
               </p>
             </div>
