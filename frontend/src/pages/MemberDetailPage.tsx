@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCurrentTenant } from "@/hooks/useTenant";
 import { useMember } from "@/hooks/useMembers";
-import { MemberStatusBadge } from "@/components/members/MemberStatusBadge";
+import { MembershipStateBadge } from "@/components/members/MembershipStateBadge";
 import { StatusChangeDialog } from "@/components/members/StatusChangeDialog";
 import { ArchiveConfirmDialog } from "@/components/members/ArchiveConfirmDialog";
 import { PaymentHistoryTable } from "@/components/payments/PaymentHistoryTable";
@@ -230,7 +230,7 @@ export function MemberDetailPage() {
             <div>
               <p className="text-sm text-muted-foreground">Üyelik Durumu</p>
               <div className="mt-1">
-                <MemberStatusBadge member={member} />
+                <MembershipStateBadge member={member} />
               </div>
             </div>
             <div>

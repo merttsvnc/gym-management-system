@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MemberStatusBadge } from "./MemberStatusBadge";
+import { MembershipStateBadge } from "./MembershipStateBadge";
 import { MemberStatus } from "@/types/member";
 import type { Member } from "@/types/member";
 import type { ApiError } from "@/types/error";
@@ -193,7 +193,7 @@ export function MemberList({
                   <TableCell>{member.phone}</TableCell>
                   <TableCell>{member.membershipPlan?.name || "-"}</TableCell>
                   <TableCell>
-                    <MemberStatusBadge member={member} />
+                    <MembershipStateBadge member={member} />
                   </TableCell>
                   <TableCell>
                     {member.isMembershipActive ? (
