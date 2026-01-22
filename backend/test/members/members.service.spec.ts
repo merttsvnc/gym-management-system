@@ -58,7 +58,6 @@ describe('MembersService', () => {
     }).compile();
 
     service = module.get<MembersService>(MembersService);
-    prisma = module.get<PrismaService>(PrismaService);
 
     // Clear all mocks before each test
     jest.clearAllMocks();
@@ -482,7 +481,16 @@ describe('MembersService', () => {
     const tenantId = 'tenant-1';
     const memberId = 'member-1';
 
-    it('should return a member with remainingDays', async () => {
+    it('should return a member with remainingDays and branch information', async () => {
+      const mockBranch = {
+        id: 'branch-1',
+        tenantId,
+        name: 'Main Branch',
+        address: '123 Main St',
+        isDefault: true,
+        isActive: true,
+      };
+
       const mockMember = {
         id: memberId,
         tenantId,
@@ -493,6 +501,7 @@ describe('MembersService', () => {
         status: MemberStatus.ACTIVE,
         pausedAt: null,
         resumedAt: null,
+        branch: mockBranch,
       };
 
       mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
@@ -502,6 +511,9 @@ describe('MembersService', () => {
       expect(result).toHaveProperty('id', memberId);
       expect(result).toHaveProperty('remainingDays');
       expect(typeof result.remainingDays).toBe('number');
+      expect(result).toHaveProperty('branch');
+      expect(result.branch).toHaveProperty('id', 'branch-1');
+      expect(result.branch).toHaveProperty('name', 'Main Branch');
     });
 
     it('should throw NotFoundException if member does not exist', async () => {
