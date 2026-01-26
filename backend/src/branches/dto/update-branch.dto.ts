@@ -5,15 +5,22 @@ import {
   MaxLength,
   Matches,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  BRANCH_NAME_REGEX,
+  BRANCH_NAME_ERROR_MESSAGE,
+} from '../constants/branch-validation.constants';
 
 export class UpdateBranchDto {
   @IsOptional()
   @IsString({ message: 'Şube adı metin olmalıdır' })
   @MinLength(2, { message: 'Şube adı en az 2 karakter olmalıdır' })
   @MaxLength(100, { message: 'Şube adı en fazla 100 karakter olabilir' })
-  @Matches(/^[a-zA-Z0-9 '\-&]+$/, {
-    message:
-      "Şube adı sadece harf, rakam, boşluk, tire (-), kesme işareti (') ve & karakterlerini içerebilir",
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @Matches(BRANCH_NAME_REGEX, {
+    message: BRANCH_NAME_ERROR_MESSAGE,
   })
   name?: string;
 

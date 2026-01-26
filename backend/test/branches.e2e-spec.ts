@@ -245,6 +245,187 @@ describe('BranchesController (e2e)', () => {
         .expect(400);
     });
 
+    it('should accept Turkish characters in branch name', async () => {
+      // Clean up to avoid plan limit
+      const branches = await prisma.branch.findMany({
+        where: { tenantId, isDefault: false },
+      });
+      for (const b of branches) {
+        await prisma.branch.delete({ where: { id: b.id } });
+      }
+
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Ana Şube',
+          address: '123 Test St',
+        })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.name).toBe('Ana Şube');
+        });
+    });
+
+    it('should accept complex Turkish branch names', async () => {
+      // Clean up to avoid plan limit
+      const branches = await prisma.branch.findMany({
+        where: { tenantId, isDefault: false },
+      });
+      for (const b of branches) {
+        await prisma.branch.delete({ where: { id: b.id } });
+      }
+
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'İstanbul Çekmeköy-2',
+          address: '123 Test St',
+        })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.name).toBe('İstanbul Çekmeköy-2');
+        });
+    });
+
+    it('should accept branch names with apostrophe and ampersand', async () => {
+      // Clean up to avoid plan limit
+      const branches = await prisma.branch.findMany({
+        where: { tenantId, isDefault: false },
+      });
+      for (const b of branches) {
+        await prisma.branch.delete({ where: { id: b.id } });
+      }
+
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: "Beşiktaş & Merkez'1",
+          address: '123 Test St',
+        })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.name).toBe("Beşiktaş & Merkez'1");
+        });
+    });
+
+    it('should accept Gazi Osmanpaşa', async () => {
+      // Clean up to avoid plan limit
+      const branches = await prisma.branch.findMany({
+        where: { tenantId, isDefault: false },
+      });
+      for (const b of branches) {
+        await prisma.branch.delete({ where: { id: b.id } });
+      }
+
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Gazi Osmanpaşa',
+          address: '123 Test St',
+        })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.name).toBe('Gazi Osmanpaşa');
+        });
+    });
+
+    it('should reject branch name with slash', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Ana/Şube',
+          address: '123 Test St',
+        })
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.message).toContain(
+            'Şube adı sadece harf, rakam, boşluk, tire (-), kesme işareti',
+          );
+        });
+    });
+
+    it('should reject branch name with at sign', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Test@Branch',
+          address: '123 Test St',
+        })
+        .expect(400);
+    });
+
+    it('should reject branch name with underscore', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Şube_1',
+          address: '123 Test St',
+        })
+        .expect(400);
+    });
+
+    it('should reject branch name with exclamation mark', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Şube!',
+          address: '123 Test St',
+        })
+        .expect(400);
+    });
+
+    it('should reject branch name with period', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Şube.',
+          address: '123 Test St',
+        })
+        .expect(400);
+    });
+
+    it('should reject branch name with comma', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Şube, Test',
+          address: '123 Test St',
+        })
+        .expect(400);
+    });
+
+    it('should trim leading and trailing whitespace from branch name', async () => {
+      // Clean up to avoid plan limit
+      const branches = await prisma.branch.findMany({
+        where: { tenantId, isDefault: false },
+      });
+      for (const b of branches) {
+        await prisma.branch.delete({ where: { id: b.id } });
+      }
+
+      return request(app.getHttpServer())
+        .post('/api/v1/branches')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: '  Trimmed Branch  ',
+          address: '123 Test St',
+        })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.name).toBe('Trimmed Branch');
+        });
+    });
+
     it('should return 400 for name too short', () => {
       return request(app.getHttpServer())
         .post('/api/v1/branches')
@@ -330,6 +511,55 @@ describe('BranchesController (e2e)', () => {
           name: 'Existing Branch',
         })
         .expect(409);
+    });
+
+    it('should update branch name to Turkish characters', () => {
+      return request(app.getHttpServer())
+        .patch(`/api/v1/branches/${branchId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Yeni Şube İsmi',
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.name).toBe('Yeni Şube İsmi');
+        });
+    });
+
+    it('should accept Turkish branch name with special allowed chars', () => {
+      return request(app.getHttpServer())
+        .patch(`/api/v1/branches/${branchId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: "Atatürk & Cumhuriyet'in Şubesi-1",
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.name).toBe("Atatürk & Cumhuriyet'in Şubesi-1");
+        });
+    });
+
+    it('should reject update with invalid characters', () => {
+      return request(app.getHttpServer())
+        .patch(`/api/v1/branches/${branchId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Invalid#Name@2024',
+        })
+        .expect(400);
+    });
+
+    it('should trim whitespace when updating branch name', () => {
+      return request(app.getHttpServer())
+        .patch(`/api/v1/branches/${branchId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: '  Trimmed Update  ',
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.name).toBe('Trimmed Update');
+        });
     });
 
     it('should return 400 for archived branch', async () => {

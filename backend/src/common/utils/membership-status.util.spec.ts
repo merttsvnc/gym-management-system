@@ -141,7 +141,7 @@ describe('Membership Status Utils', () => {
       expect(result.membershipEndDate).toHaveProperty('gte');
 
       // Verify the date is normalized to start of day
-      const gte = result.membershipEndDate.gte as Date;
+      const gte = result.membershipEndDate.gte;
       expect(gte.getHours()).toBe(0);
       expect(gte.getMinutes()).toBe(0);
       expect(gte.getSeconds()).toBe(0);
@@ -175,8 +175,8 @@ describe('Membership Status Utils', () => {
       expect(result.membershipEndDate).toHaveProperty('lte');
 
       // Verify dates are normalized
-      const gte = result.membershipEndDate.gte as Date;
-      const lte = result.membershipEndDate.lte as Date;
+      const gte = result.membershipEndDate.gte;
+      const lte = result.membershipEndDate.lte;
 
       expect(gte.getHours()).toBe(0);
       expect(lte.getHours()).toBe(0);
