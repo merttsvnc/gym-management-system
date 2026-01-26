@@ -11,6 +11,7 @@
 ✅ **Backend is production-ready** for mobile consumption with robust tenant isolation, comprehensive validation, and security controls.
 
 **Key Findings:**
+
 - ✅ All 7 expected REST endpoints implemented and tested
 - ✅ Tenant isolation enforced via JWT + TenantGuard on all endpoints
 - ✅ Plan limit (`maxBranches=3`) enforced on creation AND restoration
@@ -26,15 +27,15 @@
 
 ### Endpoint Table
 
-| HTTP Method | Path | Auth | Tenant Scoping | Role | Request DTO | Response | Error Codes |
-|------------|------|------|----------------|------|-------------|----------|-------------|
-| **GET** | `/api/v1/branches` | Bearer JWT | JWT `tenantId` | Any | `BranchListQueryDto` | Paginated list | 401 |
-| **GET** | `/api/v1/branches/:id` | Bearer JWT | JWT `tenantId` validation | Any | None | Single branch object | 401, 404 |
-| **POST** | `/api/v1/branches` | Bearer JWT | JWT `tenantId` auto-scoped | **ADMIN** | `CreateBranchDto` | Created branch | 400, 401, 403, 409 |
-| **PATCH** | `/api/v1/branches/:id` | Bearer JWT | JWT `tenantId` validation | Any (TODO: ADMIN) | `UpdateBranchDto` | Updated branch | 400, 401, 404, 409 |
-| **POST** | `/api/v1/branches/:id/archive` | Bearer JWT | JWT `tenantId` validation | Any (TODO: ADMIN) | None | Archived branch | 400, 401, 404 |
-| **POST** | `/api/v1/branches/:id/restore` | Bearer JWT | JWT `tenantId` validation | Any (TODO: ADMIN) | None | Restored branch | 400, 401, 403, 404 |
-| **POST** | `/api/v1/branches/:id/set-default` | Bearer JWT | JWT `tenantId` validation | Any (TODO: ADMIN) | None | Updated branch | 400, 401, 404 |
+| HTTP Method | Path                               | Auth       | Tenant Scoping             | Role              | Request DTO          | Response             | Error Codes        |
+| ----------- | ---------------------------------- | ---------- | -------------------------- | ----------------- | -------------------- | -------------------- | ------------------ |
+| **GET**     | `/api/v1/branches`                 | Bearer JWT | JWT `tenantId`             | Any               | `BranchListQueryDto` | Paginated list       | 401                |
+| **GET**     | `/api/v1/branches/:id`             | Bearer JWT | JWT `tenantId` validation  | Any               | None                 | Single branch object | 401, 404           |
+| **POST**    | `/api/v1/branches`                 | Bearer JWT | JWT `tenantId` auto-scoped | **ADMIN**         | `CreateBranchDto`    | Created branch       | 400, 401, 403, 409 |
+| **PATCH**   | `/api/v1/branches/:id`             | Bearer JWT | JWT `tenantId` validation  | Any (TODO: ADMIN) | `UpdateBranchDto`    | Updated branch       | 400, 401, 404, 409 |
+| **POST**    | `/api/v1/branches/:id/archive`     | Bearer JWT | JWT `tenantId` validation  | Any (TODO: ADMIN) | None                 | Archived branch      | 400, 401, 404      |
+| **POST**    | `/api/v1/branches/:id/restore`     | Bearer JWT | JWT `tenantId` validation  | Any (TODO: ADMIN) | None                 | Restored branch      | 400, 401, 403, 404 |
+| **POST**    | `/api/v1/branches/:id/set-default` | Bearer JWT | JWT `tenantId` validation  | Any (TODO: ADMIN) | None                 | Updated branch       | 400, 401, 404      |
 
 ---
 
@@ -47,6 +48,7 @@
 **Guards:** `JwtAuthGuard`, `TenantGuard`, `BillingStatusGuard` (global)
 
 **Request Query Parameters:**
+
 ```typescript
 {
   page?: number = 1           // Min 1, validated via @Type() + @IsInt()
@@ -56,6 +58,7 @@
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "data": [
@@ -81,12 +84,14 @@
 ```
 
 **Business Rules:**
+
 - By default, excludes archived branches (`isActive: true`)
 - When `includeArchived=true`, returns ALL branches (active + archived)
 - Ordered by `name` ASC
 - Scoped to `tenantId` from JWT (never cross-tenant leakage)
 
 **Error Cases:**
+
 - `401 Unauthorized` - Missing or invalid JWT token
 - `403 Forbidden` - Billing status SUSPENDED (global guard)
 
@@ -101,9 +106,11 @@
 **Guards:** `JwtAuthGuard`, `TenantGuard`, `BillingStatusGuard` (global)
 
 **Request Parameters:**
+
 - `id` (path parameter) - Branch CUID
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "cuid...",
@@ -119,10 +126,12 @@
 ```
 
 **Business Rules:**
+
 - Returns branch if it belongs to requesting tenant
 - Throws `404 Not Found` if branch doesn't exist OR belongs to different tenant (prevents tenant enumeration)
 
 **Error Cases:**
+
 - `401 Unauthorized` - Missing or invalid JWT token
 - `404 Not Found` - Branch doesn't exist OR belongs to different tenant
 - `403 Forbidden` - Billing status SUSPENDED
@@ -133,7 +142,7 @@
 // Service code:
 const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
 if (!branch || branch.tenantId !== tenantId) {
-  throw new NotFoundException('Branch not found');
+  throw new NotFoundException("Branch not found");
 }
 ```
 
@@ -148,14 +157,16 @@ if (!branch || branch.tenantId !== tenantId) {
 **Required Role:** `ADMIN` ✅ (enforced via `@Roles('ADMIN')`)
 
 **Request Body (`CreateBranchDto`):**
+
 ```typescript
 {
-  name: string       // 2-100 chars, pattern: /^[a-zA-Z0-9 '\-&]+$/
-  address: string    // 5-300 chars
+  name: string; // 2-100 chars, pattern: /^[a-zA-Z0-9 '\-&]+$/
+  address: string; // 5-300 chars
 }
 ```
 
 **Validation Rules:**
+
 ```typescript
 name:
   - Required, string type
@@ -169,13 +180,14 @@ address:
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "id": "cuid_new",
   "tenantId": "cuid_tenant",
   "name": "New Branch",
   "address": "789 New St, City, State",
-  "isDefault": false,  // true if first branch
+  "isDefault": false, // true if first branch
   "isActive": true,
   "createdAt": "2026-01-26T10:00:00.000Z",
   "updatedAt": "2026-01-26T10:00:00.000Z",
@@ -184,6 +196,7 @@ address:
 ```
 
 **Business Rules:**
+
 1. ✅ **Plan limit enforced:** Checks `plan.maxBranches` (currently 3 for SINGLE plan)
    - Only counts **active** branches (`isActive: true`)
    - Archived branches NOT counted toward limit
@@ -193,6 +206,7 @@ address:
 4. ✅ **Tenant auto-scoped:** Uses `user.tenantId` from JWT (no manual tenantId in request)
 
 **Error Cases:**
+
 - `400 Bad Request` - Validation failure (name pattern, length, etc.)
 - `401 Unauthorized` - Missing or invalid JWT token
 - `403 Forbidden` - User lacks ADMIN role OR plan limit reached OR billing status PAST_DUE/SUSPENDED
@@ -205,14 +219,17 @@ address:
 **Tenant Isolation:** ✅ **Auto-scoped via JWT `tenantId` - user cannot specify different tenant**
 
 **Plan Limit Code:**
+
 ```typescript
 const plan = await this.planService.getTenantPlan(tenantId);
 const currentCount = await this.prisma.branch.count({
-  where: { tenantId, isActive: true }  // ✅ Only active branches
+  where: { tenantId, isActive: true }, // ✅ Only active branches
 });
 
 if (currentCount >= plan.maxBranches) {
-  throw new ForbiddenException(`Plan limit reached: max ${plan.maxBranches} branches allowed.`);
+  throw new ForbiddenException(
+    `Plan limit reached: max ${plan.maxBranches} branches allowed.`,
+  );
 }
 ```
 
@@ -227,9 +244,11 @@ if (currentCount >= plan.maxBranches) {
 **Required Role:** None enforced (TODO comment says "add ADMIN check")
 
 **Request Parameters:**
+
 - `id` (path parameter) - Branch CUID
 
 **Request Body (`UpdateBranchDto`):**
+
 ```typescript
 {
   name?: string      // Optional, 2-100 chars, pattern: /^[a-zA-Z0-9 '\-&]+$/
@@ -238,6 +257,7 @@ if (currentCount >= plan.maxBranches) {
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "cuid...",
@@ -253,11 +273,13 @@ if (currentCount >= plan.maxBranches) {
 ```
 
 **Business Rules:**
+
 1. ✅ **Cannot update archived branches:** Checks `isActive === false`, throws 400
 2. ✅ **Name uniqueness:** If name changes, case-insensitive uniqueness check (excludes self)
 3. Partial update supported (send only changed fields)
 
 **Error Cases:**
+
 - `400 Bad Request` - Validation failure OR attempting to update archived branch
   - Message: `"Cannot update archived branch"`
 - `401 Unauthorized` - Missing or invalid JWT token
@@ -278,9 +300,11 @@ if (currentCount >= plan.maxBranches) {
 **Required Role:** None enforced (TODO comment says "add ADMIN check")
 
 **Request Parameters:**
+
 - `id` (path parameter) - Branch CUID
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "cuid...",
@@ -288,14 +312,15 @@ if (currentCount >= plan.maxBranches) {
   "name": "Archived Branch",
   "address": "123 Old St",
   "isDefault": false,
-  "isActive": false,  // ← Changed to false
+  "isActive": false, // ← Changed to false
   "createdAt": "2026-01-10T09:00:00.000Z",
   "updatedAt": "2026-01-26T12:00:00.000Z",
-  "archivedAt": "2026-01-26T12:00:00.000Z"  // ← Timestamp set
+  "archivedAt": "2026-01-26T12:00:00.000Z" // ← Timestamp set
 }
 ```
 
 **Business Rules:**
+
 1. ✅ **Cannot archive default branch:** Must set another branch as default first
    - Error: `"Cannot archive default branch. Set another branch as default first."`
 2. ✅ **Cannot archive last active branch:** Prevents tenant from having zero active branches
@@ -304,6 +329,7 @@ if (currentCount >= plan.maxBranches) {
 4. Archiving sets `isActive: false` and `archivedAt: <timestamp>`
 
 **Error Cases:**
+
 - `400 Bad Request` - Already archived OR is default branch OR is last active branch
 - `401 Unauthorized` - Missing or invalid JWT token
 - `403 Forbidden` - Billing status PAST_DUE or SUSPENDED
@@ -312,22 +338,25 @@ if (currentCount >= plan.maxBranches) {
 **Tenant Isolation:** ✅ **Validated via `getBranchById()`**
 
 **Archive Logic:**
+
 ```typescript
 if (branch.isDefault) {
-  throw new BadRequestException('Cannot archive default branch. Set another branch as default first.');
+  throw new BadRequestException(
+    "Cannot archive default branch. Set another branch as default first.",
+  );
 }
 
 const activeCount = await this.prisma.branch.count({
-  where: { tenantId, isActive: true }
+  where: { tenantId, isActive: true },
 });
 
 if (activeCount <= 1) {
-  throw new BadRequestException('Cannot archive the last active branch');
+  throw new BadRequestException("Cannot archive the last active branch");
 }
 
 return this.prisma.branch.update({
   where: { id: branchId },
-  data: { isActive: false, archivedAt: new Date() }
+  data: { isActive: false, archivedAt: new Date() },
 });
 ```
 
@@ -342,9 +371,11 @@ return this.prisma.branch.update({
 **Required Role:** None enforced (TODO comment says "add ADMIN check")
 
 **Request Parameters:**
+
 - `id` (path parameter) - Branch CUID
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "cuid...",
@@ -352,14 +383,15 @@ return this.prisma.branch.update({
   "name": "Restored Branch",
   "address": "123 Old St",
   "isDefault": false,
-  "isActive": true,  // ← Changed to true
+  "isActive": true, // ← Changed to true
   "createdAt": "2026-01-10T09:00:00.000Z",
   "updatedAt": "2026-01-26T12:30:00.000Z",
-  "archivedAt": null  // ← Cleared
+  "archivedAt": null // ← Cleared
 }
 ```
 
 **Business Rules:**
+
 1. ✅ **Plan limit enforced:** Checks `plan.maxBranches` before restoring
    - Only counts **active** branches
    - Prevents restoring if limit reached
@@ -367,6 +399,7 @@ return this.prisma.branch.update({
 3. Restoration sets `isActive: true` and `archivedAt: null`
 
 **Error Cases:**
+
 - `400 Bad Request` - Branch is not archived (already active)
   - Message: `"Branch is not archived"`
 - `401 Unauthorized` - Missing or invalid JWT token
@@ -377,14 +410,17 @@ return this.prisma.branch.update({
 **Tenant Isolation:** ✅ **Validated via `getBranchById()`**
 
 **Plan Limit Code (same as create):**
+
 ```typescript
 const plan = await this.planService.getTenantPlan(tenantId);
 const currentCount = await this.prisma.branch.count({
-  where: { tenantId, isActive: true }
+  where: { tenantId, isActive: true },
 });
 
 if (currentCount >= plan.maxBranches) {
-  throw new ForbiddenException('Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor.');
+  throw new ForbiddenException(
+    "Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor.",
+  );
 }
 ```
 
@@ -399,16 +435,18 @@ if (currentCount >= plan.maxBranches) {
 **Required Role:** None enforced (TODO comment says "add ADMIN check")
 
 **Request Parameters:**
+
 - `id` (path parameter) - Branch CUID
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "cuid...",
   "tenantId": "cuid...",
   "name": "New Default Branch",
   "address": "123 Main St",
-  "isDefault": true,  // ← Changed to true
+  "isDefault": true, // ← Changed to true
   "isActive": true,
   "createdAt": "2026-01-10T09:00:00.000Z",
   "updatedAt": "2026-01-26T13:00:00.000Z",
@@ -417,6 +455,7 @@ if (currentCount >= plan.maxBranches) {
 ```
 
 **Business Rules:**
+
 1. ✅ **Atomic transaction:** Uses `$transaction` to ensure exactly one default branch
    - Unsets current default
    - Sets new default
@@ -426,6 +465,7 @@ if (currentCount >= plan.maxBranches) {
 3. ✅ **Idempotent:** If already default, returns branch without error (no-op)
 
 **Error Cases:**
+
 - `400 Bad Request` - Branch is archived
   - Message: `"Cannot set archived branch as default"`
 - `401 Unauthorized` - Missing or invalid JWT token
@@ -435,18 +475,19 @@ if (currentCount >= plan.maxBranches) {
 **Tenant Isolation:** ✅ **Validated via `getBranchById()` + transaction scoped to `tenantId`**
 
 **Atomic Transaction Code:**
+
 ```typescript
 return this.prisma.$transaction(async (tx) => {
   // Unset current default (tenant-scoped)
   await tx.branch.updateMany({
     where: { tenantId, isDefault: true },
-    data: { isDefault: false }
+    data: { isDefault: false },
   });
 
   // Set new default
   return tx.branch.update({
     where: { id: branchId },
-    data: { isDefault: true }
+    data: { isDefault: true },
   });
 });
 ```
@@ -485,23 +526,28 @@ model Branch {
 ### Archive ("Arşiv") Logic
 
 **What "Arşiv" means:**
+
 - Archive = `isActive: false` AND `archivedAt: <timestamp>`
 - Unarchive = `isActive: true` AND `archivedAt: null`
 
 **Default behavior in GET `/api/v1/branches`:**
+
 - ❌ **Excludes archived** by default (`where: { isActive: true }`)
 - ✅ **Includes archived** when `includeArchived=true` (no filter on `isActive`)
 
 **"Aktif" vs "Archived":**
+
 - `isActive: true` = Active (shown by default)
 - `isActive: false` = Archived (hidden by default, shown with `includeArchived=true`)
 - **Not separate flags** - "Aktif" badge in UI maps directly to `isActive` field
 
 **Editing archived branches:**
+
 - ❌ **NOT allowed** - `PATCH /branches/:id` throws `400 Bad Request` if `isActive === false`
 - Must restore first, then edit
 
 **Database-level enforcement:**
+
 - No DB constraint preventing archived default (application-level check only)
 - Application prevents: Cannot archive default, cannot set archived as default
 
@@ -512,10 +558,17 @@ model Branch {
 ### Rule 1: Exactly One Default Branch Per Tenant
 
 **Enforcement mechanism:**
+
 - ✅ **Transaction atomicity** in `setDefaultBranch()`:
   ```typescript
-  await tx.branch.updateMany({ where: { tenantId, isDefault: true }, data: { isDefault: false } });
-  return tx.branch.update({ where: { id: branchId }, data: { isDefault: true } });
+  await tx.branch.updateMany({
+    where: { tenantId, isDefault: true },
+    data: { isDefault: false },
+  });
+  return tx.branch.update({
+    where: { id: branchId },
+    data: { isDefault: true },
+  });
   ```
 - ✅ **First branch auto-default** in `createBranch()`:
   ```typescript
@@ -524,34 +577,47 @@ model Branch {
   ```
 
 **Edge case handling:**
+
 - ✅ Multiple branches can have `isDefault: false` if transaction fails mid-way? **No** - transaction ensures atomicity
 - ✅ What if tenant has zero branches? **First branch created becomes default**
 
 ### Rule 2: What Happens if Default Branch is Archived?
 
 **Prevention:**
+
 - ✅ **Cannot archive default branch** - explicit check throws 400:
   ```typescript
   if (branch.isDefault) {
-    throw new BadRequestException('Cannot archive default branch. Set another branch as default first.');
+    throw new BadRequestException(
+      "Cannot archive default branch. Set another branch as default first.",
+    );
   }
   ```
 
 **Workflow:**
+
 1. User must set another branch as default
 2. Then archive the original default branch
 
 ### Rule 3: Is Setting Default Atomic/Transactional?
 
 **Yes ✅** - Uses Prisma `$transaction`:
+
 ```typescript
 return this.prisma.$transaction(async (tx) => {
-  await tx.branch.updateMany({ where: { tenantId, isDefault: true }, data: { isDefault: false } });
-  return tx.branch.update({ where: { id: branchId }, data: { isDefault: true } });
+  await tx.branch.updateMany({
+    where: { tenantId, isDefault: true },
+    data: { isDefault: false },
+  });
+  return tx.branch.update({
+    where: { id: branchId },
+    data: { isDefault: true },
+  });
 });
 ```
 
 **Benefits:**
+
 - Prevents race conditions (concurrent set-default requests)
 - Ensures exactly one default at all times
 - Rollback on failure
@@ -559,18 +625,20 @@ return this.prisma.$transaction(async (tx) => {
 ### Rule 4: First Branch Auto-Set Default?
 
 **Yes ✅** - Enforced in `createBranch()`:
+
 ```typescript
 const branchCount = await this.prisma.branch.count({ where: { tenantId } });
 const isDefault = branchCount === 0;
 
 return this.prisma.branch.create({
-  data: { tenantId, name, address, isDefault, isActive: true }
+  data: { tenantId, name, address, isDefault, isActive: true },
 });
 ```
 
 ### Rule 5: Constraints Preventing Unsetting Default?
 
 **Yes ✅** - Indirect constraint:
+
 - Cannot archive default branch (explicit check)
 - Cannot have zero active branches (explicit check)
 - Setting default is atomic (unsets old, sets new in transaction)
@@ -584,6 +652,7 @@ return this.prisma.branch.create({
 ### Current Configuration
 
 **Plan Config (`backend/src/plan/plan.config.ts`):**
+
 ```typescript
 export const PLAN_CONFIG = {
   SINGLE: {
@@ -603,15 +672,18 @@ export const PLAN_CONFIG = {
 ```typescript
 const plan = await this.planService.getTenantPlan(tenantId);
 const currentCount = await this.prisma.branch.count({
-  where: { tenantId, isActive: true }  // ✅ Only active branches
+  where: { tenantId, isActive: true }, // ✅ Only active branches
 });
 
 if (currentCount >= plan.maxBranches) {
-  throw new ForbiddenException(`Plan limit reached: max ${plan.maxBranches} branches allowed.`);
+  throw new ForbiddenException(
+    `Plan limit reached: max ${plan.maxBranches} branches allowed.`,
+  );
 }
 ```
 
 **Error Response:**
+
 - HTTP Status: `403 Forbidden`
 - Message: `"Plan limit reached: max 3 branches allowed."`
 
@@ -622,15 +694,18 @@ if (currentCount >= plan.maxBranches) {
 ```typescript
 const plan = await this.planService.getTenantPlan(tenantId);
 const currentCount = await this.prisma.branch.count({
-  where: { tenantId, isActive: true }
+  where: { tenantId, isActive: true },
 });
 
 if (currentCount >= plan.maxBranches) {
-  throw new ForbiddenException('Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor.');
+  throw new ForbiddenException(
+    "Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor.",
+  );
 }
 ```
 
 **Error Response:**
+
 - HTTP Status: `403 Forbidden`
 - Message (Turkish): `"Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor."`
 
@@ -643,23 +718,24 @@ if (currentCount >= plan.maxBranches) {
 ```typescript
 // Both create and restore use same counting logic:
 const currentCount = await this.prisma.branch.count({
-  where: { tenantId, isActive: true }  // ✅ Archived branches excluded
+  where: { tenantId, isActive: true }, // ✅ Archived branches excluded
 });
 ```
 
 **Implication:**
+
 - Tenant can have 3 active + unlimited archived branches
 - Archiving a branch frees up a slot
 - Restoring counts against the limit
 
 ### Coverage Summary
 
-| Endpoint | Enforced? | Counts Active Only? | Error Code |
-|----------|-----------|---------------------|------------|
-| POST `/branches` (create) | ✅ Yes | ✅ Yes | 403 |
-| POST `/branches/:id/restore` | ✅ Yes | ✅ Yes | 403 |
-| POST `/branches/:id/archive` | N/A (frees up slot) | N/A | N/A |
-| PATCH `/branches/:id` | N/A (no new branch) | N/A | N/A |
+| Endpoint                     | Enforced?           | Counts Active Only? | Error Code |
+| ---------------------------- | ------------------- | ------------------- | ---------- |
+| POST `/branches` (create)    | ✅ Yes              | ✅ Yes              | 403        |
+| POST `/branches/:id/restore` | ✅ Yes              | ✅ Yes              | 403        |
+| POST `/branches/:id/archive` | N/A (frees up slot) | N/A                 | N/A        |
+| PATCH `/branches/:id`        | N/A (no new branch) | N/A                 | N/A        |
 
 **Verdict:** ✅ **Plan limit fully enforced** - no gaps, archived branches not counted.
 
@@ -670,6 +746,7 @@ const currentCount = await this.prisma.branch.count({
 ### Billing Status Overview
 
 **Possible values (`BillingStatus` enum):**
+
 - `TRIAL` - Full access
 - `ACTIVE` - Full access
 - `PAST_DUE` - Read-only (mutations blocked)
@@ -682,20 +759,21 @@ const currentCount = await this.prisma.branch.count({
 **Runs after:** `JwtAuthGuard`, `TenantGuard`
 
 **Access Rules:**
+
 ```typescript
 if (billingStatus === BillingStatus.SUSPENDED) {
   throw new ForbiddenException({
     code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-    message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS
+    message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
   });
 }
 
 if (billingStatus === BillingStatus.PAST_DUE) {
-  const isReadOperation = ['GET', 'HEAD', 'OPTIONS'].includes(method);
+  const isReadOperation = ["GET", "HEAD", "OPTIONS"].includes(method);
   if (!isReadOperation) {
     throw new ForbiddenException({
       code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-      message: BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION
+      message: BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
     });
   }
 }
@@ -703,19 +781,20 @@ if (billingStatus === BillingStatus.PAST_DUE) {
 
 ### Branches Endpoints Impact
 
-| Endpoint | TRIAL/ACTIVE | PAST_DUE | SUSPENDED |
-|----------|--------------|----------|-----------|
-| GET `/branches` | ✅ Allowed | ✅ Allowed (read-only) | ❌ Blocked (403) |
-| GET `/branches/:id` | ✅ Allowed | ✅ Allowed (read-only) | ❌ Blocked (403) |
-| POST `/branches` | ✅ Allowed | ❌ Blocked (403) | ❌ Blocked (403) |
-| PATCH `/branches/:id` | ✅ Allowed | ❌ Blocked (403) | ❌ Blocked (403) |
-| POST `/branches/:id/archive` | ✅ Allowed | ❌ Blocked (403) | ❌ Blocked (403) |
-| POST `/branches/:id/restore` | ✅ Allowed | ❌ Blocked (403) | ❌ Blocked (403) |
-| POST `/branches/:id/set-default` | ✅ Allowed | ❌ Blocked (403) | ❌ Blocked (403) |
+| Endpoint                         | TRIAL/ACTIVE | PAST_DUE               | SUSPENDED        |
+| -------------------------------- | ------------ | ---------------------- | ---------------- |
+| GET `/branches`                  | ✅ Allowed   | ✅ Allowed (read-only) | ❌ Blocked (403) |
+| GET `/branches/:id`              | ✅ Allowed   | ✅ Allowed (read-only) | ❌ Blocked (403) |
+| POST `/branches`                 | ✅ Allowed   | ❌ Blocked (403)       | ❌ Blocked (403) |
+| PATCH `/branches/:id`            | ✅ Allowed   | ❌ Blocked (403)       | ❌ Blocked (403) |
+| POST `/branches/:id/archive`     | ✅ Allowed   | ❌ Blocked (403)       | ❌ Blocked (403) |
+| POST `/branches/:id/restore`     | ✅ Allowed   | ❌ Blocked (403)       | ❌ Blocked (403) |
+| POST `/branches/:id/set-default` | ✅ Allowed   | ❌ Blocked (403)       | ❌ Blocked (403) |
 
 ### Error Responses
 
 **SUSPENDED tenant (all endpoints):**
+
 ```json
 {
   "statusCode": 403,
@@ -727,6 +806,7 @@ if (billingStatus === BillingStatus.PAST_DUE) {
 ```
 
 **PAST_DUE tenant (mutations only):**
+
 ```json
 {
   "statusCode": 403,
@@ -755,18 +835,18 @@ if (billingStatus === BillingStatus.PAST_DUE) {
 
 ### File Paths
 
-| Category | File Path |
-|----------|-----------|
-| **Controller** | `backend/src/branches/branches.controller.ts` |
-| **Service** | `backend/src/branches/branches.service.ts` |
-| **Module** | `backend/src/branches/branches.module.ts` |
-| **DTOs** | `backend/src/branches/dto/create-branch.dto.ts`<br>`backend/src/branches/dto/update-branch.dto.ts`<br>`backend/src/branches/dto/branch-list-query.dto.ts` |
-| **Prisma Schema** | `backend/prisma/schema.prisma` (lines 100-122) |
-| **Plan Config** | `backend/src/plan/plan.config.ts` |
-| **Plan Service** | `backend/src/plan/plan.service.ts` |
-| **Guards** | `backend/src/auth/guards/jwt-auth.guard.ts`<br>`backend/src/auth/guards/tenant.guard.ts`<br>`backend/src/auth/guards/roles.guard.ts`<br>`backend/src/auth/guards/billing-status.guard.ts` |
-| **E2E Tests** | `backend/test/branches.e2e-spec.ts` (574 lines, 22+ tests) |
-| **Test Helpers** | `backend/test/test-helpers.ts` |
+| Category          | File Path                                                                                                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Controller**    | `backend/src/branches/branches.controller.ts`                                                                                                                                             |
+| **Service**       | `backend/src/branches/branches.service.ts`                                                                                                                                                |
+| **Module**        | `backend/src/branches/branches.module.ts`                                                                                                                                                 |
+| **DTOs**          | `backend/src/branches/dto/create-branch.dto.ts`<br>`backend/src/branches/dto/update-branch.dto.ts`<br>`backend/src/branches/dto/branch-list-query.dto.ts`                                 |
+| **Prisma Schema** | `backend/prisma/schema.prisma` (lines 100-122)                                                                                                                                            |
+| **Plan Config**   | `backend/src/plan/plan.config.ts`                                                                                                                                                         |
+| **Plan Service**  | `backend/src/plan/plan.service.ts`                                                                                                                                                        |
+| **Guards**        | `backend/src/auth/guards/jwt-auth.guard.ts`<br>`backend/src/auth/guards/tenant.guard.ts`<br>`backend/src/auth/guards/roles.guard.ts`<br>`backend/src/auth/guards/billing-status.guard.ts` |
+| **E2E Tests**     | `backend/test/branches.e2e-spec.ts` (574 lines, 22+ tests)                                                                                                                                |
+| **Test Helpers**  | `backend/test/test-helpers.ts`                                                                                                                                                            |
 
 ### Key Functions
 
@@ -775,13 +855,13 @@ if (billingStatus === BillingStatus.PAST_DUE) {
 ```typescript
 // backend/src/branches/branches.service.ts
 class BranchesService {
-  async listBranches(tenantId, query): Promise<PaginatedResponse>
-  async getBranchById(tenantId, branchId): Promise<Branch>
-  async createBranch(tenantId, dto): Promise<Branch>
-  async updateBranch(tenantId, branchId, dto): Promise<Branch>
-  async archiveBranch(tenantId, branchId): Promise<Branch>
-  async restoreBranch(tenantId, branchId): Promise<Branch>
-  async setDefaultBranch(tenantId, branchId): Promise<Branch>
+  async listBranches(tenantId, query): Promise<PaginatedResponse>;
+  async getBranchById(tenantId, branchId): Promise<Branch>;
+  async createBranch(tenantId, dto): Promise<Branch>;
+  async updateBranch(tenantId, branchId, dto): Promise<Branch>;
+  async archiveBranch(tenantId, branchId): Promise<Branch>;
+  async restoreBranch(tenantId, branchId): Promise<Branch>;
+  async setDefaultBranch(tenantId, branchId): Promise<Branch>;
 }
 ```
 
@@ -790,9 +870,9 @@ class BranchesService {
 ```typescript
 // backend/src/plan/plan.service.ts
 class PlanService {
-  async getTenantPlan(tenantId): Promise<PlanConfig>
-  async isModuleEnabled(tenantId, module): Promise<boolean>
-  async getLimit(tenantId, limit): Promise<number>
+  async getTenantPlan(tenantId): Promise<PlanConfig>;
+  async isModuleEnabled(tenantId, module): Promise<boolean>;
+  async getLimit(tenantId, limit): Promise<number>;
 }
 ```
 
@@ -811,6 +891,7 @@ class PlanService {
 **Test cases (22+ scenarios):**
 
 **GET `/branches`:**
+
 - ✅ List branches for current tenant only
 - ✅ Respect pagination parameters
 - ✅ Filter archived by default
@@ -818,11 +899,13 @@ class PlanService {
 - ✅ 401 when unauthenticated
 
 **GET `/branches/:id`:**
+
 - ✅ Return branch by ID
 - ✅ 404 for non-existent branch
 - ✅ 401 when unauthenticated
 
 **POST `/branches`:**
+
 - ✅ Create branch successfully
 - ✅ Set first branch as default
 - ✅ 409 for duplicate name
@@ -832,6 +915,7 @@ class PlanService {
 - ✅ 401 when unauthenticated
 
 **PATCH `/branches/:id`:**
+
 - ✅ Update branch successfully
 - ✅ Update only name (partial update)
 - ✅ 409 for duplicate name
@@ -840,6 +924,7 @@ class PlanService {
 - ✅ 401 when unauthenticated
 
 **POST `/branches/:id/archive`:**
+
 - ✅ Archive branch successfully
 - ✅ 400 when archiving default branch
 - ✅ 400 when archiving last active branch
@@ -848,12 +933,14 @@ class PlanService {
 - ✅ 401 when unauthenticated
 
 **POST `/branches/:id/restore`:**
+
 - ✅ Restore archived branch successfully
 - ✅ 400 when branch not archived
 - ✅ 404 for non-existent branch
 - ✅ 401 when unauthenticated
 
 **POST `/branches/:id/set-default`:**
+
 - ✅ Set branch as default successfully
 - ✅ Unset previous default branch
 - ✅ 400 when setting archived as default
@@ -877,20 +964,24 @@ The branches API is **fully functional and secure** for mobile consumption. All 
 **Status:** ⚠️ Minor (functional but not ideal)
 
 **Issue:** Several endpoints have TODO comments about adding ADMIN role checks:
+
 - `PATCH /branches/:id` (update)
 - `POST /branches/:id/archive`
 - `POST /branches/:id/restore`
 - `POST /branches/:id/set-default`
 
 **Current State:**
+
 - Only `POST /branches` (create) enforces ADMIN role via `@Roles('ADMIN')`
 - Other endpoints accessible to any authenticated user
 
 **Risk:**
+
 - Low - tenant isolation still enforced (user can only modify their own tenant's branches)
 - Staff users could modify branches (may be intentional design choice)
 
 **Recommendation:**
+
 ```typescript
 // Add @UseGuards(RolesGuard) and @Roles('ADMIN') to:
 @Patch(':id')
@@ -915,11 +1006,13 @@ archiveBranch(...) { }
 **Status:** ⚠️ Minor (cosmetic)
 
 **Issue:**
+
 - Most error messages in English: `"Cannot archive default branch"`
 - One restore error in Turkish: `"Plan limitine ulaşıldı. Daha fazla şube için planınızı yükseltmeniz gerekiyor."`
 - DTO validation messages in Turkish
 
 **Recommendation:**
+
 - Decide on single language for backend error messages (suggest English for API, Turkish in frontend)
 - Or externalize all messages to i18n system
 
@@ -932,10 +1025,12 @@ archiveBranch(...) { }
 **Status:** ⚠️ Minor (logic tested, but not in branches.e2e-spec.ts)
 
 **Issue:**
+
 - No tests in `branches.e2e-spec.ts` for PAST_DUE/SUSPENDED billing status behavior
 - Global guard tested in `billing-status.e2e-spec.ts` (separate file)
 
 **Recommendation:**
+
 - Add billing status tests to branches e2e suite for completeness:
   ```typescript
   describe('Billing Status Restrictions', () => {
@@ -954,23 +1049,27 @@ archiveBranch(...) { }
 **Status:** ✅ Acceptable (application-level enforcement sufficient)
 
 **Issue:**
+
 - No DB-level CHECK constraint to enforce exactly one `isDefault=true` per tenant
 - Relies on application logic + transactions
 
 **Current Implementation:**
+
 - Transaction ensures atomicity in `setDefaultBranch()`
 - First branch logic in `createBranch()`
 - Archive prevents default branch from being archived
 
 **Risk:**
+
 - Very low - transaction + application logic sufficient for SaaS
 - Only vulnerable if developers bypass service layer
 
 **Recommendation (Optional):**
+
 - Add PostgreSQL partial unique index:
   ```sql
-  CREATE UNIQUE INDEX unique_default_branch_per_tenant 
-  ON "Branch" (tenantId) 
+  CREATE UNIQUE INDEX unique_default_branch_per_tenant
+  ON "Branch" (tenantId)
   WHERE isDefault = true;
   ```
 
@@ -983,19 +1082,28 @@ archiveBranch(...) { }
 **Status:** ✅ Acceptable (client can calculate)
 
 **Issue:**
+
 - API doesn't return count of archived branches separately
 - Client must calculate: `totalArchived = totalCount - activeCount`
 
 **Recommendation (Optional):**
+
 - Add `archivedCount` to pagination response:
   ```typescript
   return {
     data,
     pagination: {
-      page, limit, total, totalPages,
-      activeCount: await this.prisma.branch.count({ where: { tenantId, isActive: true } }),
-      archivedCount: await this.prisma.branch.count({ where: { tenantId, isActive: false } })
-    }
+      page,
+      limit,
+      total,
+      totalPages,
+      activeCount: await this.prisma.branch.count({
+        where: { tenantId, isActive: true },
+      }),
+      archivedCount: await this.prisma.branch.count({
+        where: { tenantId, isActive: false },
+      }),
+    },
   };
   ```
 
@@ -1006,6 +1114,7 @@ archiveBranch(...) { }
 ### ✅ No Missing Critical Endpoints
 
 All expected endpoints are implemented:
+
 - ✅ GET `/branches` (list with pagination + archive filter)
 - ✅ GET `/branches/:id` (get single)
 - ✅ POST `/branches` (create)
@@ -1022,23 +1131,23 @@ All expected endpoints are implemented:
 
 ### ✅ Ready for Mobile Consumption
 
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| **REST API implemented** | ✅ Yes | All 7 endpoints operational |
-| **JWT authentication** | ✅ Yes | Bearer token required on all endpoints |
-| **Tenant isolation** | ✅ Yes | Enforced via JWT `tenantId` + guards |
-| **Pagination support** | ✅ Yes | `page`, `limit` parameters with totals |
-| **Archive filtering** | ✅ Yes | `includeArchived` query parameter |
-| **Validation errors** | ✅ Yes | 400 with detailed validation messages |
-| **Permission errors** | ✅ Yes | 403 for plan limits, billing, roles |
-| **Not found errors** | ✅ Yes | 404 for non-existent/cross-tenant branches |
-| **Plan limit enforcement** | ✅ Yes | maxBranches=3 enforced on create+restore |
-| **Billing status blocking** | ✅ Yes | PAST_DUE/SUSPENDED properly blocked |
-| **Default branch logic** | ✅ Yes | Transaction-safe, atomic operations |
-| **Archived branch handling** | ✅ Yes | Soft-delete with restore capability |
-| **E2E test coverage** | ✅ Yes | 22+ test cases covering all scenarios |
-| **Idempotency** | ✅ Yes | Set-default, archive errors if already done |
-| **Error codes** | ✅ Yes | `TENANT_BILLING_LOCKED` for billing issues |
+| Requirement                  | Status | Notes                                       |
+| ---------------------------- | ------ | ------------------------------------------- |
+| **REST API implemented**     | ✅ Yes | All 7 endpoints operational                 |
+| **JWT authentication**       | ✅ Yes | Bearer token required on all endpoints      |
+| **Tenant isolation**         | ✅ Yes | Enforced via JWT `tenantId` + guards        |
+| **Pagination support**       | ✅ Yes | `page`, `limit` parameters with totals      |
+| **Archive filtering**        | ✅ Yes | `includeArchived` query parameter           |
+| **Validation errors**        | ✅ Yes | 400 with detailed validation messages       |
+| **Permission errors**        | ✅ Yes | 403 for plan limits, billing, roles         |
+| **Not found errors**         | ✅ Yes | 404 for non-existent/cross-tenant branches  |
+| **Plan limit enforcement**   | ✅ Yes | maxBranches=3 enforced on create+restore    |
+| **Billing status blocking**  | ✅ Yes | PAST_DUE/SUSPENDED properly blocked         |
+| **Default branch logic**     | ✅ Yes | Transaction-safe, atomic operations         |
+| **Archived branch handling** | ✅ Yes | Soft-delete with restore capability         |
+| **E2E test coverage**        | ✅ Yes | 22+ test cases covering all scenarios       |
+| **Idempotency**              | ✅ Yes | Set-default, archive errors if already done |
+| **Error codes**              | ✅ Yes | `TENANT_BILLING_LOCKED` for billing issues  |
 
 ---
 
@@ -1049,6 +1158,7 @@ All expected endpoints are implemented:
 **Verdict:** ✅ **BULLETPROOF**
 
 **Mechanisms:**
+
 1. JWT contains `tenantId` (set during login)
 2. `TenantGuard` validates tenant context
 3. All service methods accept `tenantId` parameter from JWT
@@ -1056,9 +1166,10 @@ All expected endpoints are implemented:
 5. Cross-tenant access returns 404 (not 403, prevents enumeration)
 
 **Test Evidence:**
+
 ```typescript
 // branches.e2e-spec.ts: line 77
-it('should return branches for current tenant only', async () => {
+it("should return branches for current tenant only", async () => {
   // Verified: res.body.data.forEach((branch) => expect(branch.tenantId).toBe(tenantId));
 });
 ```
@@ -1070,15 +1181,18 @@ it('should return branches for current tenant only', async () => {
 ### ✅ Authentication & Authorization
 
 **JWT Validation:**
+
 - ✅ All endpoints require `Bearer {token}` header
 - ✅ Returns 401 for missing/invalid tokens
 - ✅ Token validated by `JwtAuthGuard`
 
 **Role-Based Access:**
+
 - ✅ `POST /branches` (create) requires ADMIN role
 - ⚠️ Other endpoints don't enforce ADMIN (TODO items, see section 8.1)
 
 **Billing Status:**
+
 - ✅ Global guard blocks SUSPENDED tenants (all operations)
 - ✅ Global guard blocks PAST_DUE tenants (mutations only)
 - ✅ Returns structured error with `TENANT_BILLING_LOCKED` code
@@ -1088,15 +1202,18 @@ it('should return branches for current tenant only', async () => {
 ### ✅ Input Validation
 
 **DTO Validation:**
+
 - ✅ Name: 2-100 chars, alphanumeric + `' - &` only
 - ✅ Address: 5-300 chars
 - ✅ Pagination: `page` >= 1, `limit` 1-100
 - ✅ Boolean transforms: `includeArchived` string to boolean
 
 **SQL Injection:**
+
 - ✅ Prisma ORM prevents SQL injection (parameterized queries)
 
 **Business Logic Validation:**
+
 - ✅ Duplicate name check (case-insensitive)
 - ✅ Cannot archive default
 - ✅ Cannot archive last active
@@ -1109,6 +1226,7 @@ it('should return branches for current tenant only', async () => {
 ### ✅ Performance Considerations
 
 **Indexes (Prisma schema):**
+
 ```prisma
 @@index([tenantId])                // Primary tenant lookup
 @@index([tenantId, isActive])      // Active branch filtering
@@ -1117,11 +1235,13 @@ it('should return branches for current tenant only', async () => {
 ```
 
 **Query Efficiency:**
+
 - ✅ Pagination implemented (`skip`, `take`)
 - ✅ Counting and fetching in parallel (`Promise.all`)
 - ✅ Transactions for atomic operations (set-default)
 
 **Billing Status Guard:**
+
 - ✅ Uses primary key lookup (`tenantId`)
 - ✅ Logs warning if query exceeds 10ms threshold
 - ✅ Expected overhead: <5ms per request
@@ -1138,6 +1258,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Response 200:**
+
 ```json
 {
   "data": [
@@ -1174,6 +1295,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Mobile UI:**
+
 - Display list with "Varsayılan" badge for `isDefault: true`
 - Display "Aktif" badge (all returned branches are active)
 - Show "Arşivleri göster" toggle (sends `?includeArchived=true`)
@@ -1183,6 +1305,7 @@ Authorization: Bearer eyJhbGc...
 ### Flow 2: Create New Branch (With Plan Limit Check)
 
 **Request:**
+
 ```http
 POST /api/v1/branches
 Authorization: Bearer eyJhbGc...
@@ -1195,6 +1318,7 @@ Content-Type: application/json
 ```
 
 **Success Response 201:**
+
 ```json
 {
   "id": "cm_new...",
@@ -1210,6 +1334,7 @@ Content-Type: application/json
 ```
 
 **Error Response 403 (Plan Limit Reached):**
+
 ```json
 {
   "statusCode": 403,
@@ -1218,6 +1343,7 @@ Content-Type: application/json
 ```
 
 **Mobile UI:**
+
 - Show success message + navigate back to list
 - On 403: Show upgrade prompt: "Plan limitinize ulaştınız. Daha fazla şube eklemek için planınızı yükseltin."
 
@@ -1226,12 +1352,14 @@ Content-Type: application/json
 ### Flow 3: Archive Branch (With Constraints)
 
 **Request:**
+
 ```http
 POST /api/v1/branches/cm.../archive
 Authorization: Bearer eyJhbGc...
 ```
 
 **Success Response 200:**
+
 ```json
 {
   "id": "cm...",
@@ -1247,6 +1375,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Error Response 400 (Default Branch):**
+
 ```json
 {
   "statusCode": 400,
@@ -1255,6 +1384,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Error Response 400 (Last Active Branch):**
+
 ```json
 {
   "statusCode": 400,
@@ -1263,6 +1393,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Mobile UI:**
+
 - On 400 (default): "Varsayılan şube arşivlenemez. Önce başka bir şubeyi varsayılan yapın."
 - On 400 (last): "En az bir aktif şube olmalıdır."
 - On success: Remove from active list (or move to archived section if showing archives)
@@ -1272,19 +1403,21 @@ Authorization: Bearer eyJhbGc...
 ### Flow 4: Set Default Branch
 
 **Request:**
+
 ```http
 POST /api/v1/branches/cm.../set-default
 Authorization: Bearer eyJhbGc...
 ```
 
 **Success Response 200:**
+
 ```json
 {
   "id": "cm...",
   "tenantId": "cm...",
   "name": "Yeni Varsayılan",
   "address": "...",
-  "isDefault": true,  // ← Changed
+  "isDefault": true, // ← Changed
   "isActive": true,
   "createdAt": "2026-01-10T10:00:00.000Z",
   "updatedAt": "2026-01-26T16:00:00.000Z",
@@ -1293,6 +1426,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Mobile UI:**
+
 - Refresh branch list (previous default no longer has badge)
 - Show confirmation: "Varsayılan şube güncellendi"
 
@@ -1303,6 +1437,7 @@ Authorization: Bearer eyJhbGc...
 **Scenario:** Tenant has billing status PAST_DUE, tries to create branch
 
 **Request:**
+
 ```http
 POST /api/v1/branches
 Authorization: Bearer eyJhbGc... (PAST_DUE tenant)
@@ -1315,6 +1450,7 @@ Content-Type: application/json
 ```
 
 **Error Response 403:**
+
 ```json
 {
   "statusCode": 403,
@@ -1326,8 +1462,9 @@ Content-Type: application/json
 ```
 
 **Mobile UI Detection:**
+
 ```typescript
-if (error.response.data.message.code === 'TENANT_BILLING_LOCKED') {
+if (error.response.data.message.code === "TENANT_BILLING_LOCKED") {
   // Show billing banner/modal with upgrade CTA
   showBillingLockedModal(error.response.data.message.message);
 }
