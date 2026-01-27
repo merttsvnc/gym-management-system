@@ -24,6 +24,7 @@
 The backend provides **one dedicated revenue reporting endpoint** that supports the "Gelir Raporları" (Revenue Reports) frontend page. This endpoint aggregates payment data with flexible filtering and grouping capabilities.
 
 ### Key Features
+
 - ✅ Date range filtering (başlangıç / bitiş tarihi)
 - ✅ Branch filtering (şube)
 - ✅ Payment method filtering (ödeme yöntemi)
@@ -38,9 +39,11 @@ The backend provides **one dedicated revenue reporting endpoint** that supports 
 ## Base Configuration & Authentication
 
 ### Base URL
+
 ```
 http://localhost:3000
 ```
+
 **Note:** No global prefix is set. Controllers define their full paths including `/api/v1/`.
 
 ### Authentication
@@ -54,6 +57,7 @@ Authorization: Bearer <JWT_TOKEN>
 ```
 
 ### Token Payload Structure
+
 ```json
 {
   "sub": "user-id",
@@ -64,14 +68,17 @@ Authorization: Bearer <JWT_TOKEN>
 ```
 
 ### Guards Applied
+
 1. **JwtAuthGuard** - Validates JWT token
 2. **TenantGuard** - Ensures valid tenantId in request context
 3. **RolesGuard** - Enforces role-based authorization
 
 ### Required Role
+
 - **ADMIN** - Only users with ADMIN role can access revenue reports
 
 ### Tenant Isolation
+
 - Tenant ID is automatically extracted from JWT token
 - All queries are automatically scoped to the authenticated user's tenant
 - No need to pass tenantId in request parameters
@@ -80,9 +87,9 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## Endpoint Catalog
 
-| Method | Path | Purpose | Auth | Role | Query Params | Response Fields |
-|--------|------|---------|------|------|--------------|----------------|
-| GET | `/api/v1/payments/revenue` | Get aggregated revenue report with period breakdown | JWT | ADMIN | `startDate`, `endDate`, `branchId?`, `paymentMethod?`, `groupBy?` | `totalRevenue`, `period`, `breakdown[]` |
+| Method | Path                       | Purpose                                             | Auth | Role  | Query Params                                                      | Response Fields                         |
+| ------ | -------------------------- | --------------------------------------------------- | ---- | ----- | ----------------------------------------------------------------- | --------------------------------------- |
+| GET    | `/api/v1/payments/revenue` | Get aggregated revenue report with period breakdown | JWT  | ADMIN | `startDate`, `endDate`, `branchId?`, `paymentMethod?`, `groupBy?` | `totalRevenue`, `period`, `breakdown[]` |
 
 ---
 
@@ -97,21 +104,23 @@ Authorization: Bearer <JWT_TOKEN>
 
 #### Query Parameters
 
-| Parameter | Type | Required | Description | Format/Values | Default |
-|-----------|------|----------|-------------|---------------|---------|
-| `startDate` | string | ✅ Yes | Report start date | ISO 8601 date string (e.g., `2024-01-01`, `2024-01-01T00:00:00Z`) | - |
-| `endDate` | string | ✅ Yes | Report end date (inclusive) | ISO 8601 date string (e.g., `2024-12-31`, `2024-12-31T23:59:59Z`) | - |
-| `branchId` | string | ❌ No | Filter by specific branch | CUID string | - |
-| `paymentMethod` | string | ❌ No | Filter by payment method | `CASH`, `CREDIT_CARD`, `BANK_TRANSFER`, `CHECK`, `OTHER` | - |
-| `groupBy` | string | ❌ No | Group results by period | `day`, `week`, `month` | `day` |
+| Parameter       | Type   | Required | Description                 | Format/Values                                                     | Default |
+| --------------- | ------ | -------- | --------------------------- | ----------------------------------------------------------------- | ------- |
+| `startDate`     | string | ✅ Yes   | Report start date           | ISO 8601 date string (e.g., `2024-01-01`, `2024-01-01T00:00:00Z`) | -       |
+| `endDate`       | string | ✅ Yes   | Report end date (inclusive) | ISO 8601 date string (e.g., `2024-12-31`, `2024-12-31T23:59:59Z`) | -       |
+| `branchId`      | string | ❌ No    | Filter by specific branch   | CUID string                                                       | -       |
+| `paymentMethod` | string | ❌ No    | Filter by payment method    | `CASH`, `CREDIT_CARD`, `BANK_TRANSFER`, `CHECK`, `OTHER`          | -       |
+| `groupBy`       | string | ❌ No    | Group results by period     | `day`, `week`, `month`                                            | `day`   |
 
 ##### Date Handling
+
 - **Format:** ISO 8601 date strings (e.g., `2024-01-01` or `2024-01-01T00:00:00.000Z`)
 - **Timezone:** All dates are truncated to start-of-day UTC internally
 - **Inclusive Range:** Both `startDate` and `endDate` are inclusive (entire end date is included)
 - **Validation:** Dates must be valid ISO 8601 format (enforced by `@IsDateString()` validator)
 
 ##### Payment Method Enum
+
 ```typescript
 enum PaymentMethod {
   CASH           // Nakit
@@ -123,6 +132,7 @@ enum PaymentMethod {
 ```
 
 ##### Group By Options
+
 - **`day`** - Groups by individual days (YYYY-MM-DD format)
 - **`week`** - Groups by week start date (Monday, YYYY-MM-DD format)
 - **`month`** - Groups by month (YYYY-MM format)
@@ -133,17 +143,18 @@ enum PaymentMethod {
 
 ```typescript
 {
-  totalRevenue: number;      // Sum of all payment amounts in the period
-  period: string;            // Echo of groupBy parameter ('day' | 'week' | 'month')
+  totalRevenue: number; // Sum of all payment amounts in the period
+  period: string; // Echo of groupBy parameter ('day' | 'week' | 'month')
   breakdown: Array<{
-    period: string;          // Date/period identifier (format depends on groupBy)
-    revenue: number;         // Revenue for this period
-    count: number;           // Number of payments in this period
+    period: string; // Date/period identifier (format depends on groupBy)
+    revenue: number; // Revenue for this period
+    count: number; // Number of payments in this period
   }>;
 }
 ```
 
 ##### Period Format by Group Type
+
 - **Daily (`day`):** `"2024-01-15"` (YYYY-MM-DD)
 - **Weekly (`week`):** `"2024-01-08"` (Monday of the week, YYYY-MM-DD)
 - **Monthly (`month`):** `"2024-01"` (YYYY-MM)
@@ -180,13 +191,13 @@ enum PaymentMethod {
 
 #### Error Responses
 
-| Status Code | Reason | Example Message |
-|-------------|--------|-----------------|
-| 400 | Invalid date format | `"Geçerli bir başlangıç tarihi formatı giriniz (ISO 8601)"` |
-| 400 | Invalid paymentMethod | `"Ödeme yöntemi CASH, CREDIT_CARD, BANK_TRANSFER, CHECK veya OTHER olmalıdır"` |
-| 400 | Invalid groupBy value | `"Grup by değeri day, week veya month olmalıdır"` |
-| 401 | Missing or invalid JWT token | `"Unauthorized"` |
-| 403 | Insufficient role (not ADMIN) | `"Access denied. Required roles: ADMIN"` |
+| Status Code | Reason                        | Example Message                                                                |
+| ----------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| 400         | Invalid date format           | `"Geçerli bir başlangıç tarihi formatı giriniz (ISO 8601)"`                    |
+| 400         | Invalid paymentMethod         | `"Ödeme yöntemi CASH, CREDIT_CARD, BANK_TRANSFER, CHECK veya OTHER olmalıdır"` |
+| 400         | Invalid groupBy value         | `"Grup by değeri day, week veya month olmalıdır"`                              |
+| 401         | Missing or invalid JWT token  | `"Unauthorized"`                                                               |
+| 403         | Insufficient role (not ADMIN) | `"Access denied. Required roles: ADMIN"`                                       |
 
 ---
 
@@ -195,6 +206,7 @@ enum PaymentMethod {
 ### Example 1: Daily Revenue Report (Date Range Only)
 
 **Request:**
+
 ```bash
 curl -X GET \
   'http://localhost:3000/api/v1/payments/revenue?startDate=2024-01-01&endDate=2024-01-31&groupBy=day' \
@@ -202,24 +214,25 @@ curl -X GET \
 ```
 
 **Response:**
+
 ```json
 {
-  "totalRevenue": 45600.50,
+  "totalRevenue": 45600.5,
   "period": "day",
   "breakdown": [
     {
       "period": "2024-01-01",
-      "revenue": 1200.00,
+      "revenue": 1200.0,
       "count": 5
     },
     {
       "period": "2024-01-02",
-      "revenue": 800.50,
+      "revenue": 800.5,
       "count": 3
     },
     {
       "period": "2024-01-03",
-      "revenue": 2100.00,
+      "revenue": 2100.0,
       "count": 8
     }
     // ... more days
@@ -232,6 +245,7 @@ curl -X GET \
 ### Example 2: Weekly Revenue Report with Payment Method Filter
 
 **Request:**
+
 ```bash
 curl -X GET \
   'http://localhost:3000/api/v1/payments/revenue?startDate=2024-01-01&endDate=2024-03-31&groupBy=week&paymentMethod=CASH' \
@@ -239,24 +253,25 @@ curl -X GET \
 ```
 
 **Response:**
+
 ```json
 {
-  "totalRevenue": 12450.00,
+  "totalRevenue": 12450.0,
   "period": "week",
   "breakdown": [
     {
       "period": "2024-01-01",
-      "revenue": 3200.00,
+      "revenue": 3200.0,
       "count": 15
     },
     {
       "period": "2024-01-08",
-      "revenue": 2800.50,
+      "revenue": 2800.5,
       "count": 12
     },
     {
       "period": "2024-01-15",
-      "revenue": 3150.00,
+      "revenue": 3150.0,
       "count": 14
     }
     // ... more weeks
@@ -269,6 +284,7 @@ curl -X GET \
 ### Example 3: Monthly Revenue Report with Branch Filter
 
 **Request:**
+
 ```bash
 curl -X GET \
   'http://localhost:3000/api/v1/payments/revenue?startDate=2023-01-01&endDate=2023-12-31&groupBy=month&branchId=clx1a2b3c4d5e6f7g8h9i0' \
@@ -276,6 +292,7 @@ curl -X GET \
 ```
 
 **Response:**
+
 ```json
 {
   "totalRevenue": 284750.25,
@@ -283,12 +300,12 @@ curl -X GET \
   "breakdown": [
     {
       "period": "2023-01",
-      "revenue": 22100.00,
+      "revenue": 22100.0,
       "count": 85
     },
     {
       "period": "2023-02",
-      "revenue": 19850.50,
+      "revenue": 19850.5,
       "count": 72
     },
     {
@@ -306,6 +323,7 @@ curl -X GET \
 ### Example 4: Combined Filters (Branch + Payment Method + Monthly)
 
 **Request:**
+
 ```bash
 curl -X GET \
   'http://localhost:3000/api/v1/payments/revenue?startDate=2024-01-01&endDate=2024-06-30&groupBy=month&branchId=clx1a2b3c4d5e6f7g8h9i0&paymentMethod=CREDIT_CARD' \
@@ -313,39 +331,40 @@ curl -X GET \
 ```
 
 **Response:**
+
 ```json
 {
-  "totalRevenue": 58920.00,
+  "totalRevenue": 58920.0,
   "period": "month",
   "breakdown": [
     {
       "period": "2024-01",
-      "revenue": 9850.00,
+      "revenue": 9850.0,
       "count": 42
     },
     {
       "period": "2024-02",
-      "revenue": 8920.00,
+      "revenue": 8920.0,
       "count": 38
     },
     {
       "period": "2024-03",
-      "revenue": 10150.00,
+      "revenue": 10150.0,
       "count": 45
     },
     {
       "period": "2024-04",
-      "revenue": 9800.00,
+      "revenue": 9800.0,
       "count": 41
     },
     {
       "period": "2024-05",
-      "revenue": 10100.00,
+      "revenue": 10100.0,
       "count": 44
     },
     {
       "period": "2024-06",
-      "revenue": 10100.00,
+      "revenue": 10100.0,
       "count": 43
     }
   ]
@@ -357,6 +376,7 @@ curl -X GET \
 ### Example 5: Error Response (Invalid Date Format)
 
 **Request:**
+
 ```bash
 curl -X GET \
   'http://localhost:3000/api/v1/payments/revenue?startDate=01-01-2024&endDate=2024-12-31' \
@@ -364,12 +384,11 @@ curl -X GET \
 ```
 
 **Response:**
+
 ```json
 {
   "statusCode": 400,
-  "message": [
-    "Geçerli bir başlangıç tarihi formatı giriniz (ISO 8601)"
-  ],
+  "message": ["Geçerli bir başlangıç tarihi formatı giriniz (ISO 8601)"],
   "error": "Bad Request"
 }
 ```
@@ -379,12 +398,14 @@ curl -X GET \
 ### Example 6: Error Response (Missing Authorization)
 
 **Request:**
+
 ```bash
 curl -X GET \
   'http://localhost:3000/api/v1/payments/revenue?startDate=2024-01-01&endDate=2024-12-31'
 ```
 
 **Response:**
+
 ```json
 {
   "statusCode": 401,
@@ -397,6 +418,7 @@ curl -X GET \
 ### Example 7: Error Response (Insufficient Role)
 
 **Request:**
+
 ```bash
 curl -X GET \
   'http://localhost:3000/api/v1/payments/revenue?startDate=2024-01-01&endDate=2024-12-31' \
@@ -404,6 +426,7 @@ curl -X GET \
 ```
 
 **Response:**
+
 ```json
 {
   "statusCode": 403,
@@ -426,28 +449,28 @@ model Payment {
   tenantId           String
   branchId           String
   memberId           String
-  
+
   // Payment details
   amount             Decimal       @db.Decimal(10, 2)
   paidOn             DateTime      // DATE-ONLY: stored as start-of-day UTC
   paymentMethod      PaymentMethod
   note               String?       @db.VarChar(500)
-  
+
   // Correction tracking
   isCorrection       Boolean       @default(false)
   correctedPaymentId String?       @unique
   isCorrected        Boolean       @default(false)
-  
+
   // Audit fields
   createdBy          String        // User ID
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
-  
+
   // Relations
   tenant             Tenant        @relation(...)
   branch             Branch        @relation(...)
   member             Member        @relation(...)
-  
+
   @@index([tenantId, paidOn])
   @@index([tenantId, branchId])
   @@index([tenantId, paymentMethod])
@@ -457,6 +480,7 @@ model Payment {
 ```
 
 ### Key Columns Used
+
 - **`amount`** - Payment amount (Decimal, max 999999.99, 2 decimal places)
 - **`paidOn`** - Payment date (stored as start-of-day UTC DateTime)
 - **`paymentMethod`** - Payment method enum
@@ -468,11 +492,13 @@ model Payment {
 ### Timezone Handling
 
 **Current Implementation:**
+
 - All dates are stored as **start-of-day UTC** (00:00:00Z)
 - This provides DATE-ONLY semantics regardless of timezone
 - Frontend should send dates in ISO 8601 format (e.g., `2024-01-15` or `2024-01-15T00:00:00.000Z`)
 
 **Future Enhancement:**
+
 - Backend has placeholders for tenant-specific timezone support
 - When tenant timezone is added, validation will check against local tenant time
 - Storage will remain in UTC with start-of-day semantics
@@ -480,6 +506,7 @@ model Payment {
 ### Future Date Handling
 
 **Payment Creation:** The backend **prevents** future-dated payments:
+
 - Validation checks that `paidOn` <= today (in tenant timezone)
 - Error message: `"Ödeme tarihi gelecekte olamaz. Bugün veya geçmiş bir tarih seçiniz."`
 
@@ -488,6 +515,7 @@ model Payment {
 ### Performance Considerations
 
 **Indexes Available:**
+
 ```sql
 @@index([tenantId, paidOn])              -- For date range queries
 @@index([tenantId, branchId])             -- For branch filtering
@@ -497,11 +525,13 @@ model Payment {
 ```
 
 **Query Pattern:**
+
 1. Backend fetches all matching payments using WHERE clause with filters
 2. Aggregation (grouping and summing) is done **in-application** (not via SQL GROUP BY)
 3. Results are sorted by period in ascending order
 
 **Optimization Opportunities:**
+
 - For large datasets, consider moving aggregation to database level using Prisma's `groupBy()` or raw SQL
 - Current implementation fetches all payment records and aggregates in memory
 
@@ -513,13 +543,13 @@ model Payment {
 
 All query parameters are validated using NestJS class-validator:
 
-| Field | Validation | Error Message (Turkish) |
-|-------|-----------|------------------------|
-| `startDate` | `@IsDateString()` | `"Geçerli bir başlangıç tarihi formatı giriniz (ISO 8601)"` |
-| `endDate` | `@IsDateString()` | `"Geçerli bir bitiş tarihi formatı giriniz (ISO 8601)"` |
-| `branchId` | `@IsString()` | `"Şube ID metin olmalıdır"` |
-| `paymentMethod` | `@IsEnum(PaymentMethod)` | `"Ödeme yöntemi CASH, CREDIT_CARD, BANK_TRANSFER, CHECK veya OTHER olmalıdır"` |
-| `groupBy` | `@IsIn(['day', 'week', 'month'])` | `"Grup by değeri day, week veya month olmalıdır"` |
+| Field           | Validation                        | Error Message (Turkish)                                                        |
+| --------------- | --------------------------------- | ------------------------------------------------------------------------------ |
+| `startDate`     | `@IsDateString()`                 | `"Geçerli bir başlangıç tarihi formatı giriniz (ISO 8601)"`                    |
+| `endDate`       | `@IsDateString()`                 | `"Geçerli bir bitiş tarihi formatı giriniz (ISO 8601)"`                        |
+| `branchId`      | `@IsString()`                     | `"Şube ID metin olmalıdır"`                                                    |
+| `paymentMethod` | `@IsEnum(PaymentMethod)`          | `"Ödeme yöntemi CASH, CREDIT_CARD, BANK_TRANSFER, CHECK veya OTHER olmalıdır"` |
+| `groupBy`       | `@IsIn(['day', 'week', 'month'])` | `"Grup by değeri day, week veya month olmalıdır"`                              |
 
 ### Authentication Errors (401 Unauthorized)
 
@@ -535,6 +565,7 @@ All query parameters are validated using NestJS class-validator:
 ### Not Found Errors (404 Not Found)
 
 **Note:** This endpoint does not return 404 errors. If no payments match the filters, it returns:
+
 ```json
 {
   "totalRevenue": 0,
@@ -550,6 +581,7 @@ All query parameters are validated using NestJS class-validator:
 ### Current State
 
 ✅ **The backend has a dedicated revenue reporting endpoint** that fully supports the "Gelir Raporları" frontend requirements:
+
 - Date range filtering
 - Branch filtering
 - Payment method filtering
@@ -625,10 +657,11 @@ All query parameters are validated using NestJS class-validator:
 While **no backend changes are needed** to support the current "Gelir Raporları" requirements, here are potential future enhancements:
 
 1. **Multi-Dimensional Breakdown**
+
    ```typescript
    // New query parameter
    breakdownBy?: 'paymentMethod' | 'branch' | 'both'
-   
+
    // New response structure
    {
      totalRevenue: 45600.50,
@@ -648,20 +681,23 @@ While **no backend changes are needed** to support the current "Gelir Raporları
    ```
 
 2. **Comparative Reports**
+
    ```typescript
    // Add comparison period
    compareWithPrevious?: boolean
-   
+
    // Returns both current and previous period data
    ```
 
 3. **Export Support**
+
    ```typescript
    // Add export format parameter
    format?: 'json' | 'csv' | 'xlsx'
    ```
 
 4. **Pagination for Large Results**
+
    ```typescript
    page?: number
    limit?: number
@@ -680,6 +716,7 @@ While **no backend changes are needed** to support the current "Gelir Raporları
 While not strictly revenue reporting, these endpoints may be useful for related features:
 
 ### Payment List
+
 - **GET** `/api/v1/payments`
 - Returns detailed payment records (not aggregated)
 - Supports same filters: `branchId`, `paymentMethod`, `startDate`, `endDate`
@@ -687,6 +724,7 @@ While not strictly revenue reporting, these endpoints may be useful for related 
 - Returns full payment objects with member and branch details
 
 ### Dashboard Summary
+
 - **GET** `/api/v1/dashboard/summary`
 - Returns member statistics (not revenue)
 - Supports branch filtering
@@ -696,15 +734,16 @@ While not strictly revenue reporting, these endpoints may be useful for related 
 
 ## Document History
 
-| Version | Date | Changes | Author |
-|---------|------|---------|--------|
-| 1.0 | 2026-01-27 | Initial documentation - Revenue reporting endpoints audit | GitHub Copilot |
+| Version | Date       | Changes                                                   | Author         |
+| ------- | ---------- | --------------------------------------------------------- | -------------- |
+| 1.0     | 2026-01-27 | Initial documentation - Revenue reporting endpoints audit | GitHub Copilot |
 
 ---
 
 ## Contact & Support
 
 For questions or issues related to these endpoints:
+
 - **Backend Team:** Review `PaymentsController` and `PaymentsService` in `backend/src/payments/`
 - **API Documentation:** See `docs/api/` for general API documentation
 - **Schema:** Review `backend/prisma/schema.prisma` for data model
