@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useChangeMemberStatus } from "@/hooks/useMembers";
 import { MemberStatus } from "@/types/member";
-import { MemberStatusBadge } from "./MemberStatusBadge";
+import { MemberWorkflowStatusBadge } from "./MemberWorkflowStatusBadge";
 import type { ApiError } from "@/types/error";
 
 interface StatusChangeDialogProps {
@@ -107,7 +107,7 @@ export function StatusChangeDialog({
             <div className="space-y-2">
               <Label>Mevcut Durum</Label>
               <div>
-                <MemberStatusBadge status={member.status} />
+                <MemberWorkflowStatusBadge status={member.status} />
               </div>
             </div>
 

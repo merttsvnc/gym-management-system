@@ -13,8 +13,8 @@ import { PlanModule } from './plan/plan.module';
 import { MembersModule } from './members/members.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { PaymentsModule } from './payments/payments.module';
 import { BillingStatusGuard } from './auth/guards/billing-status.guard';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -24,7 +24,7 @@ import { BillingStatusGuard } from './auth/guards/billing-status.guard';
       {
         name: 'default',
         ttl: 900000, // 15 minutes in milliseconds
-        limit: 5, // 5 requests per 15 minutes
+        limit: 5, // 5 requests per 15 minutes (for login endpoint)
       },
     ]),
     PrismaModule,
@@ -36,6 +36,7 @@ import { BillingStatusGuard } from './auth/guards/billing-status.guard';
     MembersModule,
     MembershipPlansModule,
     DashboardModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

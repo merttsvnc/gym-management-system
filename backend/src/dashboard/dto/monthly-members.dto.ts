@@ -23,4 +23,3 @@ export class MonthlyMembersItemDto {
   month: string; // "YYYY-MM"
   newMembers: number;
 }
-

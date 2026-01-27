@@ -766,7 +766,7 @@ describe('Members E2E Tests', () => {
   // =====================================================================
 
   describe('GET /api/v1/members/:id', () => {
-    it('should return a single member with remainingDays', async () => {
+    it('should return a single member with remainingDays and branch information', async () => {
       const member = await createTestMember(prisma, tenant1.id, branch1.id);
 
       const response = await request(app.getHttpServer())
@@ -776,6 +776,9 @@ describe('Members E2E Tests', () => {
 
       expect(response.body).toHaveProperty('id', member.id);
       expect(response.body).toHaveProperty('remainingDays');
+      expect(response.body).toHaveProperty('branch');
+      expect(response.body.branch).toHaveProperty('id', branch1.id);
+      expect(response.body.branch).toHaveProperty('name');
     });
 
     it('should return 404 for non-existent member', async () => {

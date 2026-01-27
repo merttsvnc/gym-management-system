@@ -97,9 +97,8 @@ describe('DashboardService', () => {
 
       expect(result.expiringSoon).toBe(5);
 
-      // Verify expiringSoon query uses correct date range
+      // Verify expiringSoon query uses correct date range (no status check)
       const expiringSoonCall = mockPrismaService.member.count.mock.calls[2];
-      expect(expiringSoonCall[0].where.status).toBe('ACTIVE');
       expect(expiringSoonCall[0].where.membershipEndDate).toBeDefined();
       expect(expiringSoonCall[0].where.membershipEndDate.gte).toBeDefined();
       expect(expiringSoonCall[0].where.membershipEndDate.lte).toBeDefined();
@@ -154,7 +153,6 @@ describe('DashboardService', () => {
         by: ['membershipPlanId'],
         where: expect.objectContaining({
           tenantId,
-          status: 'ACTIVE',
           membershipEndDate: expect.any(Object),
         }),
         _count: { id: true },
@@ -348,4 +346,3 @@ describe('DashboardService', () => {
     });
   });
 });
-

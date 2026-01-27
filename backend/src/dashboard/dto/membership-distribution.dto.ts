@@ -6,4 +6,3 @@ export class MembershipDistributionItemDto {
   planName: string;
   activeMemberCount: number;
 }
-

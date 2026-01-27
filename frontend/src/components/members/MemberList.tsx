@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MemberStatusBadge } from "./MemberStatusBadge";
+import { MembershipStateBadge } from "./MembershipStateBadge";
 import { MemberStatus } from "@/types/member";
 import type { Member } from "@/types/member";
 import type { ApiError } from "@/types/error";
@@ -193,12 +193,18 @@ export function MemberList({
                   <TableCell>{member.phone}</TableCell>
                   <TableCell>{member.membershipPlan?.name || "-"}</TableCell>
                   <TableCell>
-                    <MemberStatusBadge status={member.status} />
+                    <MembershipStateBadge member={member} />
                   </TableCell>
                   <TableCell>
-                    {member.remainingDays >= 0 ? (
-                      <span className="text-green-600 dark:text-green-400">
-                        {member.remainingDays} gün
+                    {member.isMembershipActive ? (
+                      <span
+                        className={
+                          member.isExpiringSoon
+                            ? "text-yellow-600 dark:text-yellow-400"
+                            : "text-green-600 dark:text-green-400"
+                        }
+                      >
+                        {member.daysRemaining} gün
                       </span>
                     ) : (
                       <span className="text-red-600 dark:text-red-400">

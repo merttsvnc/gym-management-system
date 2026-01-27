@@ -4,13 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useCurrentTenant } from "@/hooks/useTenant";
 import { useMember } from "@/hooks/useMembers";
-import { MemberStatusBadge } from "@/components/members/MemberStatusBadge";
+import { MembershipStateBadge } from "@/components/members/MembershipStateBadge";
 import { StatusChangeDialog } from "@/components/members/StatusChangeDialog";
 import { ArchiveConfirmDialog } from "@/components/members/ArchiveConfirmDialog";
+import { PaymentHistoryTable } from "@/components/payments/PaymentHistoryTable";
+import { PaymentForm } from "@/components/payments/PaymentForm";
 import { MemberStatus } from "@/types/member";
 import type { ApiError } from "@/types/error";
+import type { Payment } from "@/types/payment";
 
 /**
  * Member Detail Page
@@ -28,6 +38,12 @@ export function MemberDetailPage() {
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentFormKey, setPaymentFormKey] = useState(0);
+  const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
+  const [correctionFormKey, setCorrectionFormKey] = useState(0);
+  const [selectedPaymentForCorrection, setSelectedPaymentForCorrection] =
+    useState<Payment | null>(null);
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return "-";
@@ -212,9 +228,9 @@ export function MemberDetailPage() {
               </div>
             )}
             <div>
-              <p className="text-sm text-muted-foreground">Durum</p>
+              <p className="text-sm text-muted-foreground">Üyelik Durumu</p>
               <div className="mt-1">
-                <MemberStatusBadge status={member.status} />
+                <MembershipStateBadge member={member} />
               </div>
             </div>
             <div>
@@ -233,13 +249,15 @@ export function MemberDetailPage() {
               <p className="text-sm text-muted-foreground">Kalan Gün</p>
               <p
                 className={`font-medium ${
-                  member.remainingDays >= 0
-                    ? "text-green-600 dark:text-green-400"
+                  member.isMembershipActive
+                    ? member.isExpiringSoon
+                      ? "text-yellow-600 dark:text-yellow-400"
+                      : "text-green-600 dark:text-green-400"
                     : "text-red-600 dark:text-red-400"
                 }`}
               >
-                {member.remainingDays >= 0
-                  ? `${member.remainingDays} gün`
+                {member.isMembershipActive
+                  ? `${member.daysRemaining} gün`
                   : "Süresi dolmuş"}
               </p>
             </div>
@@ -297,6 +315,89 @@ export function MemberDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Tabs for Payment History */}
+      <Card className="md:col-span-2">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Ödeme Geçmişi</CardTitle>
+            <Button
+              onClick={() => {
+                setPaymentFormKey((prev) => prev + 1);
+                setPaymentModalOpen(true);
+              }}
+            >
+              Ödeme Kaydet
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <PaymentHistoryTable
+            tenantId={tenant.id}
+            memberId={member.id}
+            onCorrectPayment={(payment) => {
+              setSelectedPaymentForCorrection(payment);
+              setCorrectionFormKey((prev) => prev + 1);
+              setCorrectionModalOpen(true);
+            }}
+            onPaymentLinkClick={(paymentId) => {
+              // Payment detail route doesn't exist yet, show toast or handle gracefully
+              // TODO: Navigate to payment detail page when route is added
+              console.warn(
+                `Payment detail route not implemented. Payment ID: ${paymentId}`
+              );
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Payment Recording Modal */}
+      <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ödeme Kaydet</DialogTitle>
+          </DialogHeader>
+          {paymentModalOpen && (
+            <PaymentForm
+              key={`create-${paymentFormKey}`}
+              mode="create"
+              initialMemberId={member.id}
+              tenantId={tenant.id}
+              onSubmit={() => {
+                setPaymentModalOpen(false);
+                // Payment history will refresh automatically via React Query cache invalidation
+              }}
+              onCancel={() => setPaymentModalOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Correction Modal */}
+      <Dialog open={correctionModalOpen} onOpenChange={setCorrectionModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ödeme Düzelt</DialogTitle>
+          </DialogHeader>
+          {selectedPaymentForCorrection && correctionModalOpen && (
+            <PaymentForm
+              key={`correct-${selectedPaymentForCorrection.id}-${correctionFormKey}`}
+              mode="correct"
+              initialPayment={selectedPaymentForCorrection}
+              tenantId={tenant.id}
+              onSubmit={() => {
+                setCorrectionModalOpen(false);
+                setSelectedPaymentForCorrection(null);
+                // Payment history will refresh automatically via React Query cache invalidation
+              }}
+              onCancel={() => {
+                setCorrectionModalOpen(false);
+                setSelectedPaymentForCorrection(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Status Change Dialog */}
       <StatusChangeDialog

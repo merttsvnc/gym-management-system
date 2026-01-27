@@ -14,6 +14,10 @@ import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
 import { MemberStatus } from '@prisma/client';
 import { MembershipPlansService } from '../membership-plans/membership-plans.service';
 import { calculateMembershipEndDate } from '../membership-plans/utils/duration-calculator';
+import {
+  calculateMembershipStatus,
+  DerivedMembershipStatus,
+} from '../common/utils/membership-status.util';
 
 @Injectable()
 export class MembersService {
@@ -21,6 +25,39 @@ export class MembersService {
     private readonly prisma: PrismaService,
     private readonly membershipPlansService: MembershipPlansService,
   ) {}
+
+  /**
+   * Enrich member object with computed/derived fields
+   *
+   * Adds:
+   * - remainingDays: legacy field (still computed for backwards compatibility)
+   * - isMembershipActive: boolean (derived from membershipEndDate)
+   * - membershipState: 'ACTIVE' | 'EXPIRED'
+   * - daysRemaining: number | null (from derived status)
+   * - isExpiringSoon: boolean (true if active and within 7 days)
+   */
+  private enrichMemberWithComputedFields<
+    T extends {
+      membershipStartDate: Date;
+      membershipEndDate: Date;
+      status: MemberStatus;
+      pausedAt: Date | null;
+      resumedAt: Date | null;
+    },
+  >(member: T): T & { remainingDays: number } & DerivedMembershipStatus {
+    const derivedStatus = calculateMembershipStatus(member.membershipEndDate);
+
+    return {
+      ...member,
+      // Legacy field - kept for backwards compatibility
+      remainingDays: this.calculateRemainingDays(member),
+      // New derived fields - single source of truth
+      isMembershipActive: derivedStatus.isMembershipActive,
+      membershipState: derivedStatus.membershipState,
+      daysRemaining: derivedStatus.daysRemaining,
+      isExpiringSoon: derivedStatus.isExpiringSoon,
+    };
+  }
 
   /**
    * Create a new member
@@ -134,10 +171,7 @@ export class MembersService {
       },
     });
 
-    return {
-      ...member,
-      remainingDays: this.calculateRemainingDays(member),
-    };
+    return this.enrichMemberWithComputedFields(member);
   }
 
   /**
@@ -218,13 +252,12 @@ export class MembersService {
       this.prisma.member.count({ where }),
     ]);
 
-    const dataWithRemainingDays = data.map((member) => ({
-      ...member,
-      remainingDays: this.calculateRemainingDays(member),
-    }));
+    const dataWithComputedFields = data.map((member) =>
+      this.enrichMemberWithComputedFields(member),
+    );
 
     return {
-      data: dataWithRemainingDays,
+      data: dataWithComputedFields,
       pagination: {
         page,
         limit,
@@ -238,16 +271,16 @@ export class MembersService {
    * Get a member by ID
    * Business rules:
    * - Enforces tenant isolation - throws NotFoundException if member doesn't belong to tenant
+   * - Always includes branch information
    * - Optionally includes membership plan details if includePlan is true
    */
   async findOne(tenantId: string, id: string, includePlan = false) {
     const member = await this.prisma.member.findUnique({
       where: { id },
-      include: includePlan
-        ? {
-            membershipPlan: true,
-          }
-        : undefined,
+      include: {
+        branch: true,
+        ...(includePlan ? { membershipPlan: true } : {}),
+      },
     });
 
     if (!member) {
@@ -258,10 +291,7 @@ export class MembersService {
       throw new NotFoundException('Üye bulunamadı');
     }
 
-    return {
-      ...member,
-      remainingDays: this.calculateRemainingDays(member),
-    };
+    return this.enrichMemberWithComputedFields(member);
   }
 
   /**
@@ -376,10 +406,7 @@ export class MembersService {
       data: updateData,
     });
 
-    return {
-      ...updatedMember,
-      remainingDays: this.calculateRemainingDays(updatedMember),
-    };
+    return this.enrichMemberWithComputedFields(updatedMember);
   }
 
   /**
@@ -482,10 +509,7 @@ export class MembersService {
       data: updateData,
     });
 
-    return {
-      ...updatedMember,
-      remainingDays: this.calculateRemainingDays(updatedMember),
-    };
+    return this.enrichMemberWithComputedFields(updatedMember);
   }
 
   /**
@@ -498,12 +522,9 @@ export class MembersService {
   async archive(tenantId: string, id: string) {
     const member = await this.findOne(tenantId, id);
 
-    // If already archived, return as-is
+    // If already archived, return as-is (already enriched)
     if (member.status === 'ARCHIVED') {
-      return {
-        ...member,
-        remainingDays: this.calculateRemainingDays(member),
-      };
+      return member;
     }
 
     const archivedMember = await this.prisma.member.update({
@@ -515,10 +536,7 @@ export class MembersService {
       },
     });
 
-    return {
-      ...archivedMember,
-      remainingDays: this.calculateRemainingDays(archivedMember),
-    };
+    return this.enrichMemberWithComputedFields(archivedMember);
   }
 
   /**

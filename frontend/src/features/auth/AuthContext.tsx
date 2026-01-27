@@ -73,11 +73,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await getCurrentUser();
       setBillingStatus(response.tenant.billingStatus);
       setBillingStatusUpdatedAt(response.tenant.billingStatusUpdatedAt);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to fetch billing status:", error);
       // If 401 (token invalid/expired), clear state
       // The axios interceptor will handle redirect, we just need to clear state
-      if (error?.statusCode === 401) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "statusCode" in error &&
+        (error as { statusCode: number }).statusCode === 401
+      ) {
         setUser(null);
         setAccessToken(null);
         setRefreshToken(null);

@@ -1,0 +1,3 @@
+Test amacli yeni bir User ve Tenant oluşturmak için aşağıdaki adımları izleyebilirsiniz:
+
+npx ts-node -r tsconfig-paths/register src/scripts/create-test-user.ts

@@ -44,7 +44,16 @@ export type Member = {
   notes: string | null;
   createdAt: string; // ISO 8601 datetime
   updatedAt: string; // ISO 8601 datetime
-  remainingDays: number; // Computed by backend
+
+  // Legacy computed field (kept for backwards compatibility)
+  remainingDays: number;
+
+  // New derived fields - single source of truth for membership activity
+  isMembershipActive: boolean;
+  membershipState: "ACTIVE" | "EXPIRED";
+  daysRemaining: number | null;
+  isExpiringSoon: boolean;
+
   membershipPlan?: MembershipPlan; // Optional relation, included when includePlan=true
 };
 
