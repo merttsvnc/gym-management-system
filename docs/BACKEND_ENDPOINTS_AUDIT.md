@@ -9,11 +9,13 @@
 ## A) Environment & Base Configuration
 
 ### Base URL
+
 - **Local Development:** `http://localhost:3000`
 - **Global API Prefix:** `/api/v1`
 - **Full Base Path:** `http://localhost:3000/api/v1`
 
 ### Authentication Method
+
 - **Type:** JWT Bearer Token
 - **Strategy:** Passport JWT
 - **Token Location:** `Authorization` header
@@ -21,20 +23,23 @@
 - **Token Extraction:** From `Authorization` header as Bearer token
 
 ### Token Flow
+
 1. **Login:** `POST /api/v1/auth/login` → Returns `{ accessToken, refreshToken, user, tenant }`
 2. **Use Token:** Include in all subsequent requests: `Authorization: Bearer <accessToken>`
 3. **Token Payload:** Contains `{ sub: userId, email, tenantId, role }`
-4. **Token Expiration:** 
+4. **Token Expiration:**
    - Access Token: 900s (15 minutes) - configurable via `JWT_ACCESS_EXPIRES_IN`
    - Refresh Token: 30 days - configurable via `JWT_REFRESH_EXPIRES_IN`
 
 ### Tenant/Branch Scoping
+
 - **Tenant ID:** Extracted from JWT token automatically (`tenantId` field in payload)
 - **No explicit tenant header required** - all authenticated requests are automatically scoped to user's tenant
 - **Branch Filtering:** Some endpoints accept optional `branchId` query parameter for branch-level filtering
 - **TenantGuard:** Validates tenant existence and access on all protected routes (runs after JwtAuthGuard)
 
 ### Global Guards & Middleware
+
 1. **JwtAuthGuard:** Validates JWT token and extracts user info
 2. **TenantGuard:** Validates tenant access (tenant-scoped operations)
 3. **RolesGuard:** Enforces role-based access control (ADMIN only for some routes)
@@ -42,20 +47,23 @@
 5. **ThrottlerGuard:** Rate limiting on specific endpoints (payment creation, login)
 
 ### Billing Status Behavior
+
 - **TRIAL/ACTIVE:** Full access to all features
 - **PAST_DUE:** Read-only mode enforced by frontend (backend still allows operations)
 - **SUSPENDED:** Login blocked, all operations blocked except auth endpoints
 - Auth endpoints (`/api/v1/auth/*`) are exempted from billing checks via `@SkipBillingStatusCheck()` decorator
 
 ### CORS Configuration
+
 - **Enabled:** Yes
 - **Origin:** `process.env.FRONTEND_URL` or `http://localhost:5173` (default)
 - **Credentials:** Enabled
 
 ### Validation & Error Handling
+
 - **Global Validation Pipe:** Enabled with `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`
 - **Global Exception Filter:** Custom `HttpExceptionFilter` for consistent error responses
-- **Rate Limiting:** 
+- **Rate Limiting:**
   - Login: 5 attempts per 15 minutes
   - Payment Creation: 100 requests per 15 minutes per user
   - Payment Correction: 40 requests per 15 minutes per user
@@ -68,15 +76,17 @@
 
 All auth endpoints bypass billing status checks.
 
-| Method | Path | Summary | Auth? | Roles | Rate Limit |
-|--------|------|---------|-------|-------|------------|
-| POST | `/api/v1/auth/login` | User login | No | - | 5/15min |
-| GET | `/api/v1/auth/me` | Get current user info | Yes | - | - |
+| Method | Path                 | Summary               | Auth? | Roles | Rate Limit |
+| ------ | -------------------- | --------------------- | ----- | ----- | ---------- |
+| POST   | `/api/v1/auth/login` | User login            | No    | -     | 5/15min    |
+| GET    | `/api/v1/auth/me`    | Get current user info | Yes   | -     | -          |
 
 #### POST `/api/v1/auth/login`
+
 **Summary:** Authenticate user and obtain JWT tokens
 
 **Request Body:**
+
 ```json
 {
   "email": "string (required, valid email)",
@@ -85,6 +95,7 @@ All auth endpoints bypass billing status checks.
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -104,19 +115,23 @@ All auth endpoints bypass billing status checks.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Invalid email or password
 - `403 Forbidden`: Tenant is SUSPENDED (blocked from login)
 - `429 Too Many Requests`: Rate limit exceeded (5 attempts per 15 minutes)
 
 #### GET `/api/v1/auth/me`
+
 **Summary:** Get current authenticated user information
 
 **Headers Required:**
+
 ```
 Authorization: Bearer <access_token>
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "id": "user_cuid",
@@ -132,6 +147,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Invalid or missing token
 
 ---
@@ -140,19 +156,21 @@ Authorization: Bearer <access_token>
 
 All member endpoints require authentication (JWT) and are tenant-scoped.
 
-| Method | Path | Summary | Auth? | Roles | Request Body | Query Params |
-|--------|------|---------|-------|-------|--------------|--------------|
-| GET | `/api/v1/members` | List members | Yes | - | - | page, limit, branchId, status, search, includeArchived |
-| GET | `/api/v1/members/:id` | Get member by ID | Yes | - | - | includePlan |
-| POST | `/api/v1/members` | Create new member | Yes | - | CreateMemberDto | - |
-| PATCH | `/api/v1/members/:id` | Update member | Yes | - | UpdateMemberDto | - |
-| POST | `/api/v1/members/:id/status` | Change member status | Yes | - | ChangeMemberStatusDto | - |
-| POST | `/api/v1/members/:id/archive` | Archive member | Yes | - | - | - |
+| Method | Path                          | Summary              | Auth? | Roles | Request Body          | Query Params                                           |
+| ------ | ----------------------------- | -------------------- | ----- | ----- | --------------------- | ------------------------------------------------------ |
+| GET    | `/api/v1/members`             | List members         | Yes   | -     | -                     | page, limit, branchId, status, search, includeArchived |
+| GET    | `/api/v1/members/:id`         | Get member by ID     | Yes   | -     | -                     | includePlan                                            |
+| POST   | `/api/v1/members`             | Create new member    | Yes   | -     | CreateMemberDto       | -                                                      |
+| PATCH  | `/api/v1/members/:id`         | Update member        | Yes   | -     | UpdateMemberDto       | -                                                      |
+| POST   | `/api/v1/members/:id/status`  | Change member status | Yes   | -     | ChangeMemberStatusDto | -                                                      |
+| POST   | `/api/v1/members/:id/archive` | Archive member       | Yes   | -     | -                     | -                                                      |
 
 #### GET `/api/v1/members`
+
 **Summary:** List members with filtering and pagination
 
 **Query Parameters:**
+
 - `page` (optional, integer, default: 1): Page number (min: 1)
 - `limit` (optional, integer, default: 20): Items per page (min: 1, max: 100)
 - `branchId` (optional, string): Filter by branch
@@ -161,6 +179,7 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 - `includeArchived` (optional, boolean, default: false): Include archived members
 
 **Success Response (200):**
+
 ```json
 {
   "data": [
@@ -197,19 +216,24 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `400 Bad Request`: Invalid query parameters
 
 #### GET `/api/v1/members/:id`
+
 **Summary:** Get a single member by ID
 
 **Path Parameters:**
+
 - `id` (required, string): Member ID
 
 **Query Parameters:**
+
 - `includePlan` (optional, boolean, string "true"/"false"): Include full membershipPlan object
 
 **Success Response (200):**
+
 ```json
 {
   "id": "member_cuid",
@@ -241,13 +265,16 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `404 Not Found`: Member not found or belongs to different tenant
 
 #### POST `/api/v1/members`
+
 **Summary:** Create a new member
 
 **Request Body:**
+
 ```json
 {
   "branchId": "string (required)",
@@ -266,6 +293,7 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Success Response (201):**
+
 ```json
 {
   "id": "member_cuid",
@@ -284,17 +312,21 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `400 Bad Request`: Validation errors (phone already exists, invalid fields)
 - `403 Forbidden`: Branch or plan belongs to different tenant
 
 #### PATCH `/api/v1/members/:id`
+
 **Summary:** Update an existing member
 
 **Path Parameters:**
+
 - `id` (required, string): Member ID
 
 **Request Body:** (All fields optional - partial update supported)
+
 ```json
 {
   "firstName": "string (1-50 chars)",
@@ -312,6 +344,7 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "id": "member_cuid",
@@ -323,17 +356,21 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `404 Not Found`: Member not found or belongs to different tenant
 - `400 Bad Request`: Validation errors (phone uniqueness, invalid fields)
 
 #### POST `/api/v1/members/:id/status`
+
 **Summary:** Change member status with validation
 
 **Path Parameters:**
+
 - `id` (required, string): Member ID
 
 **Request Body:**
+
 ```json
 {
   "status": "ACTIVE | PAUSED | INACTIVE (required)",
@@ -342,6 +379,7 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "id": "member_cuid",
@@ -352,6 +390,7 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `404 Not Found`: Member not found
 - `400 Bad Request`: Invalid status transition (e.g., from ARCHIVED)
@@ -359,12 +398,15 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 **Note:** Cannot transition from `ARCHIVED` (terminal status). Cannot set status to `ARCHIVED` via this endpoint (use archive endpoint instead).
 
 #### POST `/api/v1/members/:id/archive`
+
 **Summary:** Archive a member (terminal status)
 
 **Path Parameters:**
+
 - `id` (required, string): Member ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "member_cuid",
@@ -375,6 +417,7 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `404 Not Found`: Member not found
 
@@ -386,21 +429,23 @@ All member endpoints require authentication (JWT) and are tenant-scoped.
 
 All membership plan endpoints require authentication. Most write operations require ADMIN role.
 
-| Method | Path | Summary | Auth? | Roles | Request Body | Query Params |
-|--------|------|---------|-------|-------|--------------|--------------|
-| GET | `/api/v1/membership-plans` | List plans | Yes | - | - | scope, branchId, q, includeArchived, page, limit |
-| GET | `/api/v1/membership-plans/active` | List active plans | Yes | - | - | branchId, includeMemberCount |
-| GET | `/api/v1/membership-plans/:id` | Get plan by ID | Yes | - | - | - |
-| POST | `/api/v1/membership-plans` | Create plan | Yes | ADMIN | CreatePlanDto | - |
-| PATCH | `/api/v1/membership-plans/:id` | Update plan | Yes | ADMIN | UpdatePlanDto | - |
-| POST | `/api/v1/membership-plans/:id/archive` | Archive plan | Yes | ADMIN | - | - |
-| POST | `/api/v1/membership-plans/:id/restore` | Restore plan | Yes | ADMIN | - | - |
-| DELETE | `/api/v1/membership-plans/:id` | Delete plan | Yes | ADMIN | - | - |
+| Method | Path                                   | Summary           | Auth? | Roles | Request Body  | Query Params                                     |
+| ------ | -------------------------------------- | ----------------- | ----- | ----- | ------------- | ------------------------------------------------ |
+| GET    | `/api/v1/membership-plans`             | List plans        | Yes   | -     | -             | scope, branchId, q, includeArchived, page, limit |
+| GET    | `/api/v1/membership-plans/active`      | List active plans | Yes   | -     | -             | branchId, includeMemberCount                     |
+| GET    | `/api/v1/membership-plans/:id`         | Get plan by ID    | Yes   | -     | -             | -                                                |
+| POST   | `/api/v1/membership-plans`             | Create plan       | Yes   | ADMIN | CreatePlanDto | -                                                |
+| PATCH  | `/api/v1/membership-plans/:id`         | Update plan       | Yes   | ADMIN | UpdatePlanDto | -                                                |
+| POST   | `/api/v1/membership-plans/:id/archive` | Archive plan      | Yes   | ADMIN | -             | -                                                |
+| POST   | `/api/v1/membership-plans/:id/restore` | Restore plan      | Yes   | ADMIN | -             | -                                                |
+| DELETE | `/api/v1/membership-plans/:id`         | Delete plan       | Yes   | ADMIN | -             | -                                                |
 
 #### GET `/api/v1/membership-plans`
+
 **Summary:** List membership plans with filtering
 
 **Query Parameters:**
+
 - `scope` (optional, enum): Filter by scope (`TENANT`, `BRANCH`)
 - `branchId` (optional, string): Filter by branch (for BRANCH-scoped plans)
 - `q` or `search` (optional, string): Search by plan name
@@ -409,6 +454,7 @@ All membership plan endpoints require authentication. Most write operations requ
 - `limit` (optional, integer, default: 20): Items per page (max: 100)
 
 **Success Response (200):**
+
 ```json
 {
   "data": [
@@ -443,17 +489,21 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `400 Bad Request`: Invalid query parameters
 
 #### GET `/api/v1/membership-plans/active`
+
 **Summary:** Get all ACTIVE plans (for dropdown selection)
 
 **Query Parameters:**
+
 - `branchId` (optional, string): If provided, returns TENANT + that branch's BRANCH plans. Otherwise, returns TENANT plans only.
 - `includeMemberCount` (optional, boolean, default: false): Include active member count per plan
 
 **Success Response (200):**
+
 ```json
 [
   {
@@ -481,15 +531,19 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 
 #### GET `/api/v1/membership-plans/:id`
+
 **Summary:** Get details of a specific membership plan
 
 **Path Parameters:**
+
 - `id` (required, string): Plan ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "plan_cuid",
@@ -511,13 +565,16 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `404 Not Found`: Plan not found or belongs to different tenant
 
 #### POST `/api/v1/membership-plans`
+
 **Summary:** Create a new membership plan (ADMIN only)
 
 **Request Body:**
+
 ```json
 {
   "scope": "TENANT | BRANCH (required)",
@@ -535,6 +592,7 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Success Response (201):**
+
 ```json
 {
   "id": "plan_cuid",
@@ -551,17 +609,21 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN
 - `400 Bad Request`: Validation errors, duplicate name within scope
 
 #### PATCH `/api/v1/membership-plans/:id`
+
 **Summary:** Update an existing membership plan (ADMIN only)
 
 **Path Parameters:**
+
 - `id` (required, string): Plan ID
 
 **Request Body:** (All fields optional - partial update)
+
 ```json
 {
   "name": "string",
@@ -578,6 +640,7 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "id": "plan_cuid",
@@ -588,18 +651,22 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN
 - `404 Not Found`: Plan not found
 - `400 Bad Request`: Validation errors
 
 #### POST `/api/v1/membership-plans/:id/archive`
+
 **Summary:** Archive a membership plan (ADMIN only)
 
 **Path Parameters:**
+
 - `id` (required, string): Plan ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "plan_cuid",
@@ -610,6 +677,7 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN
 - `404 Not Found`: Plan not found
@@ -617,12 +685,15 @@ All membership plan endpoints require authentication. Most write operations requ
 **Note:** Plans with active members can still be archived. Existing members retain their plan.
 
 #### POST `/api/v1/membership-plans/:id/restore`
+
 **Summary:** Restore an archived plan to ACTIVE status (ADMIN only)
 
 **Path Parameters:**
+
 - `id` (required, string): Plan ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "plan_cuid",
@@ -632,20 +703,24 @@ All membership plan endpoints require authentication. Most write operations requ
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN
 - `404 Not Found`: Plan not found
 - `400 Bad Request`: Plan is not archived
 
 #### DELETE `/api/v1/membership-plans/:id`
+
 **Summary:** Permanently delete a plan (ADMIN only, only if no members)
 
 **Path Parameters:**
+
 - `id` (required, string): Plan ID
 
 **Success Response (204):** No content
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN
 - `404 Not Found`: Plan not found
@@ -657,32 +732,36 @@ All membership plan endpoints require authentication. Most write operations requ
 
 All payment endpoints require authentication and ADMIN role.
 
-| Method | Path | Summary | Auth? | Roles | Rate Limit | Request Body | Query Params |
-|--------|------|---------|-------|-------|------------|--------------|--------------|
-| POST | `/api/v1/payments` | Create payment | Yes | ADMIN | 100/15min | CreatePaymentDto | - |
-| GET | `/api/v1/payments` | List payments | Yes | ADMIN | - | - | memberId, branchId, paymentMethod, startDate, endDate, includeCorrections, page, limit |
-| GET | `/api/v1/payments/revenue` | Revenue report | Yes | ADMIN | - | - | startDate, endDate, branchId, paymentMethod, groupBy |
-| GET | `/api/v1/payments/members/:memberId` | Member payment history | Yes | ADMIN | - | - | startDate, endDate, page, limit |
-| GET | `/api/v1/payments/:id` | Get payment by ID | Yes | ADMIN | - | - | - |
-| POST | `/api/v1/payments/:id/correct` | Correct payment | Yes | ADMIN | 40/15min | CorrectPaymentDto | - |
+| Method | Path                                 | Summary                | Auth? | Roles | Rate Limit | Request Body      | Query Params                                                                           |
+| ------ | ------------------------------------ | ---------------------- | ----- | ----- | ---------- | ----------------- | -------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/payments`                   | Create payment         | Yes   | ADMIN | 100/15min  | CreatePaymentDto  | -                                                                                      |
+| GET    | `/api/v1/payments`                   | List payments          | Yes   | ADMIN | -          | -                 | memberId, branchId, paymentMethod, startDate, endDate, includeCorrections, page, limit |
+| GET    | `/api/v1/payments/revenue`           | Revenue report         | Yes   | ADMIN | -          | -                 | startDate, endDate, branchId, paymentMethod, groupBy                                   |
+| GET    | `/api/v1/payments/members/:memberId` | Member payment history | Yes   | ADMIN | -          | -                 | startDate, endDate, page, limit                                                        |
+| GET    | `/api/v1/payments/:id`               | Get payment by ID      | Yes   | ADMIN | -          | -                 | -                                                                                      |
+| POST   | `/api/v1/payments/:id/correct`       | Correct payment        | Yes   | ADMIN | 40/15min   | CorrectPaymentDto | -                                                                                      |
 
 #### POST `/api/v1/payments`
+
 **Summary:** Create a new payment (ADMIN only) ⭐
 
 **Rate Limit:** 100 requests per 15 minutes per user
 
 **Idempotency Support:**
+
 - Header: `Idempotency-Key: <unique_string>`
 - If provided and key exists (not expired), returns cached response
 - Keys expire after 24 hours
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <access_token>
 Idempotency-Key: <unique_string> (optional)
 ```
 
 **Request Body:**
+
 ```json
 {
   "memberId": "string (required)",
@@ -694,6 +773,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Payment Methods:**
+
 - `CASH`: Nakit
 - `CREDIT_CARD`: Kredi Kartı
 - `BANK_TRANSFER`: Banka Havalesi
@@ -701,6 +781,7 @@ Idempotency-Key: <unique_string> (optional)
 - `OTHER`: Diğer
 
 **Success Response (201):**
+
 ```json
 {
   "id": "payment_cuid",
@@ -731,6 +812,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN, or member belongs to different tenant
 - `404 Not Found`: Member not found
@@ -738,6 +820,7 @@ Idempotency-Key: <unique_string> (optional)
 - `429 Too Many Requests`: Rate limit exceeded
 
 **Validation Rules:**
+
 - Amount must be between 0.01 and 999999.99
 - `paidOn` cannot be in the future
 - `paidOn` is stored as DATE-ONLY (business date in tenant timezone)
@@ -745,9 +828,11 @@ Idempotency-Key: <unique_string> (optional)
 - Payment is automatically assigned to member's branch
 
 #### GET `/api/v1/payments`
+
 **Summary:** List payments with filtering and pagination (ADMIN only) ⭐
 
 **Query Parameters:**
+
 - `memberId` (optional, string): Filter by member
 - `branchId` (optional, string): Filter by branch
 - `paymentMethod` (optional, enum): Filter by payment method (`CASH`, `CREDIT_CARD`, `BANK_TRANSFER`, `CHECK`, `OTHER`)
@@ -758,6 +843,7 @@ Idempotency-Key: <unique_string> (optional)
 - `limit` (optional, integer, default: 20): Items per page (max: 100)
 
 **Success Response (200):**
+
 ```json
 {
   "data": [
@@ -798,20 +884,24 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN
 - `400 Bad Request`: Invalid query parameters
 
 **Notes:**
+
 - By default, correction payments (`isCorrection=true`) are excluded
 - Use `includeCorrections=true` to include them in results
 - Date filters work on `paidOn` field (business date)
 - All filters can be combined
 
 #### GET `/api/v1/payments/revenue`
+
 **Summary:** Get revenue report with aggregation (ADMIN only) ⭐
 
 **Query Parameters:**
+
 - `startDate` (optional, ISO date string): Start date for report
 - `endDate` (optional, ISO date string): End date for report
 - `branchId` (optional, string): Filter by branch
@@ -819,6 +909,7 @@ Idempotency-Key: <unique_string> (optional)
 - `groupBy` (optional, enum): Group results by (`day`, `month`, `branch`, `paymentMethod`)
 
 **Success Response (200):**
+
 ```json
 {
   "summary": {
@@ -847,6 +938,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN
 - `400 Bad Request`: Invalid query parameters
@@ -854,18 +946,22 @@ Idempotency-Key: <unique_string> (optional)
 **Note:** Route must be called before `/api/v1/payments/:id` to avoid path conflicts.
 
 #### GET `/api/v1/payments/members/:memberId`
+
 **Summary:** Get payment history for a specific member (ADMIN only) ⭐
 
 **Path Parameters:**
+
 - `memberId` (required, string): Member ID
 
 **Query Parameters:**
+
 - `startDate` (optional, ISO date string): Filter from date
 - `endDate` (optional, ISO date string): Filter until date
 - `page` (optional, integer, default: 1): Page number
 - `limit` (optional, integer, default: 20): Items per page (max: 100)
 
 **Success Response (200):**
+
 ```json
 {
   "data": [
@@ -900,6 +996,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN, or member belongs to different tenant
 - `404 Not Found`: Member not found
@@ -907,12 +1004,15 @@ Idempotency-Key: <unique_string> (optional)
 **Note:** Route must be called before `/api/v1/payments/:id` to avoid path conflicts.
 
 #### GET `/api/v1/payments/:id`
+
 **Summary:** Get a single payment by ID (ADMIN only) ⭐
 
 **Path Parameters:**
+
 - `id` (required, string): Payment ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "payment_cuid",
@@ -943,25 +1043,30 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN, or payment belongs to different tenant
 - `404 Not Found`: Payment not found
 
 **Field Explanations:**
+
 - `isCorrection`: True if this payment is a correction of another payment
 - `isCorrected`: True if this payment has been corrected by another payment
 - `correctedPaymentId`: ID of the payment this one corrects (if `isCorrection=true`)
 - `version`: Optimistic locking version number
 
 #### POST `/api/v1/payments/:id/correct`
+
 **Summary:** Correct an existing payment (ADMIN only) ⭐
 
 **Rate Limit:** 40 requests per 15 minutes per user (stricter than creation)
 
 **Path Parameters:**
+
 - `id` (required, string): Payment ID to correct
 
 **Request Body:** (All fields optional except `version`)
+
 ```json
 {
   "amount": "number (optional, 0.01-999999.99)",
@@ -974,6 +1079,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Success Response (201):**
+
 ```json
 {
   "id": "payment_cuid_new",
@@ -1005,6 +1111,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN, or payment belongs to different tenant
 - `404 Not Found`: Payment not found
@@ -1013,6 +1120,7 @@ Idempotency-Key: <unique_string> (optional)
 - `429 Too Many Requests`: Rate limit exceeded
 
 **Correction Behavior:**
+
 1. Creates a NEW payment record with `isCorrection=true`
 2. Links new payment to original via `correctedPaymentId`
 3. Marks original payment as `isCorrected=true`
@@ -1021,6 +1129,7 @@ Idempotency-Key: <unique_string> (optional)
 6. Warning for payments older than 90 days
 
 **Important Notes:**
+
 - Correction does NOT modify the original payment
 - Original payment remains in database for audit trail
 - Use `version` field for optimistic locking (prevents race conditions)
@@ -1030,24 +1139,27 @@ Idempotency-Key: <unique_string> (optional)
 
 ### 5. Branches (`/api/v1/branches`)
 
-| Method | Path | Summary | Auth? | Roles | Request Body | Query Params |
-|--------|------|---------|-------|-------|--------------|--------------|
-| GET | `/api/v1/branches` | List branches | Yes | - | - | page, limit |
-| GET | `/api/v1/branches/:id` | Get branch by ID | Yes | - | - | - |
-| POST | `/api/v1/branches` | Create branch | Yes | ADMIN | CreateBranchDto | - |
-| PATCH | `/api/v1/branches/:id` | Update branch | Yes | - | UpdateBranchDto | - |
-| POST | `/api/v1/branches/:id/archive` | Archive branch | Yes | - | - | - |
-| POST | `/api/v1/branches/:id/restore` | Restore branch | Yes | - | - | - |
-| POST | `/api/v1/branches/:id/set-default` | Set as default | Yes | - | - | - |
+| Method | Path                               | Summary          | Auth? | Roles | Request Body    | Query Params |
+| ------ | ---------------------------------- | ---------------- | ----- | ----- | --------------- | ------------ |
+| GET    | `/api/v1/branches`                 | List branches    | Yes   | -     | -               | page, limit  |
+| GET    | `/api/v1/branches/:id`             | Get branch by ID | Yes   | -     | -               | -            |
+| POST   | `/api/v1/branches`                 | Create branch    | Yes   | ADMIN | CreateBranchDto | -            |
+| PATCH  | `/api/v1/branches/:id`             | Update branch    | Yes   | -     | UpdateBranchDto | -            |
+| POST   | `/api/v1/branches/:id/archive`     | Archive branch   | Yes   | -     | -               | -            |
+| POST   | `/api/v1/branches/:id/restore`     | Restore branch   | Yes   | -     | -               | -            |
+| POST   | `/api/v1/branches/:id/set-default` | Set as default   | Yes   | -     | -               | -            |
 
 #### GET `/api/v1/branches`
+
 **Summary:** List branches for the current tenant
 
 **Query Parameters:**
+
 - `page` (optional, integer, default: 1): Page number
 - `limit` (optional, integer, default: 20): Items per page
 
 **Success Response (200):**
+
 ```json
 {
   "data": [
@@ -1073,15 +1185,19 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 
 #### GET `/api/v1/branches/:id`
+
 **Summary:** Get a single branch by ID
 
 **Path Parameters:**
+
 - `id` (required, string): Branch ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "branch_cuid",
@@ -1096,14 +1212,17 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: Branch belongs to different tenant
 - `404 Not Found`: Branch not found
 
 #### POST `/api/v1/branches`
+
 **Summary:** Create a new branch (ADMIN only)
 
 **Request Body:**
+
 ```json
 {
   "name": "string (required)",
@@ -1112,6 +1231,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Success Response (201):**
+
 ```json
 {
   "id": "branch_cuid",
@@ -1125,6 +1245,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: User is not ADMIN, or tenant plan limits exceeded (maxBranches)
 - `400 Bad Request`: Validation errors, duplicate name within tenant
@@ -1132,12 +1253,15 @@ Idempotency-Key: <unique_string> (optional)
 **Note:** Branch creation enforces plan limits (e.g., `maxBranches` from tenant's plan).
 
 #### PATCH `/api/v1/branches/:id`
+
 **Summary:** Update an existing branch
 
 **Path Parameters:**
+
 - `id` (required, string): Branch ID
 
 **Request Body:** (All fields optional)
+
 ```json
 {
   "name": "string",
@@ -1146,6 +1270,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "id": "branch_cuid",
@@ -1156,18 +1281,22 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: Branch belongs to different tenant
 - `404 Not Found`: Branch not found
 - `400 Bad Request`: Validation errors, duplicate name
 
 #### POST `/api/v1/branches/:id/archive`
+
 **Summary:** Archive (soft delete) a branch
 
 **Path Parameters:**
+
 - `id` (required, string): Branch ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "branch_cuid",
@@ -1178,18 +1307,22 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: Branch belongs to different tenant
 - `404 Not Found`: Branch not found
 - `400 Bad Request`: Cannot archive default branch or last active branch
 
 #### POST `/api/v1/branches/:id/restore`
+
 **Summary:** Restore an archived branch
 
 **Path Parameters:**
+
 - `id` (required, string): Branch ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "branch_cuid",
@@ -1200,18 +1333,22 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: Branch belongs to different tenant
 - `404 Not Found`: Branch not found
 - `400 Bad Request`: Branch is not archived
 
 #### POST `/api/v1/branches/:id/set-default`
+
 **Summary:** Set a branch as the default branch for the tenant
 
 **Path Parameters:**
+
 - `id` (required, string): Branch ID
 
 **Success Response (200):**
+
 ```json
 {
   "id": "branch_cuid",
@@ -1222,6 +1359,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `403 Forbidden`: Branch belongs to different tenant
 - `404 Not Found`: Branch not found
@@ -1232,15 +1370,17 @@ Idempotency-Key: <unique_string> (optional)
 
 ### 6. Tenants (`/api/v1/tenants`)
 
-| Method | Path | Summary | Auth? | Roles | Request Body | Notes |
-|--------|------|---------|-------|-------|--------------|-------|
-| GET | `/api/v1/tenants/current` | Get current tenant | Yes | - | - | Bypasses billing check |
-| PATCH | `/api/v1/tenants/current` | Update tenant | Yes | - | UpdateTenantDto | - |
+| Method | Path                      | Summary            | Auth? | Roles | Request Body    | Notes                  |
+| ------ | ------------------------- | ------------------ | ----- | ----- | --------------- | ---------------------- |
+| GET    | `/api/v1/tenants/current` | Get current tenant | Yes   | -     | -               | Bypasses billing check |
+| PATCH  | `/api/v1/tenants/current` | Update tenant      | Yes   | -     | UpdateTenantDto | -                      |
 
 #### GET `/api/v1/tenants/current`
+
 **Summary:** Get current tenant information
 
 **Success Response (200):**
+
 ```json
 {
   "id": "tenant_cuid",
@@ -1256,15 +1396,18 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `404 Not Found`: Tenant not found
 
 **Note:** This endpoint bypasses billing status checks (allows PAST_DUE tenants to read tenant info).
 
 #### PATCH `/api/v1/tenants/current`
+
 **Summary:** Update current tenant settings
 
 **Request Body:** (At least one field required)
+
 ```json
 {
   "name": "string (optional)",
@@ -1273,6 +1416,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Success Response (200):**
+
 ```json
 {
   "id": "tenant_cuid",
@@ -1283,6 +1427,7 @@ Idempotency-Key: <unique_string> (optional)
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 - `400 Bad Request`: No fields provided or validation errors
 - `404 Not Found`: Tenant not found
@@ -1293,19 +1438,22 @@ Idempotency-Key: <unique_string> (optional)
 
 Dashboard endpoints provide aggregated statistics for reporting.
 
-| Method | Path | Summary | Auth? | Roles | Query Params |
-|--------|------|---------|-------|-------|--------------|
-| GET | `/api/v1/dashboard/summary` | Dashboard summary | Yes | - | branchId |
-| GET | `/api/v1/dashboard/membership-distribution` | Membership distribution | Yes | - | branchId |
-| GET | `/api/v1/dashboard/monthly-members` | Monthly new members | Yes | - | branchId, months |
+| Method | Path                                        | Summary                 | Auth? | Roles | Query Params     |
+| ------ | ------------------------------------------- | ----------------------- | ----- | ----- | ---------------- |
+| GET    | `/api/v1/dashboard/summary`                 | Dashboard summary       | Yes   | -     | branchId         |
+| GET    | `/api/v1/dashboard/membership-distribution` | Membership distribution | Yes   | -     | branchId         |
+| GET    | `/api/v1/dashboard/monthly-members`         | Monthly new members     | Yes   | -     | branchId, months |
 
 #### GET `/api/v1/dashboard/summary`
+
 **Summary:** Get dashboard summary statistics
 
 **Query Parameters:**
+
 - `branchId` (optional, string): Filter by branch
 
 **Success Response (200):**
+
 ```json
 {
   "totalMembers": 250,
@@ -1316,15 +1464,19 @@ Dashboard endpoints provide aggregated statistics for reporting.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 
 #### GET `/api/v1/dashboard/membership-distribution`
+
 **Summary:** Get membership distribution (active member count per plan)
 
 **Query Parameters:**
+
 - `branchId` (optional, string): Filter by branch
 
 **Success Response (200):**
+
 ```json
 [
   {
@@ -1341,16 +1493,20 @@ Dashboard endpoints provide aggregated statistics for reporting.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 
 #### GET `/api/v1/dashboard/monthly-members`
+
 **Summary:** Get monthly new members count
 
 **Query Parameters:**
+
 - `branchId` (optional, string): Filter by branch
 - `months` (optional, integer, default: 6, max: 12): Number of months to retrieve
 
 **Success Response (200):**
+
 ```json
 [
   {
@@ -1369,6 +1525,7 @@ Dashboard endpoints provide aggregated statistics for reporting.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Missing or invalid token
 
 ---
@@ -1583,15 +1740,15 @@ All endpoints follow consistent error response format:
 
 ### Error Status Codes
 
-| Code | Name | Meaning | Common Causes |
-|------|------|---------|---------------|
-| 400 | Bad Request | Invalid input | Validation errors, missing required fields, invalid data types |
-| 401 | Unauthorized | Not authenticated | Missing token, invalid token, expired token |
-| 403 | Forbidden | No permission | Wrong role (not ADMIN), tenant mismatch, billing status issues |
-| 404 | Not Found | Resource doesn't exist | Invalid ID, resource deleted, tenant mismatch |
-| 409 | Conflict | State conflict | Optimistic locking failure (version mismatch), duplicate records |
-| 429 | Too Many Requests | Rate limit exceeded | Too many login attempts, too many payment operations |
-| 500 | Internal Server Error | Server error | Database errors, unexpected failures |
+| Code | Name                  | Meaning                | Common Causes                                                    |
+| ---- | --------------------- | ---------------------- | ---------------------------------------------------------------- |
+| 400  | Bad Request           | Invalid input          | Validation errors, missing required fields, invalid data types   |
+| 401  | Unauthorized          | Not authenticated      | Missing token, invalid token, expired token                      |
+| 403  | Forbidden             | No permission          | Wrong role (not ADMIN), tenant mismatch, billing status issues   |
+| 404  | Not Found             | Resource doesn't exist | Invalid ID, resource deleted, tenant mismatch                    |
+| 409  | Conflict              | State conflict         | Optimistic locking failure (version mismatch), duplicate records |
+| 429  | Too Many Requests     | Rate limit exceeded    | Too many login attempts, too many payment operations             |
+| 500  | Internal Server Error | Server error           | Database errors, unexpected failures                             |
 
 ### Billing Status Errors
 
@@ -1604,6 +1761,7 @@ All endpoints follow consistent error response format:
 ```
 
 **Billing Status Flow:**
+
 - **TRIAL/ACTIVE:** Full access
 - **PAST_DUE:** Backend allows, frontend enforces read-only
 - **SUSPENDED:** Login blocked, all operations blocked (except auth endpoints)
@@ -1613,37 +1771,45 @@ All endpoints follow consistent error response format:
 ## E) Data Model Enums
 
 ### Role
+
 - `ADMIN` - Administrator (full access)
 
 ### MemberStatus
+
 - `ACTIVE` - Active member
 - `PAUSED` - Temporarily paused
 - `INACTIVE` - Inactive member
 - `ARCHIVED` - Archived (terminal status)
 
 ### MemberGender
+
 - `MALE` - Male
 - `FEMALE` - Female
 
 ### DurationType
+
 - `DAYS` - Duration in days
 - `MONTHS` - Duration in months
 
 ### PlanStatus
+
 - `ACTIVE` - Active plan
 - `ARCHIVED` - Archived plan
 
 ### PlanScope
+
 - `TENANT` - Tenant-level plan (available to all branches)
 - `BRANCH` - Branch-level plan (specific to one branch)
 
 ### BillingStatus
+
 - `TRIAL` - Trial period
 - `ACTIVE` - Active subscription
 - `PAST_DUE` - Payment overdue (read-only mode in frontend)
 - `SUSPENDED` - Account suspended (login blocked)
 
 ### PaymentMethod
+
 - `CASH` - Nakit
 - `CREDIT_CARD` - Kredi Kartı
 - `BANK_TRANSFER` - Banka Havalesi
@@ -1655,53 +1821,63 @@ All endpoints follow consistent error response format:
 ## F) Implementation Notes & Assumptions
 
 ### 1. No Users API Endpoints
+
 - **Finding:** No user management endpoints exist (no `/api/v1/users` controller)
 - **Implication:** User creation/management likely happens through admin panel or seeding
 - **Assumption:** Mobile app will not need user CRUD operations (users managed separately)
 
 ### 2. Role System
+
 - **Current:** Only `ADMIN` role exists
 - **Future:** Comments indicate plans for `OWNER`, `STAFF`, `TRAINER`, `ACCOUNTANT`
 - **Implementation:** RolesGuard exists but most endpoints only enforce ADMIN vs authenticated
 
 ### 3. Payment Correction Flow
+
 - **Design:** Correction creates new payment record (immutable audit trail)
 - **Single-correction rule:** Each payment can only be corrected once
 - **Optimistic locking:** Uses `version` field to prevent concurrent corrections
 - **90-day warning:** Corrections on payments >90 days old receive warning
 
 ### 4. Idempotency Support
+
 - **Scope:** Payment creation only
 - **Mechanism:** `Idempotency-Key` header (case-insensitive)
 - **Expiration:** 24 hours
 - **Storage:** `IdempotencyKey` table
 
 ### 5. Tenant Isolation
+
 - **Automatic:** All requests automatically scoped to user's tenant via JWT
 - **No header required:** Tenant ID extracted from token
 - **TenantGuard:** Validates tenant exists and is accessible
 
 ### 6. Branch Scoping
+
 - **Optional filtering:** Most list endpoints accept optional `branchId` query param
 - **Plan scope:** Membership plans can be TENANT-level or BRANCH-level
 - **Branch-aware plans:** TENANT plans visible to all branches, BRANCH plans only to specific branch
 
 ### 7. Pagination
+
 - **Default:** page=1, limit=20
 - **Maximum:** limit=100
 - **Consistent format:** All paginated endpoints return `{ data, pagination }`
 
 ### 8. Date Handling
+
 - **Payment dates:** Stored as DATE-ONLY (business date, tenant timezone)
 - **ISO 8601:** All date inputs/outputs use ISO format
 - **Future dates:** Not allowed for payment `paidOn`
 
 ### 9. Soft Delete
+
 - **Branches:** `isActive=false`, `archivedAt` timestamp
 - **Plans:** `status=ARCHIVED`, `archivedAt` timestamp
 - **Members:** `status=ARCHIVED` (terminal, cannot reactivate)
 
 ### 10. Rate Limiting
+
 - **Login:** 5 attempts per 15 minutes (per IP/user)
 - **Payment creation:** 100 requests per 15 minutes per user
 - **Payment correction:** 40 requests per 15 minutes per user (stricter)
@@ -1714,30 +1890,37 @@ All endpoints follow consistent error response format:
 For implementing payment features on mobile:
 
 ### Required Endpoints
+
 ✅ **Authentication:**
+
 - [ ] `POST /api/v1/auth/login` - Get token
 - [ ] `GET /api/v1/auth/me` - Verify token
 
 ✅ **Members:**
+
 - [ ] `GET /api/v1/members` - List members (search, filter)
 - [ ] `GET /api/v1/members/:id` - Get member detail
 
 ✅ **Payments (Core):**
+
 - [ ] `POST /api/v1/payments` - Create payment
 - [ ] `GET /api/v1/payments/members/:memberId` - Payment history
 - [ ] `GET /api/v1/payments/:id` - Payment detail
 - [ ] `POST /api/v1/payments/:id/correct` - Correct payment
 
 ✅ **Payments (Reporting):**
+
 - [ ] `GET /api/v1/payments` - List all payments with filters
 - [ ] `GET /api/v1/payments/revenue` - Revenue reports
 
 ✅ **Support Data:**
+
 - [ ] `GET /api/v1/membership-plans/active` - Plans dropdown
 - [ ] `GET /api/v1/branches` - Branches list
 - [ ] `GET /api/v1/tenants/current` - Tenant info + billing status
 
 ### Implementation Considerations
+
 1. **Token Management:**
    - Store `accessToken` securely
    - Implement token refresh (if refresh endpoint exists - not documented yet)
@@ -1788,8 +1971,8 @@ For implementing payment features on mobile:
 
 ## Document Revision History
 
-| Date | Author | Changes |
-|------|--------|---------|
+| Date       | Author  | Changes                     |
+| ---------- | ------- | --------------------------- |
 | 2026-01-27 | Copilot | Initial comprehensive audit |
 
 ---
