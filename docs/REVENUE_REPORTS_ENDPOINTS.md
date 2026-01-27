@@ -31,7 +31,7 @@ The backend provides **one dedicated revenue reporting endpoint** that supports 
 - ✅ Flexible grouping (günlük / haftalık / aylık)
 - ✅ Total revenue calculation
 - ✅ Period breakdown with payment counts
-- ✅ Automatic correction handling (excludes corrected payments, includes corrections)
+- ✅ **Effective payments logic** (uses latest correction or original, no double-counting)
 - ✅ Tenant isolation (automatic)
 
 ---
@@ -161,10 +161,21 @@ enum PaymentMethod {
 
 #### Business Rules
 
-1. **Correction Handling**
-   - ❌ Excludes corrected original payments (`isCorrection=false AND isCorrected=true`)
-   - ✅ Includes correction payments (`isCorrection=true`)
-   - This ensures accurate revenue calculation by counting only the corrected amounts
+1. **Effective Payments & Correction Handling** ⭐ NEW
+   - **Effective Payment Definition:** For each original payment, the report uses the "effective payment" which is:
+     - If the original has one or more corrections: **ONLY the latest correction** (by `createdAt`) is used
+     - If the original has no corrections: the original payment is used
+   - **No Double-Counting:** Originals and their corrections are never both included
+   - **Latest Correction Wins:** When multiple corrections exist for the same original, only the most recent correction (highest `createdAt`) is used
+   - **Filter Application:** All filters (date range, paymentMethod, branchId) apply to the **effective payment values**:
+     - Date range filter uses the effective payment's `paidOn` date
+     - Payment method filter uses the effective payment's `paymentMethod`
+     - Branch filter uses the effective payment's `branchId`
+   - **Example:** If an original payment was $100 on Jan 1 (CASH), and a correction changed it to $150 on Jan 5 (CREDIT_CARD):
+     - Report includes: $150 on Jan 5 with CREDIT_CARD
+     - Report excludes: $100 original
+     - Filtering by CASH returns $0 (effective payment is CREDIT_CARD)
+     - Filtering by date range Jan 1-3 returns $0 (effective payment is Jan 5)
 
 2. **Tenant Isolation**
    - Automatically filters by `tenantId` from JWT token
@@ -173,11 +184,13 @@ enum PaymentMethod {
 3. **Branch Filtering**
    - If `branchId` is provided, only payments from that branch are included
    - Branch must belong to the authenticated user's tenant (implicit validation)
+   - Filter applies to effective payment's branchId
 
 4. **Date Range**
    - `startDate` is inclusive (from start of day)
    - `endDate` is inclusive (includes the entire end date)
    - Dates are truncated to start-of-day UTC for consistent querying
+   - Filter applies to effective payment's paidOn date
 
 5. **Week Calculation**
    - Weeks start on Monday (ISO 8601 standard)
@@ -645,12 +658,16 @@ All query parameters are validated using NestJS class-validator:
 ### Testing Recommendations
 
 1. **Test with corrections:** Create a payment, correct it, and verify only the corrected amount appears in reports
-2. **Test with multiple branches:** Verify branch filtering works correctly
-3. **Test with mixed payment methods:** Verify filtering by payment method
-4. **Test week boundaries:** Verify weeks start on Monday correctly
-5. **Test month boundaries:** Verify months are grouped correctly (e.g., Jan 31 → Feb 1)
-6. **Test empty date ranges:** Verify graceful handling of periods with no payments
-7. **Test large date ranges:** Verify performance with 1+ year daily reports
+2. **Test with multiple corrections:** Create multiple corrections for the same payment, verify only the latest appears
+3. **Test correction date changes:** Correct a payment and change its date, verify date filters use effective date
+4. **Test correction method changes:** Correct a payment and change its method, verify method filters use effective method
+5. **Test with multiple branches:** Verify branch filtering works correctly
+6. **Test with mixed payment methods:** Verify filtering by payment method
+7. **Test week boundaries:** Verify weeks start on Monday correctly
+8. **Test month boundaries:** Verify months are grouped correctly (e.g., Jan 31 → Feb 1)
+9. **Test empty date ranges:** Verify graceful handling of periods with no payments
+10. **Test large date ranges:** Verify performance with 1+ year daily reports
+11. **Test groupBy with corrections:** Verify corrections changing dates affect grouping buckets correctly
 
 ### Proposed Future Enhancements
 
@@ -734,9 +751,10 @@ While not strictly revenue reporting, these endpoints may be useful for related 
 
 ## Document History
 
-| Version | Date       | Changes                                                   | Author         |
-| ------- | ---------- | --------------------------------------------------------- | -------------- |
-| 1.0     | 2026-01-27 | Initial documentation - Revenue reporting endpoints audit | GitHub Copilot |
+| Version | Date       | Changes                                                                              | Author         |
+| ------- | ---------- | ------------------------------------------------------------------------------------ | -------------- |
+| 1.1     | 2026-01-27 | Updated correction handling to use effective payments logic (latest correction only) | GitHub Copilot |
+| 1.0     | 2026-01-27 | Initial documentation - Revenue reporting endpoints audit                            | GitHub Copilot |
 
 ---
 

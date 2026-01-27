@@ -461,57 +461,108 @@ export class PaymentsService {
       groupBy = 'day',
     } = filters;
 
-    // Build where clause
-    const where: Prisma.PaymentWhereInput = {
-      tenantId,
-      // Exclude corrected original payments
-      // Include: isCorrection=true OR (isCorrection=false AND isCorrected=false)
-      OR: [
-        { isCorrection: true }, // Include corrections
-        { isCorrected: false }, // Include non-corrected originals
-      ],
-    };
-
-    // Filter by branch
-    if (branchId) {
-      where.branchId = branchId;
-    }
-
-    // Filter by payment method
-    if (paymentMethod) {
-      where.paymentMethod = paymentMethod;
-    }
-
-    // Filter by date range
+    // Prepare date range for query
     const startDateTruncated = this.truncateToStartOfDayUTC(startDate);
     const endDateTruncated = this.truncateToStartOfDayUTC(endDate);
     // Add 1 day to include the entire end date
     endDateTruncated.setUTCDate(endDateTruncated.getUTCDate() + 1);
 
-    where.paidOn = {
-      gte: startDateTruncated,
-      lt: endDateTruncated,
-    };
+    /**
+     * EFFECTIVE PAYMENTS SELECTION:
+     * For each original payment, use the "effective payment" defined as:
+     * - If the original has one or more corrections: use ONLY the latest correction (by createdAt)
+     * - If the original has no corrections: use the original payment
+     * This ensures we don't double-count originals + corrections.
+     *
+     * Strategy: Use SQL query with window function to select effective payments:
+     * 1. Start from all payments (originals + corrections)
+     * 2. For each payment group (identified by correctedPaymentId or own id if original):
+     *    - If it's a correction (isCorrection=true): group by correctedPaymentId
+     *    - If it's an original (isCorrection=false): group by its own id
+     * 3. Rank by createdAt DESC within each group (latest first)
+     * 4. Select only rank=1 (the effective payment for that group)
+     * 5. Apply filters (date, branch, paymentMethod) to effective payment values
+     */
 
-    // Get all payments matching filters
-    const payments = await this.prisma.payment.findMany({
-      where,
-      select: {
-        amount: true,
-        paidOn: true,
-        paymentMethod: true,
-        branchId: true,
-      },
-    });
+    const effectivePayments: Array<{
+      amount: Decimal;
+      paidOn: Date;
+      paymentMethod: PaymentMethod;
+      branchId: string;
+    }> = await this.prisma.$queryRaw`
+      WITH payment_groups AS (
+        -- Step 1: Assign each payment to its group
+        -- Corrections belong to their original's group (correctedPaymentId)
+        -- Originals are their own group (id)
+        SELECT
+          id,
+          "tenantId",
+          "branchId",
+          "memberId",
+          amount,
+          "paidOn",
+          "paymentMethod",
+          "isCorrection",
+          "correctedPaymentId",
+          "createdAt",
+          CASE
+            WHEN "isCorrection" = true THEN "correctedPaymentId"
+            ELSE id
+          END AS payment_group_id
+        FROM "Payment"
+        WHERE "tenantId" = ${tenantId}
+      ),
+      ranked_payments AS (
+        -- Step 2: Rank payments within each group by createdAt DESC
+        -- Latest correction (or original if no corrections) gets rank 1
+        SELECT
+          id,
+          "tenantId",
+          "branchId",
+          "memberId",
+          amount,
+          "paidOn",
+          "paymentMethod",
+          "isCorrection",
+          payment_group_id,
+          ROW_NUMBER() OVER (
+            PARTITION BY payment_group_id
+            ORDER BY "createdAt" DESC
+          ) AS rn
+        FROM payment_groups
+      ),
+      effective_payments AS (
+        -- Step 3: Select only the effective payment (rank=1) from each group
+        SELECT
+          amount,
+          "paidOn",
+          "paymentMethod",
+          "branchId"
+        FROM ranked_payments
+        WHERE rn = 1
+      )
+      -- Step 4: Apply filters to effective payments
+      SELECT
+        amount,
+        "paidOn",
+        "paymentMethod",
+        "branchId"
+      FROM effective_payments
+      WHERE
+        "paidOn" >= ${startDateTruncated}
+        AND "paidOn" < ${endDateTruncated}
+        ${branchId ? Prisma.sql`AND "branchId" = ${branchId}` : Prisma.empty}
+        ${paymentMethod ? Prisma.sql`AND "paymentMethod" = ${paymentMethod}::"PaymentMethod"` : Prisma.empty}
+    `;
 
     // Calculate total revenue
-    const totalRevenue = payments.reduce(
+    const totalRevenue = effectivePayments.reduce(
       (sum, payment) => sum + payment.amount.toNumber(),
       0,
     );
 
     // Group by period
-    const grouped = this.groupPaymentsByPeriod(payments, groupBy);
+    const grouped = this.groupPaymentsByPeriod(effectivePayments, groupBy);
 
     return {
       totalRevenue,

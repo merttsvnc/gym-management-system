@@ -727,10 +727,10 @@ describe('Payments E2E Tests', () => {
   });
 
   // =====================================================================
-  // T099: Test POST /api/v1/payments/:id/correct returns 400 for already corrected payment (single-correction rule)
+  // T099: Test POST /api/v1/payments/:id/correct allows multiple corrections
   // =====================================================================
-  describe('POST /api/v1/payments/:id/correct - Single Correction Rule', () => {
-    it('T099: should return 400 for already corrected payment', async () => {
+  describe('POST /api/v1/payments/:id/correct - Multiple Corrections Allowed', () => {
+    it('T099: should allow multiple corrections for the same payment', async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -748,7 +748,7 @@ describe('Payments E2E Tests', () => {
         },
       });
 
-      // Create correction
+      // Create first correction
       await prisma.payment.create({
         data: {
           tenantId: tenant1.id,
@@ -773,7 +773,7 @@ describe('Payments E2E Tests', () => {
         },
       });
 
-      // Try to correct again - should fail
+      // Create second correction - should succeed
       const correctDto = {
         amount: 200,
         version: 1,
@@ -783,10 +783,12 @@ describe('Payments E2E Tests', () => {
         .post(`/api/v1/payments/${originalPayment.id}/correct`)
         .set('Authorization', `Bearer ${token1}`)
         .send(correctDto)
-        .expect(400);
+        .expect(201);
 
-      expect(response.body.message).toBeDefined();
-      expect(response.body.message).toContain('düzeltilmiş');
+      expect(response.body).toBeDefined();
+      expect(response.body.amount).toBe('200'); // Decimal returned as string without trailing zeros
+      expect(response.body.isCorrection).toBe(true);
+      expect(response.body.correctedPaymentId).toBe(originalPayment.id);
     });
   });
 
@@ -1492,4 +1494,502 @@ describe('Payments E2E Tests', () => {
       expect(Array.isArray(response.body.breakdown)).toBe(true);
     });
   });
+
+  // =====================================================================
+  // EFFECTIVE PAYMENTS TESTS
+  // Tests for the new effective-payments logic that uses latest correction
+  // or original if no correction exists (no double-counting)
+  // =====================================================================
+
+  // T114: Test revenue report uses original when no correction exists
+  describe('GET /api/v1/payments/revenue - Effective Payments: No Correction', () => {
+    it('T114: should use original payment when no correction exists', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Create original payment (no correction)
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(100),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CASH,
+          createdBy: user1.id,
+          isCorrection: false,
+          isCorrected: false,
+        },
+      });
+
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 1);
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 1);
+
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should include original payment amount
+      expect(response.body.totalRevenue).toBe(100);
+      expect(response.body.breakdown).toHaveLength(1);
+      expect(response.body.breakdown[0].revenue).toBe(100);
+      expect(response.body.breakdown[0].count).toBe(1);
+    });
+  });
+
+  // T115: Test revenue report uses latest correction only (single correction)
+  describe('GET /api/v1/payments/revenue - Effective Payments: Single Correction', () => {
+    it('T115: should use correction amount, not original (no double-counting)', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Create original payment
+      const originalPayment = await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(100),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CASH,
+          createdBy: user1.id,
+          isCorrection: false,
+          isCorrected: false,
+        },
+      });
+
+      // Wait 10ms to ensure different createdAt
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create correction
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(150),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CREDIT_CARD,
+          createdBy: user1.id,
+          isCorrection: true,
+          correctedPaymentId: originalPayment.id,
+        },
+      });
+
+      // Mark original as corrected
+      await prisma.payment.update({
+        where: { id: originalPayment.id },
+        data: { isCorrected: true },
+      });
+
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 1);
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 1);
+
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should use correction amount (150), NOT original (100)
+      // Should NOT be 250 (double-counting)
+      expect(response.body.totalRevenue).toBe(150);
+      expect(response.body.breakdown).toHaveLength(1);
+      expect(response.body.breakdown[0].revenue).toBe(150);
+      expect(response.body.breakdown[0].count).toBe(1);
+    });
+  });
+
+  // T116: Test revenue report uses latest correction when multiple corrections exist
+  describe('GET /api/v1/payments/revenue - Effective Payments: Multiple Corrections', () => {
+    it('T116: should use latest correction only', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Create original payment
+      const originalPayment = await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(100),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CASH,
+          createdBy: user1.id,
+          isCorrection: false,
+          isCorrected: false,
+        },
+      });
+
+      // Wait 10ms between corrections to ensure different createdAt
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create first correction
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(150),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CREDIT_CARD,
+          createdBy: user1.id,
+          isCorrection: true,
+          correctedPaymentId: originalPayment.id,
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create second correction (latest)
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(200),
+          paidOn: today,
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          createdBy: user1.id,
+          isCorrection: true,
+          correctedPaymentId: originalPayment.id,
+        },
+      });
+
+      // Mark original as corrected
+      await prisma.payment.update({
+        where: { id: originalPayment.id },
+        data: { isCorrected: true },
+      });
+
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 1);
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 1);
+
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should use ONLY latest correction (200)
+      // NOT original (100), NOT first correction (150)
+      // Should NOT be 450 (all three)
+      expect(response.body.totalRevenue).toBe(200);
+      expect(response.body.breakdown).toHaveLength(1);
+      expect(response.body.breakdown[0].revenue).toBe(200);
+      expect(response.body.breakdown[0].count).toBe(1);
+    });
+  });
+
+  // T117: Test correction changes paidOn date across date range boundary
+  describe('GET /api/v1/payments/revenue - Effective Payments: Date Boundary', () => {
+    it('T117: should apply date filter to effective paidOn (correction date)', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Create original payment with yesterday's date
+      const originalPayment = await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(100),
+          paidOn: yesterday,
+          paymentMethod: PaymentMethod.CASH,
+          createdBy: user1.id,
+          isCorrection: false,
+          isCorrected: false,
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create correction with tomorrow's date (outside filter range)
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(150),
+          paidOn: tomorrow,
+          paymentMethod: PaymentMethod.CREDIT_CARD,
+          createdBy: user1.id,
+          isCorrection: true,
+          correctedPaymentId: originalPayment.id,
+        },
+      });
+
+      // Mark original as corrected
+      await prisma.payment.update({
+        where: { id: originalPayment.id },
+        data: { isCorrected: true },
+      });
+
+      // Query for today only (correction is tomorrow, should be excluded)
+      const startDate = new Date(today);
+      const endDate = new Date(today);
+
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Effective payment (correction) is on tomorrow, outside range
+      // Should return 0 revenue
+      expect(response.body.totalRevenue).toBe(0);
+      expect(response.body.breakdown).toHaveLength(0);
+    });
+  });
+
+  // T118: Test correction changes paymentMethod filter
+  describe('GET /api/v1/payments/revenue - Effective Payments: Payment Method Filter', () => {
+    it('T118: should apply paymentMethod filter to effective payment', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Create original payment with CASH
+      const originalPayment = await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(100),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CASH,
+          createdBy: user1.id,
+          isCorrection: false,
+          isCorrected: false,
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create correction with CREDIT_CARD
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(150),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CREDIT_CARD,
+          createdBy: user1.id,
+          isCorrection: true,
+          correctedPaymentId: originalPayment.id,
+        },
+      });
+
+      // Mark original as corrected
+      await prisma.payment.update({
+        where: { id: originalPayment.id },
+        data: { isCorrected: true },
+      });
+
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 1);
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 1);
+
+      // Filter by CREDIT_CARD (effective payment method)
+      const responseCreditCard = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&paymentMethod=CREDIT_CARD`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should match effective payment (correction with CREDIT_CARD)
+      expect(responseCreditCard.body.totalRevenue).toBe(150);
+
+      // Filter by CASH (original payment method, but original is not effective)
+      const responseCash = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&paymentMethod=CASH`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should return 0 because effective payment is CREDIT_CARD, not CASH
+      expect(responseCash.body.totalRevenue).toBe(0);
+    });
+  });
+
+  // T119: Test groupBy with corrections (week and month)
+  describe('GET /api/v1/payments/revenue - Effective Payments: GroupBy Week/Month', () => {
+    it('T119: should correctly group effective payments by week', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const lastWeek = new Date(today);
+      lastWeek.setDate(lastWeek.getDate() - 7);
+
+      // Create original payment in last week
+      const originalPayment = await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(100),
+          paidOn: lastWeek,
+          paymentMethod: PaymentMethod.CASH,
+          createdBy: user1.id,
+          isCorrection: false,
+          isCorrected: false,
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create correction in current week (changes the week bucket)
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(150),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CREDIT_CARD,
+          createdBy: user1.id,
+          isCorrection: true,
+          correctedPaymentId: originalPayment.id,
+        },
+      });
+
+      // Mark original as corrected
+      await prisma.payment.update({
+        where: { id: originalPayment.id },
+        data: { isCorrected: true },
+      });
+
+      const startDate = new Date(lastWeek);
+      startDate.setDate(startDate.getDate() - 7);
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 7);
+
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&groupBy=week`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should group by effective paidOn (today's week, not last week)
+      expect(response.body.totalRevenue).toBe(150);
+      expect(response.body.breakdown.length).toBeGreaterThan(0);
+
+      // Find the week bucket containing today
+      const todayWeekStart = getWeekStartForTest(today);
+      const todayWeekKey = todayWeekStart.toISOString().split('T')[0];
+      const todayWeekBucket = response.body.breakdown.find(
+        (b: { period: string }) => b.period === todayWeekKey,
+      );
+
+      expect(todayWeekBucket).toBeDefined();
+      expect(todayWeekBucket.revenue).toBe(150);
+      expect(todayWeekBucket.count).toBe(1);
+    });
+
+    it('T120: should correctly group effective payments by month', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const lastMonth = new Date(today);
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+      // Create original payment in last month
+      const originalPayment = await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(100),
+          paidOn: lastMonth,
+          paymentMethod: PaymentMethod.CASH,
+          createdBy: user1.id,
+          isCorrection: false,
+          isCorrected: false,
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create correction in current month (changes the month bucket)
+      await prisma.payment.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          memberId: member1.id,
+          amount: new Decimal(200),
+          paidOn: today,
+          paymentMethod: PaymentMethod.CREDIT_CARD,
+          createdBy: user1.id,
+          isCorrection: true,
+          correctedPaymentId: originalPayment.id,
+        },
+      });
+
+      // Mark original as corrected
+      await prisma.payment.update({
+        where: { id: originalPayment.id },
+        data: { isCorrected: true },
+      });
+
+      const startDate = new Date(lastMonth);
+      startDate.setMonth(startDate.getMonth() - 1);
+      const endDate = new Date(today);
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/payments/revenue?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&groupBy=month`,
+        )
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should group by effective paidOn (today's month, not last month)
+      expect(response.body.totalRevenue).toBe(200);
+      expect(response.body.breakdown.length).toBeGreaterThan(0);
+
+      // Find the month bucket containing today
+      const todayMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const todayMonthBucket = response.body.breakdown.find(
+        (b: { period: string }) => b.period === todayMonthKey,
+      );
+
+      expect(todayMonthBucket).toBeDefined();
+      expect(todayMonthBucket.revenue).toBe(200);
+      expect(todayMonthBucket.count).toBe(1);
+    });
+  });
 });
+
+// Helper function for week start calculation (matches service logic)
+function getWeekStartForTest(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getUTCDay();
+  const dayOfWeek = day === 0 ? 7 : day;
+  const daysToSubtract = dayOfWeek - 1;
+  const weekStart = new Date(d);
+  weekStart.setUTCDate(d.getUTCDate() - daysToSubtract);
+  return weekStart;
+}
