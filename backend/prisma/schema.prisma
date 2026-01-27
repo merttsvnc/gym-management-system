@@ -223,6 +223,12 @@ model Member {
 }
 
 // Payment model
+// AUDIT TRAIL DESIGN:
+// - Original payments can have MULTIPLE corrections (no unique constraint on correctedPaymentId)
+// - Each correction points to the original via correctedPaymentId
+// - Original payment's isCorrected flag tracks "has been corrected at least once"
+// - To find all corrections for payment A: query where correctedPaymentId = A.id
+// - Revenue reports exclude corrections by filtering: isCorrection = false
 model Payment {
   id                 String        @id @default(cuid())
   tenantId           String
@@ -235,9 +241,9 @@ model Payment {
   paymentMethod      PaymentMethod
   note               String?       @db.VarChar(500)
 
-  // Correction tracking
+  // Correction tracking (audit trail: multiple corrections allowed per original payment)
   isCorrection       Boolean       @default(false)
-  correctedPaymentId String?       @unique
+  correctedPaymentId String?       // FK to original payment being corrected (no @unique = many corrections per original)
   isCorrected        Boolean       @default(false)
 
   // Optimistic locking
@@ -253,7 +259,7 @@ model Payment {
   branch             Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
   member             Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
   correctedPayment   Payment?      @relation("PaymentCorrection", fields: [correctedPaymentId], references: [id], onDelete: SetNull)
-  correctingPayment  Payment?      @relation("PaymentCorrection")
+  correctingPayments Payment[]     @relation("PaymentCorrection")  // One-to-many: original payment can have multiple corrections
 
   @@index([tenantId])
   @@index([tenantId, branchId])

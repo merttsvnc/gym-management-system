@@ -173,11 +173,11 @@ export class PaymentsService {
    * Correct a payment
    * Business rules:
    * - Validates original payment belongs to tenant
-   * - Hard-fails with BadRequestException if isCorrected = true (single-correction rule)
+   * - Allows MULTIPLE corrections per payment (audit trail support)
    * - Validates version matches expected value
    * - Throws ConflictException on version mismatch
    * - Creates new payment record with corrected values
-   * - Marks original payment as corrected and increments version atomically
+   * - Marks original payment as corrected (isCorrected tracks "has corrections")
    */
   async correctPayment(
     tenantId: string,
@@ -198,12 +198,9 @@ export class PaymentsService {
       throw new NotFoundException('Ödeme bulunamadı');
     }
 
-    // Single-correction rule: hard-fail if already corrected
-    if (originalPayment.isCorrected) {
-      throw new BadRequestException(
-        'Bu ödeme zaten düzeltilmiş. Bir ödeme yalnızca bir kez düzeltilebilir.',
-      );
-    }
+    // AUDIT TRAIL: Multiple corrections are allowed per payment
+    // The isCorrected flag simply tracks whether this payment has been corrected at least once
+    // No blocking check here - intentional for audit trail support
 
     // Validate version matches (optimistic locking)
     if (originalPayment.version !== input.version) {
@@ -257,8 +254,9 @@ export class PaymentsService {
         },
       });
 
-      // Update original payment: mark as corrected and increment version
-      // Use updateMany to ensure atomicity and detect concurrent updates
+      // Update original payment: mark as corrected (tracks "has been corrected at least once")
+      // NOTE: We do NOT set correctedPaymentId on the original - corrections point TO the original
+      // This enables multiple corrections per payment (audit trail)
       const updateResult = await tx.payment.updateMany({
         where: {
           id: originalPayment.id,
@@ -266,7 +264,6 @@ export class PaymentsService {
         },
         data: {
           isCorrected: true,
-          correctedPaymentId: correctedPayment.id,
           version: { increment: 1 },
         },
       });
