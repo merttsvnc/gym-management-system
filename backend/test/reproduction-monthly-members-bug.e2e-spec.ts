@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -181,7 +182,8 @@ describe('REPRODUCTION: Monthly Members Bug - New Tenant Shows Zero Counts', () 
     console.log(`\nLooking for month key: ${currentMonthKey}`);
 
     const currentMonthData = response.body.find(
-      (item: any) => item.month === currentMonthKey,
+      (item: { month: string; newMembers: number }) =>
+        item.month === currentMonthKey,
     );
 
     if (currentMonthData) {
@@ -198,7 +200,9 @@ describe('REPRODUCTION: Monthly Members Bug - New Tenant Shows Zero Counts', () 
       );
       console.log(
         'Available months:',
-        response.body.map((item: any) => item.month),
+        response.body.map(
+          (item: { month: string; newMembers: number }) => item.month,
+        ),
       );
       fail(`Current month ${currentMonthKey} not found in response`);
     }
@@ -213,11 +217,12 @@ describe('REPRODUCTION: Monthly Members Bug - New Tenant Shows Zero Counts', () 
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
     const currentMonthData = response.body.find(
-      (item: any) => item.month === currentMonthKey,
+      (item: { month: string; newMembers: number }) =>
+        item.month === currentMonthKey,
     );
 
     expect(currentMonthData).toBeDefined();
-    expect(currentMonthData.newMembers).toBeGreaterThanOrEqual(3);
+    expect(currentMonthData?.newMembers).toBeGreaterThanOrEqual(3);
   });
 
   it('Should show counts when filtered by branch', async () => {
@@ -229,10 +234,11 @@ describe('REPRODUCTION: Monthly Members Bug - New Tenant Shows Zero Counts', () 
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
     const currentMonthData = response.body.find(
-      (item: any) => item.month === currentMonthKey,
+      (item: { month: string; newMembers: number }) =>
+        item.month === currentMonthKey,
     );
 
     expect(currentMonthData).toBeDefined();
-    expect(currentMonthData.newMembers).toBeGreaterThanOrEqual(3);
+    expect(currentMonthData?.newMembers).toBeGreaterThanOrEqual(3);
   });
 });

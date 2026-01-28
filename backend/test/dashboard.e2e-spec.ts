@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -26,6 +27,7 @@ describe('Dashboard E2E Tests', () => {
   let token1: string;
   let tenant2: any;
   let user2: any;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let token2: string;
   let plan1: any;
   let plan2: any;
@@ -395,11 +397,12 @@ describe('Dashboard E2E Tests', () => {
       // Find current month in response
       const currentMonth = `${rightNow.getFullYear()}-${(rightNow.getMonth() + 1).toString().padStart(2, '0')}`;
       const currentMonthData = response.body.find(
-        (item: any) => item.month === currentMonth,
+        (item: { month: string; newMembers: number }) =>
+          item.month === currentMonth,
       );
 
       expect(currentMonthData).toBeDefined();
-      expect(currentMonthData.newMembers).toBeGreaterThanOrEqual(1);
+      expect(currentMonthData?.newMembers).toBeGreaterThanOrEqual(1);
 
       // Clean up
       await prisma.member.delete({ where: { id: todayMember.id } });
@@ -459,10 +462,12 @@ describe('Dashboard E2E Tests', () => {
       const oneMonthAgoKey = `${oneMonthAgo.getFullYear()}-${(oneMonthAgo.getMonth() + 1).toString().padStart(2, '0')}`;
 
       const twoMonthsAgoData = response.body.find(
-        (item: any) => item.month === twoMonthsAgoKey,
+        (item: { month: string; newMembers: number }) =>
+          item.month === twoMonthsAgoKey,
       );
       const oneMonthAgoData = response.body.find(
-        (item: any) => item.month === oneMonthAgoKey,
+        (item: { month: string; newMembers: number }) =>
+          item.month === oneMonthAgoKey,
       );
 
       expect(twoMonthsAgoData?.newMembers).toBeGreaterThanOrEqual(1);
