@@ -33,6 +33,7 @@ Production:   TBD (production URL will be provided)
 Tüm API endpoint'leri `/api/v1` prefix'i ile başlar.
 
 **Örnek**:
+
 ```
 POST http://localhost:3000/api/v1/auth/register
 GET  http://localhost:3000/api/v1/auth/me
@@ -59,10 +60,10 @@ Backend **JWT (JSON Web Token)** tabanlı kimlik doğrulama kullanır.
 
 #### Token Tipleri
 
-| Token Tipi      | Geçerlilik Süresi | Kullanım                                    |
-| --------------- | ----------------- | ------------------------------------------- |
+| Token Tipi        | Geçerlilik Süresi | Kullanım                                   |
+| ----------------- | ----------------- | ------------------------------------------ |
 | **Access Token**  | 15 dakika (900s)  | API çağrıları için Authorization header'da |
-| **Refresh Token** | 30 gün            | Access token yenilemek için (gelecekte)     |
+| **Refresh Token** | 30 gün            | Access token yenilemek için (gelecekte)    |
 
 **Not**: Şu anda backend'de refresh token endpoint'i **YOK**. Access token süresi dolduğunda kullanıcının tekrar login olması gerekir. Refresh token implementasyonu gelecekte eklenecek.
 
@@ -83,14 +84,14 @@ Access token decode edildiğinde aşağıdaki bilgileri içerir:
 }
 ```
 
-| Alan       | Tip     | Açıklama                               |
-| ---------- | ------- | -------------------------------------- |
-| `sub`      | string  | User ID (JWT standard)                 |
-| `email`    | string  | Kullanıcı email adresi                 |
-| `tenantId` | string  | Tenant (organizasyon) ID               |
-| `role`     | string  | Kullanıcı rolü (`ADMIN`)               |
-| `iat`      | number  | Token oluşturma zamanı (Unix epoch)    |
-| `exp`      | number  | Token son kullanım zamanı (Unix epoch) |
+| Alan       | Tip    | Açıklama                               |
+| ---------- | ------ | -------------------------------------- |
+| `sub`      | string | User ID (JWT standard)                 |
+| `email`    | string | Kullanıcı email adresi                 |
+| `tenantId` | string | Tenant (organizasyon) ID               |
+| `role`     | string | Kullanıcı rolü (`ADMIN`)               |
+| `iat`      | number | Token oluşturma zamanı (Unix epoch)    |
+| `exp`      | number | Token son kullanım zamanı (Unix epoch) |
 
 **Kaynak**: [backend/src/auth/strategies/jwt.strategy.ts](../backend/src/auth/strategies/jwt.strategy.ts#L6-L11)
 
@@ -107,14 +108,17 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 #### Token Saklama (Mobil)
 
 **iOS**:
+
 - Keychain Services kullanın
 - `kSecAttrAccessible = kSecAttrAccessibleWhenUnlockedThisDeviceOnly`
 
 **Android**:
+
 - EncryptedSharedPreferences (AndroidX Security library)
 - Veya Keystore ile şifrelenmiş SharedPreferences
 
 **❌ YAPMAYIN**:
+
 - UserDefaults / SharedPreferences (şifresiz) kullanmayın
 - Token'ları log'a yazdırmayın
 - Token'ları clipboard'a kopyalamayın
@@ -133,6 +137,7 @@ Yeni tenant (işletme) + admin kullanıcı + default branch oluşturur. **7 gün
 **Rate Limit**: 3 istek / saat (aynı IP'den)
 
 **Headers**:
+
 ```http
 Content-Type: application/json
 ```
@@ -153,15 +158,15 @@ Content-Type: application/json
 
 **Validasyon Kuralları**:
 
-| Alan            | Tip     | Zorunlu | Validasyon                                                       |
-| --------------- | ------- | ------- | ---------------------------------------------------------------- |
-| `tenantName`    | string  | ✅ Evet | Min 2, Max 100 karakter                                          |
-| `email`         | string  | ✅ Evet | Geçerli email formatı (otomatik lowercase + trim)                |
-| `password`      | string  | ✅ Evet | Min 10 karakter, en az 1 harf + 1 rakam                          |
-| `firstName`     | string  | ✅ Evet | Min 2, Max 50 karakter                                           |
-| `lastName`      | string  | ✅ Evet | Min 2, Max 50 karakter                                           |
-| `branchName`    | string  | ❌ Hayır | Min 2, Max 100 karakter (varsayılan: "Ana Şube")                 |
-| `branchAddress` | string  | ❌ Hayır | Boş string kabul edilir (varsayılan: "")                         |
+| Alan            | Tip    | Zorunlu  | Validasyon                                        |
+| --------------- | ------ | -------- | ------------------------------------------------- |
+| `tenantName`    | string | ✅ Evet  | Min 2, Max 100 karakter                           |
+| `email`         | string | ✅ Evet  | Geçerli email formatı (otomatik lowercase + trim) |
+| `password`      | string | ✅ Evet  | Min 10 karakter, en az 1 harf + 1 rakam           |
+| `firstName`     | string | ✅ Evet  | Min 2, Max 50 karakter                            |
+| `lastName`      | string | ✅ Evet  | Min 2, Max 50 karakter                            |
+| `branchName`    | string | ❌ Hayır | Min 2, Max 100 karakter (varsayılan: "Ana Şube")  |
+| `branchAddress` | string | ❌ Hayır | Boş string kabul edilir (varsayılan: "")          |
 
 **Kaynak**: [backend/src/auth/dto/register.dto.ts](../backend/src/auth/dto/register.dto.ts#L8-L42)
 
@@ -194,11 +199,11 @@ Content-Type: application/json
 
 **Hata Yanıtları**:
 
-| HTTP Status | Code     | Durum                           | Örnek Body                                                                                              |
-| ----------- | -------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **409**     | -        | Email zaten kayıtlı             | `{"statusCode": 409, "message": "Email already registered", "timestamp": "...", "path": "..."}`        |
-| **400**     | -        | Validasyon hatası (eksik/hatalı field) | `{"statusCode": 400, "message": "password must be longer than or equal to 10 characters", "errors": [...], "timestamp": "...", "path": "..."}` |
-| **429**     | -        | Rate limit aşıldı (3 istek/saat) | `{"statusCode": 429, "message": "Çok fazla istek gönderildi. Lütfen bir süre sonra tekrar deneyin."}` |
+| HTTP Status | Code | Durum                                  | Örnek Body                                                                                                                                     |
+| ----------- | ---- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **409**     | -    | Email zaten kayıtlı                    | `{"statusCode": 409, "message": "Email already registered", "timestamp": "...", "path": "..."}`                                                |
+| **400**     | -    | Validasyon hatası (eksik/hatalı field) | `{"statusCode": 400, "message": "password must be longer than or equal to 10 characters", "errors": [...], "timestamp": "...", "path": "..."}` |
+| **429**     | -    | Rate limit aşıldı (3 istek/saat)       | `{"statusCode": 429, "message": "Çok fazla istek gönderildi. Lütfen bir süre sonra tekrar deneyin."}`                                          |
 
 **Kaynak**: [backend/src/auth/auth.service.ts](../backend/src/auth/auth.service.ts#L237-L239)  
 **Kaynak**: [backend/src/common/filters/http-exception.filter.ts](../backend/src/common/filters/http-exception.filter.ts#L50-L62)
@@ -215,6 +220,7 @@ Var olan kullanıcı için giriş yapar. **SUSPENDED tenant'lar giriş yapamaz**
 **Rate Limit**: 5 istek / 15 dakika (aynı email için)
 
 **Headers**:
+
 ```http
 Content-Type: application/json
 ```
@@ -230,10 +236,10 @@ Content-Type: application/json
 
 **Validasyon Kuralları**:
 
-| Alan       | Tip    | Zorunlu | Validasyon           |
-| ---------- | ------ | ------- | -------------------- |
+| Alan       | Tip    | Zorunlu | Validasyon            |
+| ---------- | ------ | ------- | --------------------- |
 | `email`    | string | ✅ Evet | Geçerli email formatı |
-| `password` | string | ✅ Evet | -                    |
+| `password` | string | ✅ Evet | -                     |
 
 **Kaynak**: [backend/src/auth/dto/login.dto.ts](../backend/src/auth/dto/login.dto.ts#L3-L9)
 
@@ -261,11 +267,11 @@ Content-Type: application/json
 
 **Hata Yanıtları**:
 
-| HTTP Status | Code                          | Durum                                  | Örnek Body                                                                                                                                  |
-| ----------- | ----------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **401**     | -                             | Geçersiz email veya şifre              | `{"statusCode": 401, "message": "Invalid email or password", "timestamp": "...", "path": "..."}`                                           |
-| **403**     | `TENANT_BILLING_LOCKED`       | SUSPENDED tenant (giriş engellendi)    | `{"statusCode": 403, "code": "TENANT_BILLING_LOCKED", "message": "Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin."}` |
-| **429**     | -                             | Rate limit aşıldı (5 istek/15 dakika) | `{"statusCode": 429, "message": "Çok fazla giriş denemesi. Lütfen bir süre sonra tekrar deneyin."}`                                       |
+| HTTP Status | Code                    | Durum                                 | Örnek Body                                                                                                                                 |
+| ----------- | ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **401**     | -                       | Geçersiz email veya şifre             | `{"statusCode": 401, "message": "Invalid email or password", "timestamp": "...", "path": "..."}`                                           |
+| **403**     | `TENANT_BILLING_LOCKED` | SUSPENDED tenant (giriş engellendi)   | `{"statusCode": 403, "code": "TENANT_BILLING_LOCKED", "message": "Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin."}` |
+| **429**     | -                       | Rate limit aşıldı (5 istek/15 dakika) | `{"statusCode": 429, "message": "Çok fazla giriş denemesi. Lütfen bir süre sonra tekrar deneyin."}`                                        |
 
 **Kaynak**: [backend/src/auth/auth.service.ts](../backend/src/auth/auth.service.ts#L63-L67)  
 **Kaynak**: [backend/src/common/constants/billing-messages.ts](../backend/src/common/constants/billing-messages.ts#L27-L29)
@@ -284,6 +290,7 @@ Mevcut kullanıcının detaylı bilgilerini + tenant billing durumu + default br
 **Rate Limit**: Yok
 
 **Headers**:
+
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
@@ -328,10 +335,10 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Hata Yanıtları**:
 
-| HTTP Status | Code                    | Durum                                      | Örnek Body                                                                                                                                  |
-| ----------- | ----------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **401**     | -                       | Token yok veya geçersiz                    | `{"statusCode": 401, "message": "Unauthorized"}`                                                                                           |
-| **403**     | `TENANT_BILLING_LOCKED` | SUSPENDED tenant                           | `{"statusCode": 403, "code": "TENANT_BILLING_LOCKED", "message": "Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin."}` |
+| HTTP Status | Code                    | Durum                   | Örnek Body                                                                                                                                 |
+| ----------- | ----------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **401**     | -                       | Token yok veya geçersiz | `{"statusCode": 401, "message": "Unauthorized"}`                                                                                           |
+| **403**     | `TENANT_BILLING_LOCKED` | SUSPENDED tenant        | `{"statusCode": 403, "code": "TENANT_BILLING_LOCKED", "message": "Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin."}` |
 
 **Kaynak**: [backend/src/auth/auth.service.ts](../backend/src/auth/auth.service.ts#L135-L141)
 
@@ -342,6 +349,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 #### Ayrı `/api/v1/billing/status` endpoint'i **YOK**.
 
 Billing durumu şu endpoint'lerde döner:
+
 - `POST /api/v1/auth/register` → `tenant.billingStatus` alanında
 - `POST /api/v1/auth/login` → `tenant.billingStatus` alanında
 - `GET /api/v1/auth/me` → `tenant.billingStatus` + `tenant.billingStatusUpdatedAt` alanlarında
@@ -356,25 +364,26 @@ Billing durumu şu endpoint'lerde döner:
 
 ### Trial Süresi
 
-| Parametre       | Değer                  |
-| --------------- | ---------------------- |
-| **Trial Süresi**  | 7 gün                  |
-| **Başlangıç**     | Kayıt anı (register)   |
-| **Bitiş**         | Kayıt + 7 gün          |
+| Parametre        | Değer                |
+| ---------------- | -------------------- |
+| **Trial Süresi** | 7 gün                |
+| **Başlangıç**    | Kayıt anı (register) |
+| **Bitiş**        | Kayıt + 7 gün        |
 
 **Kaynak**: [backend/src/auth/auth.service.ts](../backend/src/auth/auth.service.ts#L249-L252)
 
 ### Billing Status Değerleri
 
-| Billing Status | Açıklama                                | Giriş Yapabilir mi? | Yazma İşlemleri | Okuma İşlemleri |
-| -------------- | --------------------------------------- | ------------------- | --------------- | --------------- |
-| **TRIAL**        | Trial süresi aktif veya dolmamış        | ✅ Evet             | ✅ Evet (1)     | ✅ Evet         |
-| **TRIAL** (expired) | Trial süresi doldu                   | ✅ Evet             | ❌ **402** (2)  | ✅ Evet         |
-| **ACTIVE**       | Ödeme yapılmış, aktif kullanım          | ✅ Evet             | ✅ Evet         | ✅ Evet         |
-| **PAST_DUE**     | Ödeme gecikmiş (read-only mode)         | ✅ Evet             | ❌ **403** (3)  | ✅ Evet         |
-| **SUSPENDED**    | Hesap askıya alınmış (admin müdahalesi) | ❌ **403** (4)      | ❌ **403**      | ❌ **403**      |
+| Billing Status      | Açıklama                                | Giriş Yapabilir mi? | Yazma İşlemleri | Okuma İşlemleri |
+| ------------------- | --------------------------------------- | ------------------- | --------------- | --------------- |
+| **TRIAL**           | Trial süresi aktif veya dolmamış        | ✅ Evet             | ✅ Evet (1)     | ✅ Evet         |
+| **TRIAL** (expired) | Trial süresi doldu                      | ✅ Evet             | ❌ **402** (2)  | ✅ Evet         |
+| **ACTIVE**          | Ödeme yapılmış, aktif kullanım          | ✅ Evet             | ✅ Evet         | ✅ Evet         |
+| **PAST_DUE**        | Ödeme gecikmiş (read-only mode)         | ✅ Evet             | ❌ **403** (3)  | ✅ Evet         |
+| **SUSPENDED**       | Hesap askıya alınmış (admin müdahalesi) | ❌ **403** (4)      | ❌ **403**      | ❌ **403**      |
 
 **Notlar**:
+
 1. TRIAL aktifken (trialEndsAt > now): Tüm işlemler normal çalışır
 2. TRIAL dolduğunda (trialEndsAt < now): POST/PATCH/PUT/DELETE istekler **402 Payment Required** döner
 3. PAST_DUE: GET/HEAD/OPTIONS hariç tüm istekler **403 Forbidden** döner
@@ -387,6 +396,7 @@ Billing durumu şu endpoint'lerde döner:
 #### Backend Kontrolü
 
 Backend, her korumalı endpoint çağrısında **otomatik olarak** şunu kontrol eder:
+
 - Tenant'ın `billingStatus` değeri `TRIAL` mi?
 - `trialEndsAt` tarihi geçmiş mi? (`new Date() > tenant.trialEndsAt`)
 
@@ -607,6 +617,7 @@ Gelecekte `/api/v1/auth/refresh` endpoint'i eklendiğinde akış şöyle olacak:
 **JWT Token içindeki `tenantId` claim'den** gelir. Backend her istekte token'dan `tenantId`'yi okur ve otomatik olarak ilgili tenant'a ait verileri filtreler.
 
 **Mobil app'in yapması gerekenler**:
+
 - ❌ TenantId'yi request body veya header'da **GÖNDERMEYİN**
 - ✅ Sadece valid Bearer token gönderin, backend otomatik halleder
 
@@ -621,6 +632,7 @@ Gelecekte `/api/v1/auth/refresh` endpoint'i eklendiğinde akış şöyle olacak:
 **Gelecek implementasyon**: Bazı endpoint'lere branch filter'ı eklenecek (örn. `GET /api/v1/members?branchId=xxx`).
 
 **Mobil app'in yapması gerekenler**:
+
 - Register/login sonrası `branch.id` bilgisini saklayın (default branch)
 - Kullanıcıya branch seçimi yaptırın (eğer multi-branch kullanıyorsa)
 - İlgili endpoint'lerde `branchId` query parameter olarak gönderin (gelecekte)
@@ -650,7 +662,7 @@ func register(
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    
+
     let body: [String: Any] = [
         "tenantName": tenantName,
         "email": email,
@@ -661,13 +673,13 @@ func register(
         "branchAddress": branchAddress ?? ""
     ]
     request.httpBody = try JSONSerialization.data(withJSONObject: body)
-    
+
     let (data, response) = try await URLSession.shared.data(for: request)
-    
+
     guard let httpResponse = response as? HTTPURLResponse else {
         throw AuthError.invalidResponse
     }
-    
+
     // Handle status codes
     switch httpResponse.statusCode {
     case 201:
@@ -676,17 +688,17 @@ func register(
         try await KeychainHelper.save(token: authResponse.accessToken, forKey: "accessToken")
         try await KeychainHelper.save(token: authResponse.refreshToken, forKey: "refreshToken")
         return authResponse
-        
+
     case 400:
         let errorResponse = try JSONDecoder().decode(ErrorResponse.self, from: data)
         throw AuthError.validationError(errorResponse.message)
-        
+
     case 409:
         throw AuthError.emailAlreadyExists
-        
+
     case 429:
         throw AuthError.rateLimitExceeded
-        
+
     default:
         throw AuthError.unknownError(httpResponse.statusCode)
     }
@@ -702,20 +714,20 @@ func register(
 suspend fun login(email: String, password: String): AuthResponse {
     val client = OkHttpClient()
     val url = "$baseURL/api/v1/auth/login"
-    
+
     val json = JSONObject().apply {
         put("email", email)
         put("password", password)
     }
-    
+
     val requestBody = json.toString().toRequestBody("application/json".toMediaType())
     val request = Request.Builder()
         .url(url)
         .post(requestBody)
         .build()
-    
+
     val response = client.newCall(request).execute()
-    
+
     when (response.code) {
         200 -> {
             val authResponse = Gson().fromJson(response.body?.string(), AuthResponse::class.java)
@@ -752,45 +764,45 @@ func authenticatedRequest<T: Decodable>(
     guard let accessToken = try? await KeychainHelper.get(forKey: "accessToken") else {
         throw AuthError.notAuthenticated
     }
-    
+
     let url = URL(string: "\(baseURL)\(path)")!
     var request = URLRequest(url: url)
     request.httpMethod = method
     request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    
+
     if let body = body {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
     }
-    
+
     let (data, response) = try await URLSession.shared.data(for: request)
-    
+
     guard let httpResponse = response as? HTTPURLResponse else {
         throw NetworkError.invalidResponse
     }
-    
+
     switch httpResponse.statusCode {
     case 200...299:
         return try JSONDecoder().decode(T.self, from: data)
-        
+
     case 401:
         // Token expired or invalid
         try? await KeychainHelper.delete(forKey: "accessToken")
         try? await KeychainHelper.delete(forKey: "refreshToken")
         throw AuthError.tokenExpired
-        
+
     case 402:
         // Trial expired - allow reads, block writes
         let errorResponse = try? JSONDecoder().decode(BillingErrorResponse.self, from: data)
         throw BillingError.trialExpired(message: errorResponse?.message ?? "Trial expired")
-        
+
     case 403:
         let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data)
         if errorResponse?.code == "TENANT_BILLING_LOCKED" {
             throw BillingError.accountSuspended
         }
         throw NetworkError.forbidden
-        
+
     default:
         throw NetworkError.httpError(httpResponse.statusCode)
     }
@@ -810,22 +822,22 @@ fun handleApiError(statusCode: Int, errorBody: String?) {
             clearTokens()
             navigateToLogin()
         }
-        
+
         402 -> {
             // Trial expired → Show paywall + enable read-only mode
             val billingError = Gson().fromJson(errorBody, BillingErrorResponse::class.java)
-            
+
             // Show banner/dialog
             showBillingDialog(
                 title = "Deneme Süresi Doldu",
                 message = billingError.message,
                 trialEndsAt = billingError.trialEndsAt
             )
-            
+
             // Enable read-only mode (hide "Add" buttons, disable write actions)
             enableReadOnlyMode()
         }
-        
+
         403 -> {
             val errorResponse = Gson().fromJson(errorBody, ErrorResponse::class.java)
             if (errorResponse.code == "TENANT_BILLING_LOCKED") {
