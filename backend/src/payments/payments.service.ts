@@ -312,7 +312,7 @@ export class PaymentsService {
         member: true,
         branch: true,
         correctedPayment: true,
-        correctingPayment: true,
+        correctingPayments: true,
       },
     });
 
@@ -397,7 +397,7 @@ export class PaymentsService {
           member: true,
           branch: true,
           correctedPayment: true,
-          correctingPayment: true,
+          correctingPayments: true,
         },
       }),
       this.prisma.payment.count({ where }),
