@@ -26,6 +26,7 @@ describe('Dashboard E2E Tests', () => {
   let token1: string;
   let tenant2: any;
   let user2: any;
+  let token2: string;
   let plan1: any;
   let plan2: any;
 
@@ -360,6 +361,117 @@ describe('Dashboard E2E Tests', () => {
       await request(app.getHttpServer())
         .get('/api/v1/dashboard/monthly-members')
         .expect(401);
+    });
+
+    it('should include members created today in current month count (regression test)', async () => {
+      // This is a regression test for the timezone bug where members created
+      // "today" were not included in the current month count
+
+      // Create a new member today
+      const rightNow = new Date(); // Current moment
+      const nextMonth = new Date(rightNow);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+      const todayMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Today',
+          lastName: 'Member',
+          phone: `555-today-${Date.now()}`,
+          membershipPlanId: plan1.id,
+          membershipStartDate: rightNow,
+          membershipEndDate: nextMonth,
+          status: MemberStatus.ACTIVE,
+          createdAt: rightNow, // Created at this exact moment
+        },
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/monthly-members')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Find current month in response
+      const currentMonth = `${rightNow.getFullYear()}-${(rightNow.getMonth() + 1).toString().padStart(2, '0')}`;
+      const currentMonthData = response.body.find(
+        (item: any) => item.month === currentMonth,
+      );
+
+      expect(currentMonthData).toBeDefined();
+      expect(currentMonthData.newMembers).toBeGreaterThanOrEqual(1);
+
+      // Clean up
+      await prisma.member.delete({ where: { id: todayMember.id } });
+    });
+
+    it('should count members across different months correctly', async () => {
+      // Create members in past months for testing
+      const now = new Date();
+      const twoMonthsAgo = new Date(now);
+      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+      twoMonthsAgo.setDate(15);
+
+      const oneMonthAgo = new Date(now);
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      oneMonthAgo.setDate(15);
+
+      const endDate = new Date(now);
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      const member1 = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Past',
+          lastName: 'Member1',
+          phone: `555-past1-${Date.now()}`,
+          membershipPlanId: plan1.id,
+          membershipStartDate: twoMonthsAgo,
+          membershipEndDate: endDate,
+          status: MemberStatus.ACTIVE,
+          createdAt: twoMonthsAgo,
+        },
+      });
+
+      const member2 = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Past',
+          lastName: 'Member2',
+          phone: `555-past2-${Date.now()}`,
+          membershipPlanId: plan1.id,
+          membershipStartDate: oneMonthAgo,
+          membershipEndDate: endDate,
+          status: MemberStatus.ACTIVE,
+          createdAt: oneMonthAgo,
+        },
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/monthly-members?months=6')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Verify the months have correct counts
+      const twoMonthsAgoKey = `${twoMonthsAgo.getFullYear()}-${(twoMonthsAgo.getMonth() + 1).toString().padStart(2, '0')}`;
+      const oneMonthAgoKey = `${oneMonthAgo.getFullYear()}-${(oneMonthAgo.getMonth() + 1).toString().padStart(2, '0')}`;
+
+      const twoMonthsAgoData = response.body.find(
+        (item: any) => item.month === twoMonthsAgoKey,
+      );
+      const oneMonthAgoData = response.body.find(
+        (item: any) => item.month === oneMonthAgoKey,
+      );
+
+      expect(twoMonthsAgoData?.newMembers).toBeGreaterThanOrEqual(1);
+      expect(oneMonthAgoData?.newMembers).toBeGreaterThanOrEqual(1);
+
+      // Clean up
+      await prisma.member.deleteMany({
+        where: { id: { in: [member1.id, member2.id] } },
+      });
     });
   });
 });

@@ -170,20 +170,23 @@ export class DashboardService {
 
     const where = this.buildMemberWhere(tenantId, branchId);
 
-    // Calculate date range: from (today - N months) to today
-    const today = getTodayStart();
-    const startDate = new Date(today);
+    // Calculate date range for querying members
+    // Start: first day of the month N months ago
+    // End: current moment (to include members created today)
+    const now = new Date();
+    const startDate = new Date(now);
     startDate.setMonth(startDate.getMonth() - months);
     startDate.setDate(1); // First day of the month
     startDate.setHours(0, 0, 0, 0);
 
     // Get all members created in the date range
+    // Using 'lte: now' instead of 'lte: getTodayStart()' to include members created today
     const members = await this.prisma.member.findMany({
       where: {
         ...where,
         createdAt: {
           gte: startDate,
-          lte: today,
+          lte: now, // Include members created up to this moment
         },
       },
       select: {
@@ -196,8 +199,9 @@ export class DashboardService {
     const monthCounts = new Map<string, number>();
 
     // Initialize all months with zero counts
+    // Use current date (not getTodayStart) to get correct current month
     for (let i = 0; i < months; i++) {
-      const date = new Date(today);
+      const date = new Date(now);
       date.setMonth(date.getMonth() - i);
       const month = date.getMonth() + 1;
       const monthKey = `${date.getFullYear()}-${month.toString().padStart(2, '0')}`;
@@ -215,7 +219,7 @@ export class DashboardService {
 
     // Convert map to array and sort by month (oldest first)
     for (let i = months - 1; i >= 0; i--) {
-      const date = new Date(today);
+      const date = new Date(now);
       date.setMonth(date.getMonth() - i);
       const month = date.getMonth() + 1;
       const monthKey = `${date.getFullYear()}-${month.toString().padStart(2, '0')}`;

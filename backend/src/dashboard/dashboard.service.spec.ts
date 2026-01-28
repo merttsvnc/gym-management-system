@@ -344,5 +344,32 @@ describe('DashboardService', () => {
 
       expect(result[0].month).toMatch(/^\d{4}-\d{2}$/);
     });
+
+    it('should include members created on current day (regression test for timezone bug)', async () => {
+      // This test ensures that members created "today" are counted correctly
+      // Previously, using getTodayStart() as upper bound excluded members created
+      // after midnight in UTC when running in non-UTC timezones
+
+      const now = new Date(); // 2024-06-15T10:00:00Z (from fake timers)
+      const mockMembers = [
+        { createdAt: new Date('2024-06-15T08:00:00Z') }, // Same day, before "now"
+        { createdAt: new Date('2024-06-15T09:59:59Z') }, // Same day, just before "now"
+      ];
+
+      mockPrismaService.member.findMany.mockResolvedValue(mockMembers);
+
+      const result = await service.getMonthlyMembers(tenantId, undefined, 6);
+
+      // Both members should be counted in June
+      const juneData = result.find((r) => r.month === '2024-06');
+      expect(juneData?.newMembers).toBe(2);
+
+      // Verify query uses 'now' as upper bound, not start of today
+      const findManyCall = mockPrismaService.member.findMany.mock.calls[0][0];
+      expect(findManyCall.where.createdAt.lte).toBeInstanceOf(Date);
+      // The lte value should be close to now (within a few seconds)
+      const lteDate = findManyCall.where.createdAt.lte as Date;
+      expect(Math.abs(lteDate.getTime() - now.getTime())).toBeLessThan(1000);
+    });
   });
 });
