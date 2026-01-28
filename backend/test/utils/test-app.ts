@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AppModule } from '../../src/app.module';
 import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
 
@@ -13,6 +14,8 @@ export async function createTestApp(): Promise<INestApplication> {
   })
     .overrideProvider('THROTTLER_OPTIONS')
     .useValue({ throttlers: [] }) // Disable throttler for tests
+    .overrideGuard(ThrottlerGuard)
+    .useValue({ canActivate: () => true }) // Bypass throttler guard
     .compile();
 
   const app = moduleFixture.createNestApplication();

@@ -58,6 +58,12 @@ describe('Auth: /auth/register (e2e)', () => {
         name: registerData.tenantName,
         billingStatus: 'TRIAL',
       });
+      // Verify branch info is included in response
+      expect(response.body.branch).toBeTruthy();
+      expect(response.body.branch).toMatchObject({
+        name: registerData.branchName,
+        isDefault: true,
+      });
       expect(typeof response.body.accessToken).toBe('string');
       expect(response.body.accessToken.length).toBeGreaterThan(0);
 

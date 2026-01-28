@@ -17,6 +17,7 @@ import {
   BILLING_ERROR_MESSAGES,
 } from '../common/constants/billing-messages';
 import { RegisterDto } from './dto/register.dto';
+import { PLAN_CONFIG } from '../plan/plan.config';
 
 @Injectable()
 export class AuthService {
@@ -108,7 +109,7 @@ export class AuthService {
   }
 
   /**
-   * Get current user information including tenant billing status
+   * Get current user information including tenant billing status and default branch
    */
   async getCurrentUser(userId: string, tenantId: string) {
     const user = await this.usersRepository.findById(userId);
@@ -124,6 +125,7 @@ export class AuthService {
         name: true,
         billingStatus: true,
         billingStatusUpdatedAt: true,
+        planKey: true,
       },
     });
 
@@ -139,6 +141,22 @@ export class AuthService {
       });
     }
 
+    // Get default branch
+    const defaultBranch = await this.prisma.branch.findFirst({
+      where: {
+        tenantId,
+        isDefault: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        isDefault: true,
+      },
+    });
+
+    // Get plan limits from config
+    const planConfig = PLAN_CONFIG[tenant.planKey as keyof typeof PLAN_CONFIG];
+
     return {
       user: {
         id: user.id,
@@ -153,7 +171,10 @@ export class AuthService {
         name: tenant.name,
         billingStatus: tenant.billingStatus,
         billingStatusUpdatedAt: tenant.billingStatusUpdatedAt,
+        planKey: tenant.planKey,
       },
+      branch: defaultBranch || null,
+      planLimits: planConfig,
     };
   }
 
@@ -306,7 +327,7 @@ export class AuthService {
         expiresIn: refreshExpiresIn,
       });
 
-      // Return same format as login
+      // Return same format as login, plus branch info
       return {
         accessToken,
         refreshToken,
@@ -320,6 +341,11 @@ export class AuthService {
           id: tenantWithBilling.id,
           name: tenantWithBilling.name,
           billingStatus: tenantWithBilling.billingStatus,
+        },
+        branch: {
+          id: branch.id,
+          name: branch.name,
+          isDefault: branch.isDefault,
         },
       };
     });

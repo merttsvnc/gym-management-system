@@ -61,12 +61,20 @@ export class BillingStatusGuard implements CanActivate {
     }>();
     const user = request.user;
 
+    // DEBUG: Log guard execution
+    this.logger.log(
+      `BillingStatusGuard.canActivate() called: ${request.method} ${request.url}, user: ${JSON.stringify(user)}`,
+    );
+
     // Skip billing check if user is not authenticated
     // This allows unauthenticated routes to pass through
     // JwtAuthGuard will handle authentication for protected routes
     if (!user || !user.tenantId) {
       // User not authenticated yet - skip billing check
       // This is expected for routes that don't have JwtAuthGuard
+      this.logger.log(
+        `BillingStatusGuard: Skipping check - no user or tenantId`,
+      );
       return true;
     }
 
@@ -193,8 +201,8 @@ export class BillingStatusGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      // Re-throw ForbiddenException (already formatted)
-      if (error instanceof ForbiddenException) {
+      // Re-throw HttpException (includes ForbiddenException, payment required, etc.)
+      if (error instanceof HttpException) {
         throw error;
       }
 

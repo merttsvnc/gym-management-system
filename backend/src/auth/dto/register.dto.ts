@@ -6,6 +6,7 @@ import {
   Matches,
   IsOptional,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class RegisterDto {
   @IsString()
@@ -13,6 +14,7 @@ export class RegisterDto {
   @MaxLength(100)
   tenantName: string;
 
+  @Transform(({ value }) => value?.trim().toLowerCase())
   @IsEmail()
   email: string;
 

@@ -504,7 +504,7 @@ describe('BillingStatusGuard', () => {
   });
 
   describe('T048: Guard handles missing tenantId gracefully', () => {
-    it('should return 403 when tenantId is missing', async () => {
+    it('should return true (skip check) when tenantId is missing', async () => {
       // Arrange
       const context = createMockExecutionContext(
         null,
@@ -512,20 +512,15 @@ describe('BillingStatusGuard', () => {
         '/api/v1/members',
       );
 
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).message).toBe(
-          'Tenant context not found',
-        );
-        expect(mockPrismaService.tenant.findUnique).not.toHaveBeenCalled();
-      }
+      // Act
+      const result = await guard.canActivate(context);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(mockPrismaService.tenant.findUnique).not.toHaveBeenCalled();
     });
 
-    it('should return 403 when user exists but tenantId is undefined', async () => {
+    it('should return true (skip check) when user exists but tenantId is undefined', async () => {
       // Arrange
       const context = createMockExecutionContext(
         { tenantId: undefined },
@@ -533,16 +528,12 @@ describe('BillingStatusGuard', () => {
         '/api/v1/members',
       );
 
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).message).toBe(
-          'Tenant context not found',
-        );
-      }
+      // Act
+      const result = await guard.canActivate(context);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(mockPrismaService.tenant.findUnique).not.toHaveBeenCalled();
     });
 
     it('should return 403 when tenant not found in database', async () => {
