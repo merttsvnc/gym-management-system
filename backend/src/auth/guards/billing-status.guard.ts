@@ -4,6 +4,8 @@ import {
   ExecutionContext,
   ForbiddenException,
   Logger,
+  HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -73,10 +75,13 @@ export class BillingStatusGuard implements CanActivate {
     const path: string = request.url;
 
     try {
-      // Query Tenant table to fetch billingStatus
+      // Query Tenant table to fetch billingStatus and trial dates
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: tenantId },
-        select: { billingStatus: true },
+        select: {
+          billingStatus: true,
+          trialEndsAt: true,
+        },
       });
 
       if (!tenant) {
@@ -97,6 +102,44 @@ export class BillingStatusGuard implements CanActivate {
       }
 
       const billingStatus: BillingStatus = tenant.billingStatus;
+
+      // Check for expired trial (TRIAL status with trialEndsAt in the past)
+      if (
+        billingStatus === BillingStatus.TRIAL &&
+        tenant.trialEndsAt &&
+        new Date() > tenant.trialEndsAt
+      ) {
+        // Trial expired: Allow read operations, block write operations
+        const isReadOperation = ['GET', 'HEAD', 'OPTIONS'].includes(method);
+
+        if (!isReadOperation) {
+          // Block write operations with 402 Payment Required
+          const executionTime = Date.now() - startTime;
+          this.logger.warn(
+            `Trial expired: write operation blocked, tenantId: ${tenantId}, method: ${method}, path: ${path}, executionTime: ${executionTime}ms`,
+          );
+
+          throw new HttpException(
+            {
+              code: 'TRIAL_EXPIRED',
+              message:
+                'Deneme süreniz dolmuştur. Devam etmek için lütfen ödeme yapın.',
+              trialEndsAt: tenant.trialEndsAt.toISOString(),
+            },
+            HttpStatus.PAYMENT_REQUIRED, // 402
+          );
+        }
+
+        // Allow read operations even when trial expired
+        const executionTime = Date.now() - startTime;
+        if (executionTime > this.EXECUTION_TIME_WARN_THRESHOLD_MS) {
+          this.logger.warn(
+            `BillingStatusGuard execution time exceeded threshold: ${executionTime}ms, tenantId: ${tenantId}, path: ${path}`,
+          );
+        }
+
+        return true;
+      }
 
       // Check billing status and enforce access rules
       if (billingStatus === BillingStatus.SUSPENDED) {

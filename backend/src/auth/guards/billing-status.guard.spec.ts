@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { BillingStatusGuard } from './billing-status.guard';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -82,6 +87,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.ACTIVE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -91,7 +97,7 @@ describe('BillingStatusGuard', () => {
       expect(result).toBe(true);
       expect(mockPrismaService.tenant.findUnique).toHaveBeenCalledWith({
         where: { id: tenantId },
-        select: { billingStatus: true },
+        select: { billingStatus: true, trialEndsAt: true },
       });
     });
 
@@ -106,6 +112,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.ACTIVE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -126,6 +133,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.ACTIVE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -146,6 +154,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.ACTIVE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -168,6 +177,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: null, // Active trial (not expired)
       });
 
       // Act
@@ -188,6 +198,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: null, // Active trial (not expired)
       });
 
       // Act
@@ -210,6 +221,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -240,6 +252,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -266,6 +279,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -292,6 +306,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -313,6 +328,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -333,6 +349,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -353,6 +370,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -375,6 +393,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.SUSPENDED,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -401,6 +420,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.SUSPENDED,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -427,6 +447,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.SUSPENDED,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -446,6 +467,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.SUSPENDED,
+        trialEndsAt: null,
       });
 
       // Act & Assert
@@ -467,6 +489,7 @@ describe('BillingStatusGuard', () => {
 
       mockPrismaService.tenant.findUnique.mockResolvedValue({
         billingStatus: BillingStatus.ACTIVE,
+        trialEndsAt: null,
       });
 
       // Act
@@ -475,7 +498,7 @@ describe('BillingStatusGuard', () => {
       // Assert
       expect(mockPrismaService.tenant.findUnique).toHaveBeenCalledWith({
         where: { id: tenantId },
-        select: { billingStatus: true },
+        select: { billingStatus: true, trialEndsAt: true },
       });
     });
   });
@@ -590,6 +613,190 @@ describe('BillingStatusGuard', () => {
         expect(error).toBeInstanceOf(ForbiddenException);
         expect((error as ForbiddenException).message).toBe('Access denied');
       }
+    });
+  });
+
+  describe('T045: Guard handles expired TRIAL tenant', () => {
+    it('should allow GET request for expired TRIAL tenant', async () => {
+      // Arrange
+      const tenantId = 'tenant-123';
+      const context = createMockExecutionContext(
+        { tenantId },
+        'GET',
+        '/api/v1/members',
+      );
+
+      const expiredDate = new Date();
+      expiredDate.setDate(expiredDate.getDate() - 1); // Yesterday
+
+      mockPrismaService.tenant.findUnique.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: expiredDate,
+      });
+
+      // Act
+      const result = await guard.canActivate(context);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(mockPrismaService.tenant.findUnique).toHaveBeenCalledWith({
+        where: { id: tenantId },
+        select: { billingStatus: true, trialEndsAt: true },
+      });
+    });
+
+    it('should block POST request for expired TRIAL tenant with 402', async () => {
+      // Arrange
+      const tenantId = 'tenant-123';
+      const context = createMockExecutionContext(
+        { tenantId },
+        'POST',
+        '/api/v1/members',
+      );
+
+      const expiredDate = new Date();
+      expiredDate.setDate(expiredDate.getDate() - 1); // Yesterday
+
+      mockPrismaService.tenant.findUnique.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: expiredDate,
+      });
+
+      // Act & Assert
+      try {
+        await guard.canActivate(context);
+        fail('Should have thrown HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED); // 402
+        const response = httpError.getResponse() as {
+          code: string;
+          message: string;
+          trialEndsAt: string;
+        };
+        expect(response.code).toBe('TRIAL_EXPIRED');
+        expect(response.message).toContain('Deneme süreniz dolmuştur');
+        expect(response.trialEndsAt).toBe(expiredDate.toISOString());
+      }
+    });
+
+    it('should block PATCH request for expired TRIAL tenant with 402', async () => {
+      // Arrange
+      const tenantId = 'tenant-123';
+      const context = createMockExecutionContext(
+        { tenantId },
+        'PATCH',
+        '/api/v1/members/123',
+      );
+
+      const expiredDate = new Date();
+      expiredDate.setDate(expiredDate.getDate() - 1); // Yesterday
+
+      mockPrismaService.tenant.findUnique.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: expiredDate,
+      });
+
+      // Act & Assert
+      try {
+        await guard.canActivate(context);
+        fail('Should have thrown HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED); // 402
+      }
+    });
+
+    it('should allow GET request for TRIAL tenant when trialEndsAt is null', async () => {
+      // Arrange
+      const tenantId = 'tenant-123';
+      const context = createMockExecutionContext(
+        { tenantId },
+        'GET',
+        '/api/v1/members',
+      );
+
+      mockPrismaService.tenant.findUnique.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: null, // No trial end date
+      });
+
+      // Act
+      const result = await guard.canActivate(context);
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it('should allow POST request for TRIAL tenant when trialEndsAt is null', async () => {
+      // Arrange
+      const tenantId = 'tenant-123';
+      const context = createMockExecutionContext(
+        { tenantId },
+        'POST',
+        '/api/v1/members',
+      );
+
+      mockPrismaService.tenant.findUnique.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: null, // No trial end date
+      });
+
+      // Act
+      const result = await guard.canActivate(context);
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it('should allow GET request for TRIAL tenant when trialEndsAt is in the future', async () => {
+      // Arrange
+      const tenantId = 'tenant-123';
+      const context = createMockExecutionContext(
+        { tenantId },
+        'GET',
+        '/api/v1/members',
+      );
+
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 7); // 7 days from now
+
+      mockPrismaService.tenant.findUnique.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: futureDate,
+      });
+
+      // Act
+      const result = await guard.canActivate(context);
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it('should allow POST request for TRIAL tenant when trialEndsAt is in the future', async () => {
+      // Arrange
+      const tenantId = 'tenant-123';
+      const context = createMockExecutionContext(
+        { tenantId },
+        'POST',
+        '/api/v1/members',
+      );
+
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 7); // 7 days from now
+
+      mockPrismaService.tenant.findUnique.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: futureDate,
+      });
+
+      // Act
+      const result = await guard.canActivate(context);
+
+      // Assert
+      expect(result).toBe(true);
     });
   });
 });

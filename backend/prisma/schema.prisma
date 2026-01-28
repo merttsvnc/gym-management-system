@@ -82,6 +82,8 @@ model Tenant {
   planKey                PlanKey       @default(SINGLE)
   billingStatus          BillingStatus @default(TRIAL)
   billingStatusUpdatedAt DateTime?
+  trialStartedAt        DateTime?
+  trialEndsAt           DateTime?
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 

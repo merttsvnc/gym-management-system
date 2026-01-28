@@ -14,6 +14,7 @@ import {
 } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { SkipBillingStatusCheck } from './decorators/skip-billing-status-check.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthUser } from './types/auth-user.type';
@@ -53,6 +54,24 @@ export class AuthController {
       if (error instanceof ThrottlerException) {
         this.logger.warn(
           `Rate limit exceeded for login attempt: ${loginDto.email}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  @Post('register')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 3600000 } }) // 3 attempts per hour (3600000ms)
+  @UseFilters(ThrottlerExceptionFilter)
+  async register(@Body() registerDto: RegisterDto) {
+    try {
+      return await this.authService.register(registerDto);
+    } catch (error) {
+      // Log rate limit hits (handled by throttler guard)
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(
+          `Rate limit exceeded for registration attempt: ${registerDto.email}`,
         );
       }
       throw error;
