@@ -478,5 +478,198 @@ describe('Dashboard E2E Tests', () => {
         where: { id: { in: [member1.id, member2.id] } },
       });
     });
+
+    // REGRESSION TESTS for timezone edge cases (BUGFIX 2026-01-28)
+    describe('Timezone boundary handling', () => {
+      it('should handle UTC midnight correctly (start of month)', async () => {
+        // Create member at UTC midnight on first day of current month
+        const now = new Date();
+        const utcMidnight = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+        );
+        const endDate = new Date(utcMidnight);
+        endDate.setMonth(endDate.getMonth() + 1);
+
+        const member = await prisma.member.create({
+          data: {
+            tenantId: tenant1.id,
+            branchId: branch1.id,
+            firstName: 'UTC',
+            lastName: 'Midnight',
+            phone: `555-utc-midnight-${Date.now()}`,
+            membershipPlanId: plan1.id,
+            membershipStartDate: utcMidnight,
+            membershipEndDate: endDate,
+            status: MemberStatus.ACTIVE,
+            createdAt: utcMidnight,
+          },
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/dashboard/monthly-members')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        // Should be counted in the current month (UTC)
+        const currentMonthKey = `${utcMidnight.getUTCFullYear()}-${(utcMidnight.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+        const currentMonthData = response.body.find(
+          (item: { month: string; newMembers: number }) =>
+            item.month === currentMonthKey,
+        );
+
+        expect(currentMonthData).toBeDefined();
+        expect(currentMonthData?.newMembers).toBeGreaterThanOrEqual(1);
+
+        // Clean up
+        await prisma.member.delete({ where: { id: member.id } });
+      });
+
+      it('should handle UTC near-midnight correctly (end of month)', async () => {
+        // Create member at 23:59:59 UTC on last day of previous month
+        const now = new Date();
+        const lastMonthEnd = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999),
+        );
+        const endDate = new Date(lastMonthEnd);
+        endDate.setMonth(endDate.getMonth() + 1);
+
+        const member = await prisma.member.create({
+          data: {
+            tenantId: tenant1.id,
+            branchId: branch1.id,
+            firstName: 'Near',
+            lastName: 'Midnight',
+            phone: `555-near-midnight-${Date.now()}`,
+            membershipPlanId: plan1.id,
+            membershipStartDate: lastMonthEnd,
+            membershipEndDate: endDate,
+            status: MemberStatus.ACTIVE,
+            createdAt: lastMonthEnd,
+          },
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/dashboard/monthly-members?months=12')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        // Should be counted in the previous month (UTC), not current month
+        const lastMonthKey = `${lastMonthEnd.getUTCFullYear()}-${(lastMonthEnd.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+        const lastMonthData = response.body.find(
+          (item: { month: string; newMembers: number }) =>
+            item.month === lastMonthKey,
+        );
+
+        expect(lastMonthData).toBeDefined();
+        expect(lastMonthData?.newMembers).toBeGreaterThanOrEqual(1);
+
+        // Clean up
+        await prisma.member.delete({ where: { id: member.id } });
+      });
+
+      it('should aggregate consistently regardless of server timezone', async () => {
+        // Create members at various times across a month boundary
+        const now = new Date();
+        const times = [
+          // Last day of previous month, various hours UTC
+          new Date(
+            Date.UTC(
+              now.getUTCFullYear(),
+              now.getUTCMonth(),
+              0,
+              0,
+              0,
+              0,
+              0,
+            ),
+          ), // 00:00 UTC
+          new Date(
+            Date.UTC(
+              now.getUTCFullYear(),
+              now.getUTCMonth(),
+              0,
+              12,
+              0,
+              0,
+              0,
+            ),
+          ), // 12:00 UTC
+          new Date(
+            Date.UTC(
+              now.getUTCFullYear(),
+              now.getUTCMonth(),
+              0,
+              23,
+              59,
+              59,
+              999,
+            ),
+          ), // 23:59 UTC
+          // First day of current month
+          new Date(
+            Date.UTC(
+              now.getUTCFullYear(),
+              now.getUTCMonth(),
+              1,
+              0,
+              0,
+              0,
+              0,
+            ),
+          ), // 00:00 UTC
+        ];
+
+        const memberIds: string[] = [];
+        for (let i = 0; i < times.length; i++) {
+          const time = times[i];
+          const endDate = new Date(time);
+          endDate.setMonth(endDate.getMonth() + 1);
+
+          const member = await prisma.member.create({
+            data: {
+              tenantId: tenant1.id,
+              branchId: branch1.id,
+              firstName: 'Boundary',
+              lastName: `Test${i}`,
+              phone: `555-boundary-${Date.now()}-${i}`,
+              membershipPlanId: plan1.id,
+              membershipStartDate: time,
+              membershipEndDate: endDate,
+              status: MemberStatus.ACTIVE,
+              createdAt: time,
+            },
+          });
+          memberIds.push(member.id);
+        }
+
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/dashboard/monthly-members?months=12')
+          .set('Authorization', `Bearer ${token1}`)
+          .expect(200);
+
+        // Last month should have 3 members (indexes 0, 1, 2)
+        const lastMonthKey = `${times[0].getUTCFullYear()}-${(times[0].getUTCMonth() + 1).toString().padStart(2, '0')}`;
+        const lastMonthData = response.body.find(
+          (item: { month: string; newMembers: number }) =>
+            item.month === lastMonthKey,
+        );
+
+        // Current month should have 1 member (index 3)
+        const currentMonthKey = `${times[3].getUTCFullYear()}-${(times[3].getUTCMonth() + 1).toString().padStart(2, '0')}`;
+        const currentMonthData = response.body.find(
+          (item: { month: string; newMembers: number }) =>
+            item.month === currentMonthKey,
+        );
+
+        // Verify counts are based on UTC month, not server local time
+        expect(lastMonthData?.newMembers).toBeGreaterThanOrEqual(3);
+        expect(currentMonthData?.newMembers).toBeGreaterThanOrEqual(1);
+
+        // Clean up
+        await prisma.member.deleteMany({
+          where: { id: { in: memberIds } },
+        });
+      });
+    });
   });
 });

@@ -155,6 +155,11 @@ export class DashboardService {
   /**
    * Get monthly new members count
    * Returns last N months (default 6, max 12) with zero months included
+   * 
+   * BUGFIX 2026-01-28: Use UTC consistently to avoid timezone-related aggregation bugs
+   * - All date calculations use UTC methods (getUTCFullYear, getUTCMonth, etc.)
+   * - Month keys are generated using UTC to match PostgreSQL's stored timestamps
+   * - Prevents key mismatch between fill logic and count logic due to timezone conversions
    */
   async getMonthlyMembers(
     tenantId: string,
@@ -170,23 +175,30 @@ export class DashboardService {
 
     const where = this.buildMemberWhere(tenantId, branchId);
 
-    // Calculate date range for querying members
-    // Start: first day of the month N months ago
-    // End: current moment (to include members created today)
+    // Calculate date range using UTC to avoid timezone bugs
+    // Start: first day of the month (months - 1) ago (to include current month)
+    // End: current moment in UTC
     const now = new Date();
-    const startDate = new Date(now);
-    startDate.setMonth(startDate.getMonth() - months);
-    startDate.setDate(1); // First day of the month
-    startDate.setHours(0, 0, 0, 0);
+    
+    // Create start date: first day of month (months - 1) ago in UTC
+    // E.g., for months=6 on 2026-01-28: start = 2025-08-01 (Aug, Sep, Oct, Nov, Dec, Jan = 6 months)
+    const startDate = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth() - (months - 1),
+      1,
+      0, 0, 0, 0
+    ));
+
+    // End date: current moment (include all members created up to now)
+    const endDate = new Date();
 
     // Get all members created in the date range
-    // Using 'lte: now' instead of 'lte: getTodayStart()' to include members created today
     const members = await this.prisma.member.findMany({
       where: {
         ...where,
         createdAt: {
           gte: startDate,
-          lte: now, // Include members created up to this moment
+          lte: endDate,
         },
       },
       select: {
@@ -195,34 +207,38 @@ export class DashboardService {
     });
 
     // Initialize result array with all months (including zeros)
-    const result: MonthlyMembersItemDto[] = [];
     const monthCounts = new Map<string, number>();
 
-    // Initialize all months with zero counts
-    // Use current date (not getTodayStart) to get correct current month
+    // Initialize all months with zero counts using UTC
     for (let i = 0; i < months; i++) {
-      const date = new Date(now);
-      date.setMonth(date.getMonth() - i);
-      const month = date.getMonth() + 1;
-      const monthKey = `${date.getFullYear()}-${month.toString().padStart(2, '0')}`;
+      // Calculate month offset in UTC
+      const targetDate = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth() - i,
+        1
+      ));
+      const monthKey = `${targetDate.getUTCFullYear()}-${(targetDate.getUTCMonth() + 1).toString().padStart(2, '0')}`;
       monthCounts.set(monthKey, 0);
     }
 
-    // Count members per month
+    // Count members per month using UTC to generate keys
     for (const member of members) {
-      const memberDate = new Date(member.createdAt);
-      const month = memberDate.getMonth() + 1;
-      const monthKey = `${memberDate.getFullYear()}-${month.toString().padStart(2, '0')}`;
+      const createdAt = new Date(member.createdAt);
+      // Use UTC methods to avoid timezone conversion bugs
+      const monthKey = `${createdAt.getUTCFullYear()}-${(createdAt.getUTCMonth() + 1).toString().padStart(2, '0')}`;
       const currentCount = monthCounts.get(monthKey) || 0;
       monthCounts.set(monthKey, currentCount + 1);
     }
 
     // Convert map to array and sort by month (oldest first)
+    const result: MonthlyMembersItemDto[] = [];
     for (let i = months - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setMonth(date.getMonth() - i);
-      const month = date.getMonth() + 1;
-      const monthKey = `${date.getFullYear()}-${month.toString().padStart(2, '0')}`;
+      const targetDate = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth() - i,
+        1
+      ));
+      const monthKey = `${targetDate.getUTCFullYear()}-${(targetDate.getUTCMonth() + 1).toString().padStart(2, '0')}`;
       result.push({
         month: monthKey,
         newMembers: monthCounts.get(monthKey) || 0,
