@@ -573,26 +573,10 @@ describe('Dashboard E2E Tests', () => {
         const times = [
           // Last day of previous month, various hours UTC
           new Date(
-            Date.UTC(
-              now.getUTCFullYear(),
-              now.getUTCMonth(),
-              0,
-              0,
-              0,
-              0,
-              0,
-            ),
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 0, 0, 0, 0),
           ), // 00:00 UTC
           new Date(
-            Date.UTC(
-              now.getUTCFullYear(),
-              now.getUTCMonth(),
-              0,
-              12,
-              0,
-              0,
-              0,
-            ),
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 12, 0, 0, 0),
           ), // 12:00 UTC
           new Date(
             Date.UTC(
@@ -607,15 +591,7 @@ describe('Dashboard E2E Tests', () => {
           ), // 23:59 UTC
           // First day of current month
           new Date(
-            Date.UTC(
-              now.getUTCFullYear(),
-              now.getUTCMonth(),
-              1,
-              0,
-              0,
-              0,
-              0,
-            ),
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
           ), // 00:00 UTC
         ];
 

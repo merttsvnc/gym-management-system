@@ -155,7 +155,7 @@ export class DashboardService {
   /**
    * Get monthly new members count
    * Returns last N months (default 6, max 12) with zero months included
-   * 
+   *
    * BUGFIX 2026-01-28: Use UTC consistently to avoid timezone-related aggregation bugs
    * - All date calculations use UTC methods (getUTCFullYear, getUTCMonth, etc.)
    * - Month keys are generated using UTC to match PostgreSQL's stored timestamps
@@ -179,15 +179,20 @@ export class DashboardService {
     // Start: first day of the month (months - 1) ago (to include current month)
     // End: current moment in UTC
     const now = new Date();
-    
+
     // Create start date: first day of month (months - 1) ago in UTC
     // E.g., for months=6 on 2026-01-28: start = 2025-08-01 (Aug, Sep, Oct, Nov, Dec, Jan = 6 months)
-    const startDate = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth() - (months - 1),
-      1,
-      0, 0, 0, 0
-    ));
+    const startDate = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth() - (months - 1),
+        1,
+        0,
+        0,
+        0,
+        0,
+      ),
+    );
 
     // End date: current moment (include all members created up to now)
     const endDate = new Date();
@@ -212,11 +217,9 @@ export class DashboardService {
     // Initialize all months with zero counts using UTC
     for (let i = 0; i < months; i++) {
       // Calculate month offset in UTC
-      const targetDate = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth() - i,
-        1
-      ));
+      const targetDate = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1),
+      );
       const monthKey = `${targetDate.getUTCFullYear()}-${(targetDate.getUTCMonth() + 1).toString().padStart(2, '0')}`;
       monthCounts.set(monthKey, 0);
     }
@@ -233,11 +236,9 @@ export class DashboardService {
     // Convert map to array and sort by month (oldest first)
     const result: MonthlyMembersItemDto[] = [];
     for (let i = months - 1; i >= 0; i--) {
-      const targetDate = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth() - i,
-        1
-      ));
+      const targetDate = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1),
+      );
       const monthKey = `${targetDate.getUTCFullYear()}-${(targetDate.getUTCMonth() + 1).toString().padStart(2, '0')}`;
       result.push({
         month: monthKey,
