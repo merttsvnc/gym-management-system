@@ -33,7 +33,15 @@ export class LocalDiskStorageService implements StorageService {
     }
   }
 
-  async upload(buffer: Buffer, key: string, contentType: string): Promise<string> {
+  async upload(
+    buffer: Buffer,
+    key: string,
+    contentType: string,
+  ): Promise<string> {
+    this.logger.log(
+      `🟡 LocalDiskStorageService.upload() called for key: ${key}`,
+    );
+
     const filePath = path.join(this.uploadDir, key);
 
     // Ensure parent directories exist
@@ -42,10 +50,11 @@ export class LocalDiskStorageService implements StorageService {
 
     try {
       await fs.writeFile(filePath, buffer);
-      this.logger.debug(`File saved locally: ${filePath}`);
+      this.logger.log(`💾 File saved locally: ${filePath}`);
 
       // Return public URL (relative path for local dev)
       const publicUrl = `${this.publicBaseUrl}/${key}`;
+      this.logger.log(`🌐 Local URL: ${publicUrl}`);
       return publicUrl;
     } catch (error) {
       this.logger.error(`Failed to save file ${key}:`, error);
