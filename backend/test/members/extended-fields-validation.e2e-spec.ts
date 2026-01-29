@@ -125,7 +125,10 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('Medeni durum');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('Medeni durum');
     });
 
     it('should accept valid blood type enum values', async () => {
@@ -173,7 +176,10 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('Kan grubu');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('Kan grubu');
     });
 
     it('should reject address longer than 500 characters', async () => {
@@ -190,8 +196,11 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('Adres');
-      expect(response.body.message).toContain('500');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('Adres');
+      expect(message).toContain('500');
     });
 
     it('should reject district longer than 100 characters', async () => {
@@ -208,8 +217,11 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('İlçe');
-      expect(response.body.message).toContain('100');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('İlçe');
+      expect(message).toContain('100');
     });
 
     it('should reject nationalId longer than 20 characters', async () => {
@@ -226,8 +238,11 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('TC Kimlik No');
-      expect(response.body.message).toContain('20');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('TC Kimlik No');
+      expect(message).toContain('20');
     });
 
     it('should reject occupation longer than 100 characters', async () => {
@@ -244,8 +259,11 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('Meslek');
-      expect(response.body.message).toContain('100');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('Meslek');
+      expect(message).toContain('100');
     });
 
     it('should reject industry longer than 100 characters', async () => {
@@ -262,8 +280,11 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('Sektör');
-      expect(response.body.message).toContain('100');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('Sektör');
+      expect(message).toContain('100');
     });
 
     it('should reject emergencyContactName longer than 100 characters', async () => {
@@ -280,8 +301,11 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('Acil durum kişi adı');
-      expect(response.body.message).toContain('100');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message).toContain('Acil durum kişi adı');
+      expect(message).toContain('100');
     });
 
     it('should reject invalid emergencyContactPhone format', async () => {
@@ -298,7 +322,10 @@ describe('Members Extended Fields Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toContain('Acil durum telefon');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message.join(' ')
+        : response.body.message;
+      expect(message.toLowerCase()).toContain('acil durum telefon');
     });
 
     it('should accept valid emergencyContactPhone (E.164 format)', async () => {

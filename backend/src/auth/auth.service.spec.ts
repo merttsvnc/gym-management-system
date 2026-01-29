@@ -34,6 +34,9 @@ describe('AuthService', () => {
     tenant: {
       findUnique: jest.fn(),
     },
+    branch: {
+      findFirst: jest.fn(),
+    },
   };
 
   beforeEach(async () => {

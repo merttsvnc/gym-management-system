@@ -89,6 +89,8 @@ describe('Billing Status E2E Tests', () => {
           gender: 'MALE',
           birthDate: '1990-01-01',
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
+          membershipPlanId: membershipPlan.id,
         });
 
       expect(response.status).toBe(403);
@@ -109,6 +111,7 @@ describe('Billing Status E2E Tests', () => {
         data: {
           tenantId: pastDueTenant.id,
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           membershipPlanId: membershipPlan.id,
           firstName: 'Jane',
           lastName: 'Doe',
@@ -141,6 +144,7 @@ describe('Billing Status E2E Tests', () => {
         data: {
           tenantId: pastDueTenant.id,
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           membershipPlanId: membershipPlan.id,
           firstName: 'Test',
           lastName: 'Member',
@@ -175,6 +179,7 @@ describe('Billing Status E2E Tests', () => {
         data: {
           tenantId: pastDueTenant.id,
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           firstName: 'Test',
           lastName: 'Member',
           email: 'test2@example.com',
@@ -247,6 +252,7 @@ describe('Billing Status E2E Tests', () => {
           gender: 'MALE',
           birthDate: '1990-01-01',
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
         });
 
       expect(postResponse.status).toBe(403);
@@ -265,6 +271,7 @@ describe('Billing Status E2E Tests', () => {
         data: {
           tenantId: suspendedTenant.id,
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           firstName: 'Test',
           lastName: 'Member',
           email: 'test@example.com',
@@ -518,6 +525,7 @@ describe('Billing Status E2E Tests', () => {
           data: {
             tenantId: pastDueTenant.id,
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
             firstName: 'Existing',
             lastName: 'Member',
             email: 'existing@example.com',
@@ -558,6 +566,7 @@ describe('Billing Status E2E Tests', () => {
             gender: 'FEMALE',
             birthDate: '1990-01-01',
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
           });
 
         expect(postResponse.status).toBe(403);
@@ -705,6 +714,7 @@ describe('Billing Status E2E Tests', () => {
             gender: 'MALE',
             birthDate: '1990-01-01',
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
           });
 
         expect(createResponse.status).toBe(201);
@@ -779,6 +789,7 @@ describe('Billing Status E2E Tests', () => {
             gender: 'MALE',
             birthDate: '1990-01-01',
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
           });
 
         expect(createResponse.status).toBe(201);
@@ -863,6 +874,7 @@ describe('Billing Status E2E Tests', () => {
             gender: 'MALE',
             birthDate: '1990-01-01',
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
           });
 
         expect(blockedResponse.status).toBe(403);
@@ -894,6 +906,7 @@ describe('Billing Status E2E Tests', () => {
             gender: 'FEMALE',
             birthDate: '1990-01-01',
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
           });
 
         expect(allowedResponse.status).toBe(201);
@@ -1013,6 +1026,7 @@ describe('Billing Status E2E Tests', () => {
             gender: 'MALE',
             birthDate: '1990-01-01',
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
           });
 
         expect(create1.status).toBe(201);
@@ -1044,6 +1058,7 @@ describe('Billing Status E2E Tests', () => {
             gender: 'FEMALE',
             birthDate: '1990-01-01',
             branchId: branch.id,
+            membershipPlanId: membershipPlan.id,
           });
 
         expect(create2.status).toBe(403);
@@ -1150,6 +1165,7 @@ describe('Billing Status E2E Tests', () => {
           dateOfBirth: '1990-01-01',
           branchId: branch.id,
           membershipPlanId: membershipPlan.id,
+          membershipPlanId: membershipPlan.id,
         });
 
       console.log(
@@ -1171,6 +1187,7 @@ describe('Billing Status E2E Tests', () => {
         data: {
           tenantId: expiredTrialTenant.id,
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           membershipPlanId: membershipPlan.id,
           firstName: 'Test',
           lastName: 'Member',
@@ -1204,6 +1221,7 @@ describe('Billing Status E2E Tests', () => {
           tenantId: expiredTrialTenant.id,
           branchId: branch.id,
           membershipPlanId: membershipPlan.id,
+          membershipPlanId: membershipPlan.id,
           firstName: 'Test',
           lastName: 'Member',
           email: 'test2@example.com',
@@ -1235,6 +1253,7 @@ describe('Billing Status E2E Tests', () => {
           tenantId: expiredTrialTenant.id,
           branchId: branch.id,
           membershipPlanId: membershipPlan.id,
+          membershipPlanId: membershipPlan.id,
           firstName: 'Test',
           lastName: 'Member',
           email: 'test3@example.com',
@@ -1259,6 +1278,7 @@ describe('Billing Status E2E Tests', () => {
           gender: 'MALE',
           dateOfBirth: '1990-01-01',
           branchId: branch.id,
+          membershipPlanId: membershipPlan.id,
           membershipPlanId: membershipPlan.id,
         });
 

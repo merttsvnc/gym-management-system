@@ -186,10 +186,18 @@ export class MembersService {
     } catch (error) {
       // Handle unique constraint violation from database
       // P2002: "Unique constraint failed on the {constraint}"
-      if (error.code === 'P2002' && error.meta?.target?.includes('phone')) {
-        throw new ConflictException(
-          'Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz.',
-        );
+      if (error.code === 'P2002') {
+        const target = error.meta?.target;
+        // Check if target contains 'phone' (target can be array or string)
+        const isPhoneConstraint =
+          (Array.isArray(target) && target.includes('phone')) ||
+          (typeof target === 'string' && target.includes('phone'));
+
+        if (isPhoneConstraint) {
+          throw new ConflictException(
+            'Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz.',
+          );
+        }
       }
       throw error;
     }
@@ -463,10 +471,18 @@ export class MembersService {
     } catch (error) {
       // Handle unique constraint violation from database
       // P2002: "Unique constraint failed on the {constraint}"
-      if (error.code === 'P2002' && error.meta?.target?.includes('phone')) {
-        throw new ConflictException(
-          'Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz.',
-        );
+      if (error.code === 'P2002') {
+        const target = error.meta?.target;
+        // Check if target contains 'phone' (target can be array or string)
+        const isPhoneConstraint =
+          (Array.isArray(target) && target.includes('phone')) ||
+          (typeof target === 'string' && target.includes('phone'));
+
+        if (isPhoneConstraint) {
+          throw new ConflictException(
+            'Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz.',
+          );
+        }
       }
       throw error;
     }

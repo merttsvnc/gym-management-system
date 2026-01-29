@@ -36,6 +36,7 @@ describe('PaymentsService', () => {
       delete: jest.fn(),
     },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -400,23 +401,43 @@ describe('PaymentsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    // T077: Test correctPayment() hard-fails if payment is already corrected
-    it('should throw BadRequestException when payment is already corrected', async () => {
+    // T077: Test correctPayment() allows multiple corrections (audit trail)
+    it('should allow multiple corrections for the same payment (audit trail)', async () => {
       const alreadyCorrectedPayment = {
         ...mockPayment,
         isCorrected: true,
-        correctedPaymentId: 'previous-correction-123',
       };
       mockPrismaService.payment.findUnique.mockResolvedValue(
         alreadyCorrectedPayment,
       );
 
-      await expect(
-        service.correctPayment(tenantId, userId, paymentId, correctInput),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.correctPayment(tenantId, userId, paymentId, correctInput),
-      ).rejects.toThrow('zaten düzeltilmiş');
+      const mockCorrectedPayment = {
+        id: 'corrected-payment-456',
+        ...alreadyCorrectedPayment,
+        amount: new Decimal(75),
+        isCorrection: true,
+        correctedPaymentId: alreadyCorrectedPayment.id,
+      };
+
+      mockTx.payment.create.mockResolvedValue(mockCorrectedPayment);
+      mockTx.payment.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.correctPayment(
+        tenantId,
+        userId,
+        paymentId,
+        correctInput,
+      );
+
+      expect(result).toEqual(mockCorrectedPayment);
+      expect(mockTx.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            isCorrection: true,
+            correctedPaymentId: alreadyCorrectedPayment.id,
+          }),
+        }),
+      );
     });
 
     // T078: Test correctPayment() validates version matches (optimistic locking)
@@ -498,7 +519,6 @@ describe('PaymentsService', () => {
         },
         data: {
           isCorrected: true,
-          correctedPaymentId: correctedPayment.id,
           version: { increment: 1 },
         },
       });
@@ -573,7 +593,7 @@ describe('PaymentsService', () => {
           member: true,
           branch: true,
           correctedPayment: true,
-          correctingPayment: true,
+          correctingPayments: true,
         },
       });
     });
