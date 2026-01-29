@@ -1,5 +1,5 @@
 import { Module, Provider } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { R2StorageService } from './services/r2-storage.service';
 import { LocalDiskStorageService } from './services/local-disk-storage.service';
 import { StorageService } from './interfaces/storage-service.interface';
