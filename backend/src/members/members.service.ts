@@ -168,6 +168,16 @@ export class MembersService {
         membershipPriceAtPurchase,
         notes: dto.notes?.trim(),
         status: 'ACTIVE',
+        // Extended profile fields
+        address: dto.address?.trim(),
+        district: dto.district?.trim(),
+        nationalId: dto.nationalId?.trim(),
+        maritalStatus: dto.maritalStatus,
+        occupation: dto.occupation?.trim(),
+        industry: dto.industry?.trim(),
+        bloodType: dto.bloodType,
+        emergencyContactName: dto.emergencyContactName?.trim(),
+        emergencyContactPhone: dto.emergencyContactPhone?.trim(),
       },
     });
 
@@ -400,6 +410,37 @@ export class MembersService {
 
     if (dto.notes !== undefined)
       updateData.notes = dto.notes ? dto.notes.trim() : null;
+
+    // Extended profile fields
+    if (dto.address !== undefined)
+      updateData.address = dto.address ? dto.address.trim() : null;
+
+    if (dto.district !== undefined)
+      updateData.district = dto.district ? dto.district.trim() : null;
+
+    if (dto.nationalId !== undefined)
+      updateData.nationalId = dto.nationalId ? dto.nationalId.trim() : null;
+
+    if (dto.maritalStatus !== undefined)
+      updateData.maritalStatus = dto.maritalStatus;
+
+    if (dto.occupation !== undefined)
+      updateData.occupation = dto.occupation ? dto.occupation.trim() : null;
+
+    if (dto.industry !== undefined)
+      updateData.industry = dto.industry ? dto.industry.trim() : null;
+
+    if (dto.bloodType !== undefined) updateData.bloodType = dto.bloodType;
+
+    if (dto.emergencyContactName !== undefined)
+      updateData.emergencyContactName = dto.emergencyContactName
+        ? dto.emergencyContactName.trim()
+        : null;
+
+    if (dto.emergencyContactPhone !== undefined)
+      updateData.emergencyContactPhone = dto.emergencyContactPhone
+        ? dto.emergencyContactPhone.trim()
+        : null;
 
     const updatedMember = await this.prisma.member.update({
       where: { id },

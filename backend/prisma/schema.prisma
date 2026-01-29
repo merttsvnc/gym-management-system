@@ -38,6 +38,28 @@ enum MemberGender {
   FEMALE
 }
 
+// Marital status enum
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  OTHER
+}
+
+// Blood type enum
+enum BloodType {
+  A_POS
+  A_NEG
+  B_POS
+  B_NEG
+  AB_POS
+  AB_NEG
+  O_POS
+  O_NEG
+  UNKNOWN
+}
+
 // Duration type enum for membership plans
 enum DurationType {
   DAYS
@@ -82,8 +104,8 @@ model Tenant {
   planKey                PlanKey       @default(SINGLE)
   billingStatus          BillingStatus @default(TRIAL)
   billingStatusUpdatedAt DateTime?
-  trialStartedAt        DateTime?
-  trialEndsAt           DateTime?
+  trialStartedAt         DateTime?
+  trialEndsAt            DateTime?
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
@@ -194,6 +216,17 @@ model Member {
   email       String?
   photoUrl    String?
 
+  // Extended profile fields
+  address               String?
+  district              String?
+  nationalId            String?
+  maritalStatus         MaritalStatus?
+  occupation            String?
+  industry              String?
+  bloodType             BloodType?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
   // Membership information
   membershipPlanId          String
   membershipStartDate       DateTime
@@ -222,6 +255,8 @@ model Member {
   @@index([tenantId, phone])
   @@index([membershipPlanId])
   @@index([tenantId, membershipPlanId])
+  @@index([tenantId, nationalId])
+  @@index([tenantId, emergencyContactPhone])
 }
 
 // Payment model
@@ -232,36 +267,36 @@ model Member {
 // - To find all corrections for payment A: query where correctedPaymentId = A.id
 // - Revenue reports exclude corrections by filtering: isCorrection = false
 model Payment {
-  id                 String        @id @default(cuid())
-  tenantId           String
-  branchId           String
-  memberId           String
+  id       String @id @default(cuid())
+  tenantId String
+  branchId String
+  memberId String
 
   // Payment details
-  amount             Decimal       @db.Decimal(10, 2)
-  paidOn             DateTime      // DATE-ONLY business date: stored as DateTime set to start-of-day UTC (00:00:00Z); tenant timezone used for date selection/display
-  paymentMethod      PaymentMethod
-  note               String?       @db.VarChar(500)
+  amount        Decimal       @db.Decimal(10, 2)
+  paidOn        DateTime // DATE-ONLY business date: stored as DateTime set to start-of-day UTC (00:00:00Z); tenant timezone used for date selection/display
+  paymentMethod PaymentMethod
+  note          String?       @db.VarChar(500)
 
   // Correction tracking (audit trail: multiple corrections allowed per original payment)
-  isCorrection       Boolean       @default(false)
-  correctedPaymentId String?       // FK to original payment being corrected (no @unique = many corrections per original)
-  isCorrected        Boolean       @default(false)
+  isCorrection       Boolean @default(false)
+  correctedPaymentId String? // FK to original payment being corrected (no @unique = many corrections per original)
+  isCorrected        Boolean @default(false)
 
   // Optimistic locking
-  version            Int           @default(0)
+  version Int @default(0)
 
   // Audit fields (strictly for audit, not business logic)
-  createdBy          String        // User ID
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdBy String // User ID
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch             Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  member             Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  correctedPayment   Payment?      @relation("PaymentCorrection", fields: [correctedPaymentId], references: [id], onDelete: SetNull)
-  correctingPayments Payment[]     @relation("PaymentCorrection")  // One-to-many: original payment can have multiple corrections
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch             Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  member             Member    @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  correctedPayment   Payment?  @relation("PaymentCorrection", fields: [correctedPaymentId], references: [id], onDelete: SetNull)
+  correctingPayments Payment[] @relation("PaymentCorrection") // One-to-many: original payment can have multiple corrections
 
   @@index([tenantId])
   @@index([tenantId, branchId])
@@ -279,13 +314,13 @@ model Payment {
 
 // IdempotencyKey model (for idempotency support)
 model IdempotencyKey {
-  id           String    @id @default(cuid())
-  key          String    @unique
-  tenantId     String
-  userId       String
-  response     Json      // Cached response
-  createdAt    DateTime  @default(now())
-  expiresAt    DateTime  // TTL: 24 hours
+  id        String   @id @default(cuid())
+  key       String   @unique
+  tenantId  String
+  userId    String
+  response  Json // Cached response
+  createdAt DateTime @default(now())
+  expiresAt DateTime // TTL: 24 hours
 
   @@index([key])
   @@index([expiresAt]) // For cleanup job
