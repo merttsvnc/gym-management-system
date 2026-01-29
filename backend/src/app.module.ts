@@ -14,6 +14,7 @@ import { MembersModule } from './members/members.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PaymentsModule } from './payments/payments.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { BillingStatusGuard } from './auth/guards/billing-status.guard';
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { BillingStatusGuard } from './auth/guards/billing-status.guard';
     MembershipPlansModule,
     DashboardModule,
     PaymentsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [
