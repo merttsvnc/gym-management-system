@@ -3,11 +3,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { MaritalStatus, BloodType } from '@prisma/client';
-import { createTestTenantAndUser, cleanupTestData } from '../test-helpers';
+import {
+  createTestTenantAndUser,
+  cleanupTestData,
+  createMockToken,
+} from '../test-helpers';
 
 /**
  * E2E tests for extended member field validation
@@ -39,9 +43,13 @@ describe('Members Extended Fields Validation (e2e)', () => {
     prisma = app.get<PrismaService>(PrismaService);
 
     // Create test user and tenant
-    const testUser = await createTestTenantAndUser(prisma);
-    authToken = testUser.token;
-    tenantId = testUser.tenantId;
+    const { tenant, user } = await createTestTenantAndUser(prisma);
+    tenantId = tenant.id;
+    authToken = createMockToken({
+      userId: user.id,
+      tenantId: tenant.id,
+      email: user.email,
+    });
 
     // Create test branch
     const branch = await prisma.branch.create({
@@ -71,7 +79,7 @@ describe('Members Extended Fields Validation (e2e)', () => {
   });
 
   afterAll(async () => {
-    await cleanupTestData(prisma, tenantId);
+    await cleanupTestData(prisma, [tenantId]);
     await app.close();
   });
 
@@ -417,6 +425,67 @@ describe('Members Extended Fields Validation (e2e)', () => {
           address: 'x'.repeat(501),
         })
         .expect(400);
+    });
+
+    it('should clear optional extended fields when set to empty string', async () => {
+      // First set some values
+      await request(app.getHttpServer())
+        .patch(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          address: 'Some Address',
+          district: 'Some District',
+          occupation: 'Engineer',
+        })
+        .expect(200);
+
+      // Now clear them with empty strings
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${memberId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          address: '',
+          district: '',
+          occupation: '',
+        })
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        address: null,
+        district: null,
+        occupation: null,
+      });
+    });
+  });
+
+  describe('POST /api/v1/members - Empty string normalization', () => {
+    it('should convert empty string optional fields to null on create', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/members')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          branchId,
+          firstName: 'EmptyString',
+          lastName: 'Test',
+          phone: `+1${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+          membershipPlanId,
+          // Note: email is not included since empty email fails validation
+          // Only include optional non-validated string fields
+          address: '',
+          district: '',
+          occupation: '',
+          notes: '',
+        })
+        .expect(201);
+
+      expect(response.body).toMatchObject({
+        firstName: 'EmptyString',
+        lastName: 'Test',
+        address: null,
+        district: null,
+        occupation: null,
+        notes: null,
+      });
     });
   });
 });

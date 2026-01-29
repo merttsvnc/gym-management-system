@@ -267,6 +267,16 @@ export async function cleanupTestData(
     }
 
     // Clean up only specific tenants and their related data
+    // Delete in correct order to respect foreign key constraints
+    await prisma.payment.deleteMany({
+      where: { tenantId: { in: validTenantIds } },
+    });
+    await prisma.member.deleteMany({
+      where: { tenantId: { in: validTenantIds } },
+    });
+    await prisma.membershipPlan.deleteMany({
+      where: { tenantId: { in: validTenantIds } },
+    });
     await prisma.user.deleteMany({
       where: { tenantId: { in: validTenantIds } },
     });
