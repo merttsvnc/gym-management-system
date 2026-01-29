@@ -14,7 +14,7 @@ export class RegisterDto {
   @MaxLength(100)
   tenantName: string;
 
-  @Transform(({ value }) => value?.trim().toLowerCase())
+  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
   @IsEmail()
   email: string;
 

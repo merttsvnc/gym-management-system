@@ -69,7 +69,7 @@ describe('Auth: /auth/register (e2e)', () => {
 
       // Verify tenant was created with trial dates
       const tenant = await prisma.tenant.findUnique({
-        where: { id: response.body.user.tenantId },
+        where: { id: response.body.user.tenantId as string },
         select: {
           trialStartedAt: true,
           trialEndsAt: true,
@@ -85,7 +85,7 @@ describe('Auth: /auth/register (e2e)', () => {
 
       // Verify branch was created
       const branch = await prisma.branch.findFirst({
-        where: { tenantId: response.body.user.tenantId },
+        where: { tenantId: response.body.user.tenantId as string },
       });
       expect(branch).toBeTruthy();
       expect(branch?.name).toBe(registerData.branchName);
@@ -122,7 +122,7 @@ describe('Auth: /auth/register (e2e)', () => {
 
       // Verify branch was created with default name
       const branch = await prisma.branch.findFirst({
-        where: { tenantId: response.body.user.tenantId },
+        where: { tenantId: response.body.user.tenantId as string },
       });
       expect(branch?.name).toBe('Ana Şube');
     });
@@ -149,7 +149,7 @@ describe('Auth: /auth/register (e2e)', () => {
 
       // Verify branch was created with empty address
       const branch = await prisma.branch.findFirst({
-        where: { tenantId: response.body.user.tenantId },
+        where: { tenantId: response.body.user.tenantId as string },
       });
       expect(branch?.address).toBe('');
     });
@@ -322,7 +322,7 @@ describe('Auth: /auth/register (e2e)', () => {
 
       // Verify new tenant has unique slug
       const tenant = await prisma.tenant.findUnique({
-        where: { id: response.body.user.tenantId },
+        where: { id: response.body.user.tenantId as string },
         select: { slug: true },
       });
       expect(tenant?.slug).not.toBe('test-gym');
@@ -351,7 +351,7 @@ describe('Auth: /auth/register (e2e)', () => {
 
       const afterRegister = new Date();
       const tenant = await prisma.tenant.findUnique({
-        where: { id: response.body.user.tenantId },
+        where: { id: response.body.user.tenantId as string },
         select: {
           trialStartedAt: true,
           trialEndsAt: true,

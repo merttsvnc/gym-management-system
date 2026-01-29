@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { PrismaClient, MemberGender, MemberStatus } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -10,7 +12,7 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({
-  adapter,
+  adapter: adapter as any,
   log: ['error', 'warn'],
 });
 
@@ -294,7 +296,7 @@ async function main() {
               'CASH',
               'CREDIT_CARD',
               'BANK_TRANSFER',
-            ] as any[]),
+            ]),
             createdBy: user.id,
             createdAt,
             updatedAt: createdAt,
