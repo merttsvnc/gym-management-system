@@ -463,6 +463,55 @@ describe('Members E2E Tests', () => {
         expect(response.body.message).toContain('telefon numarası');
         expect(response.body.message).toContain('zaten kullanılıyor');
       });
+
+      it('should handle concurrent duplicate phone requests (race condition test)', async () => {
+        const phone = '+905559999999';
+        const createDto = {
+          branchId: branch1.id,
+          firstName: 'Concurrent',
+          lastName: 'Test',
+          phone,
+          membershipPlanId: 'plan-tenant1',
+        };
+
+        // Fire two concurrent requests with same phone
+        const [response1, response2] = await Promise.allSettled([
+          request(app.getHttpServer())
+            .post('/api/v1/members')
+            .set('Authorization', `Bearer ${token1}`)
+            .send(createDto),
+          request(app.getHttpServer())
+            .post('/api/v1/members')
+            .set('Authorization', `Bearer ${token1}`)
+            .send({ ...createDto, firstName: 'Concurrent2' }),
+        ]);
+
+        // One should succeed (201), one should fail (409)
+        const statuses = [
+          response1.status === 'fulfilled' ? response1.value.status : null,
+          response2.status === 'fulfilled' ? response2.value.status : null,
+        ].filter((s) => s !== null);
+
+        const has201 = statuses.includes(201);
+        const has409 = statuses.includes(409);
+
+        expect(has201).toBe(true);
+        expect(has409).toBe(true);
+        expect(statuses).toHaveLength(2);
+
+        // Verify error message on the 409 response
+        const failedResponse =
+          response1.status === 'fulfilled' && response1.value.status === 409
+            ? response1.value
+            : response2.status === 'fulfilled' && response2.value.status === 409
+              ? response2.value
+              : null;
+
+        if (failedResponse) {
+          expect(failedResponse.body.message).toContain('telefon numarası');
+          expect(failedResponse.body.message).toContain('zaten kullanılıyor');
+        }
+      });
     });
 
     // T066: Search functionality tests

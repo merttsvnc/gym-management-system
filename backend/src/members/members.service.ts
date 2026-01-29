@@ -151,37 +151,48 @@ export class MembersService {
         ? dto.membershipPriceAtPurchase
         : plan.price.toNumber();
 
-    const member = await this.prisma.member.create({
-      data: {
-        tenantId,
-        branchId: dto.branchId,
-        firstName: dto.firstName.trim(),
-        lastName: dto.lastName.trim(),
-        phone,
-        email: dto.email?.trim() || null,
-        gender: dto.gender,
-        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
-        photoUrl: dto.photoUrl || null,
-        membershipPlanId,
-        membershipStartDate,
-        membershipEndDate,
-        membershipPriceAtPurchase,
-        notes: dto.notes?.trim() || null,
-        status: 'ACTIVE',
-        // Extended profile fields
-        address: dto.address?.trim() || null,
-        district: dto.district?.trim() || null,
-        nationalId: dto.nationalId?.trim() || null,
-        maritalStatus: dto.maritalStatus,
-        occupation: dto.occupation?.trim() || null,
-        industry: dto.industry?.trim() || null,
-        bloodType: dto.bloodType,
-        emergencyContactName: dto.emergencyContactName?.trim() || null,
-        emergencyContactPhone: dto.emergencyContactPhone?.trim() || null,
-      },
-    });
+    try {
+      const member = await this.prisma.member.create({
+        data: {
+          tenantId,
+          branchId: dto.branchId,
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
+          phone,
+          email: dto.email?.trim() || null,
+          gender: dto.gender,
+          dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
+          photoUrl: dto.photoUrl || null,
+          membershipPlanId,
+          membershipStartDate,
+          membershipEndDate,
+          membershipPriceAtPurchase,
+          notes: dto.notes?.trim() || null,
+          status: 'ACTIVE',
+          // Extended profile fields
+          address: dto.address?.trim() || null,
+          district: dto.district?.trim() || null,
+          nationalId: dto.nationalId?.trim() || null,
+          maritalStatus: dto.maritalStatus,
+          occupation: dto.occupation?.trim() || null,
+          industry: dto.industry?.trim() || null,
+          bloodType: dto.bloodType,
+          emergencyContactName: dto.emergencyContactName?.trim() || null,
+          emergencyContactPhone: dto.emergencyContactPhone?.trim() || null,
+        },
+      });
 
-    return this.enrichMemberWithComputedFields(member);
+      return this.enrichMemberWithComputedFields(member);
+    } catch (error) {
+      // Handle unique constraint violation from database
+      // P2002: "Unique constraint failed on the {constraint}"
+      if (error.code === 'P2002' && error.meta?.target?.includes('phone')) {
+        throw new ConflictException(
+          'Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz.',
+        );
+      }
+      throw error;
+    }
   }
 
   /**
@@ -442,12 +453,23 @@ export class MembersService {
         ? dto.emergencyContactPhone.trim()
         : null;
 
-    const updatedMember = await this.prisma.member.update({
-      where: { id },
-      data: updateData,
-    });
+    try {
+      const updatedMember = await this.prisma.member.update({
+        where: { id },
+        data: updateData,
+      });
 
-    return this.enrichMemberWithComputedFields(updatedMember);
+      return this.enrichMemberWithComputedFields(updatedMember);
+    } catch (error) {
+      // Handle unique constraint violation from database
+      // P2002: "Unique constraint failed on the {constraint}"
+      if (error.code === 'P2002' && error.meta?.target?.includes('phone')) {
+        throw new ConflictException(
+          'Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz.',
+        );
+      }
+      throw error;
+    }
   }
 
   /**

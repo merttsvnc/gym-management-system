@@ -251,6 +251,7 @@ model Member {
   membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id])
   payments       Payment[]
 
+  @@unique([tenantId, phone])
   @@index([tenantId, branchId])
   @@index([tenantId, phone])
   @@index([membershipPlanId])
