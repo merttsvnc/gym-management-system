@@ -10,28 +10,28 @@
 
 ### Table Format
 
-| Field Key | Data Type | Required on Create | Nullable in DB | Default/Auto-generated | Validation Rules | Relations | Notes |
-|-----------|-----------|-------------------|----------------|----------------------|-----------------|-----------|-------|
-| `id` | string (cuid) | No | No | Auto-generated (@default(cuid())) | - | - | System-managed primary key |
-| `tenantId` | string | No | No | Auto-injected by service from JWT context | - | FK to Tenant (onDelete: Cascade) | System-managed, tenant isolation |
-| `branchId` | string | Yes | No | - | Must exist and belong to tenant | FK to Branch (onDelete: Restrict) | Validated in service layer |
-| `firstName` | string | Yes | No | - | MinLength: 1, MaxLength: 50, trimmed | - | - |
-| `lastName` | string | Yes | No | - | MinLength: 1, MaxLength: 50, trimmed | - | - |
-| `gender` | enum (MemberGender) | No | Yes | null | Enum: MALE, FEMALE | - | Optional |
-| `dateOfBirth` | DateTime | No | Yes | null | ISO 8601 date string | - | Optional |
-| `phone` | string | Yes | No | - | MinLength: 10, MaxLength: 20, Regex: `^\+?[1-9]\d{1,14}$`, trimmed | - | Must be unique per tenant |
-| `email` | string | No | Yes | null | Valid email format, trimmed | - | Optional |
-| `photoUrl` | string | No | Yes | null | Valid URL format | - | Optional |
-| `membershipPlanId` | string | Yes | No | - | Must exist, be ACTIVE, and belong to tenant | FK to MembershipPlan | Validated in service layer |
-| `membershipStartDate` | DateTime | No | No | Current date/time if not provided | ISO 8601 date string | - | Defaults to `new Date()` in service |
-| `membershipEndDate` | DateTime | No | No | Calculated from plan duration | - | - | Auto-calculated by service using plan's durationType and durationValue |
-| `membershipPriceAtPurchase` | Decimal(10,2) | No | Yes | Plan price if not provided | Must be a number | - | Defaults to plan.price in service |
-| `status` | enum (MemberStatus) | No | No | ACTIVE | Enum: ACTIVE, PAUSED, INACTIVE, ARCHIVED | - | Always set to ACTIVE on creation |
-| `pausedAt` | DateTime | No | Yes | null | - | - | System-managed (set via changeStatus endpoint) |
-| `resumedAt` | DateTime | No | Yes | null | - | - | System-managed (set via changeStatus endpoint) |
-| `notes` | string | No | Yes | null | MaxLength: 5000, trimmed | - | Optional |
-| `createdAt` | DateTime | No | No | Auto-generated (@default(now())) | - | - | System-managed timestamp |
-| `updatedAt` | DateTime | No | No | Auto-updated (@updatedAt) | - | - | System-managed timestamp |
+| Field Key                   | Data Type           | Required on Create | Nullable in DB | Default/Auto-generated                    | Validation Rules                                                   | Relations                         | Notes                                                                  |
+| --------------------------- | ------------------- | ------------------ | -------------- | ----------------------------------------- | ------------------------------------------------------------------ | --------------------------------- | ---------------------------------------------------------------------- |
+| `id`                        | string (cuid)       | No                 | No             | Auto-generated (@default(cuid()))         | -                                                                  | -                                 | System-managed primary key                                             |
+| `tenantId`                  | string              | No                 | No             | Auto-injected by service from JWT context | -                                                                  | FK to Tenant (onDelete: Cascade)  | System-managed, tenant isolation                                       |
+| `branchId`                  | string              | Yes                | No             | -                                         | Must exist and belong to tenant                                    | FK to Branch (onDelete: Restrict) | Validated in service layer                                             |
+| `firstName`                 | string              | Yes                | No             | -                                         | MinLength: 1, MaxLength: 50, trimmed                               | -                                 | -                                                                      |
+| `lastName`                  | string              | Yes                | No             | -                                         | MinLength: 1, MaxLength: 50, trimmed                               | -                                 | -                                                                      |
+| `gender`                    | enum (MemberGender) | No                 | Yes            | null                                      | Enum: MALE, FEMALE                                                 | -                                 | Optional                                                               |
+| `dateOfBirth`               | DateTime            | No                 | Yes            | null                                      | ISO 8601 date string                                               | -                                 | Optional                                                               |
+| `phone`                     | string              | Yes                | No             | -                                         | MinLength: 10, MaxLength: 20, Regex: `^\+?[1-9]\d{1,14}$`, trimmed | -                                 | Must be unique per tenant                                              |
+| `email`                     | string              | No                 | Yes            | null                                      | Valid email format, trimmed                                        | -                                 | Optional                                                               |
+| `photoUrl`                  | string              | No                 | Yes            | null                                      | Valid URL format                                                   | -                                 | Optional                                                               |
+| `membershipPlanId`          | string              | Yes                | No             | -                                         | Must exist, be ACTIVE, and belong to tenant                        | FK to MembershipPlan              | Validated in service layer                                             |
+| `membershipStartDate`       | DateTime            | No                 | No             | Current date/time if not provided         | ISO 8601 date string                                               | -                                 | Defaults to `new Date()` in service                                    |
+| `membershipEndDate`         | DateTime            | No                 | No             | Calculated from plan duration             | -                                                                  | -                                 | Auto-calculated by service using plan's durationType and durationValue |
+| `membershipPriceAtPurchase` | Decimal(10,2)       | No                 | Yes            | Plan price if not provided                | Must be a number                                                   | -                                 | Defaults to plan.price in service                                      |
+| `status`                    | enum (MemberStatus) | No                 | No             | ACTIVE                                    | Enum: ACTIVE, PAUSED, INACTIVE, ARCHIVED                           | -                                 | Always set to ACTIVE on creation                                       |
+| `pausedAt`                  | DateTime            | No                 | Yes            | null                                      | -                                                                  | -                                 | System-managed (set via changeStatus endpoint)                         |
+| `resumedAt`                 | DateTime            | No                 | Yes            | null                                      | -                                                                  | -                                 | System-managed (set via changeStatus endpoint)                         |
+| `notes`                     | string              | No                 | Yes            | null                                      | MaxLength: 5000, trimmed                                           | -                                 | Optional                                                               |
+| `createdAt`                 | DateTime            | No                 | No             | Auto-generated (@default(now()))          | -                                                                  | -                                 | System-managed timestamp                                               |
+| `updatedAt`                 | DateTime            | No                 | No             | Auto-updated (@updatedAt)                 | -                                                                  | -                                 | System-managed timestamp                                               |
 
 ---
 
@@ -333,7 +333,7 @@ The implementation is fully consistent:
 1. **Tenant Isolation:** All members are scoped to a tenant; `tenantId` is auto-injected from JWT
 2. **Phone Uniqueness:** Phone numbers must be unique within a tenant (enforced in service)
 3. **Branch Validation:** Branch must exist and belong to the tenant
-4. **Plan Validation:** 
+4. **Plan Validation:**
    - Plan must exist
    - Plan must be ACTIVE (archived plans rejected for new members)
    - Plan must belong to tenant or be tenant-scoped
