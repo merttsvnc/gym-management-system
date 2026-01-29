@@ -43,29 +43,29 @@ Content-Type: application/json
 
 #### Request Body
 
-| Field                       | Type   | Required | Validation                 | Description                                       |
-| --------------------------- | ------ | -------- | -------------------------- | ------------------------------------------------- |
-| `branchId`                  | string | Yes      | Valid branch ID            | Branch where member will be registered            |
-| `firstName`                 | string | Yes      | 1-50 chars                 | Member's first name                               |
-| `lastName`                  | string | Yes      | 1-50 chars                 | Member's last name                                |
-| `phone`                     | string | Yes      | E.164 format, 10-20 chars  | Member's phone number (must be unique per tenant) |
-| `membershipPlanId`          | string | Yes      | Valid plan ID              | Selected membership plan                          |
-| `gender`                    | enum   | No       | `MALE`, `FEMALE`           | Member's gender                                   |
-| `dateOfBirth`               | string | No       | ISO 8601 date              | Member's birth date                               |
-| `email`                     | string | No       | Valid email                | Member's email address                            |
-| `photoUrl`                  | string | No       | Valid URL                  | URL to member's photo                             |
-| `membershipStartDate`       | string | No       | ISO 8601 date              | Start date (defaults to today)                    |
-| `membershipPriceAtPurchase` | number | No       | Decimal                    | Price paid (defaults to plan price)               |
-| `notes`                     | string | No       | Max 5000 chars             | Additional notes                                  |
-| `address`                   | string | No       | Max 500 chars              | Member's address                                  |
-| `district`                  | string | No       | Max 100 chars              | District/neighborhood                             |
-| `nationalId`                | string | No       | Max 20 chars               | National ID / TC number                           |
-| `maritalStatus`             | enum   | No       | See enum values            | Marital status                                    |
-| `occupation`                | string | No       | Max 100 chars              | Member's occupation                               |
-| `industry`                  | string | No       | Max 100 chars              | Industry/sector                                   |
-| `bloodType`                 | enum   | No       | See enum values            | Blood type                                        |
-| `emergencyContactName`      | string | No       | Max 100 chars              | Emergency contact person name                     |
-| `emergencyContactPhone`     | string | No       | E.164 format, max 20 chars | Emergency contact phone                           |
+| Field                       | Type   | Required | Validation                 | Description                                                                                         |
+| --------------------------- | ------ | -------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
+| `branchId`                  | string | Yes      | Valid branch ID            | Branch where member will be registered                                                              |
+| `firstName`                 | string | Yes      | 1-50 chars                 | Member's first name                                                                                 |
+| `lastName`                  | string | Yes      | 1-50 chars                 | Member's last name                                                                                  |
+| `phone`                     | string | Yes      | E.164 format, 10-20 chars  | Member's phone number. **Unique per tenant** (enforced at database level)                           |
+| `membershipPlanId`          | string | Yes      | Valid plan ID              | Selected membership plan                                                                            |
+| `gender`                    | enum   | No       | `MALE`, `FEMALE`           | Member's gender                                                                                     |
+| `dateOfBirth`               | string | No       | ISO 8601 date              | Member's birth date                                                                                 |
+| `email`                     | string | No       | Valid email                | Member's email address                                                                              |
+| `photoUrl`                  | string | No       | Valid URL                  | URL to member's photo                                                                               |
+| `membershipStartDate`       | string | No       | ISO 8601 date              | Start date (defaults to today)                                                                      |
+| `membershipPriceAtPurchase` | number | No       | Decimal (positive)         | Price paid (defaults to plan price). **Note:** Returns as string in JSON responses (e.g., "150.00") |
+| `notes`                     | string | No       | Max 5000 chars             | Additional notes                                                                                    |
+| `address`                   | string | No       | Max 500 chars              | Member's address                                                                                    |
+| `district`                  | string | No       | Max 100 chars              | District/neighborhood                                                                               |
+| `nationalId`                | string | No       | Max 20 chars               | National ID / TC number                                                                             |
+| `maritalStatus`             | enum   | No       | See enum values            | Marital status                                                                                      |
+| `occupation`                | string | No       | Max 100 chars              | Member's occupation                                                                                 |
+| `industry`                  | string | No       | Max 100 chars              | Industry/sector                                                                                     |
+| `bloodType`                 | enum   | No       | See enum values            | Blood type                                                                                          |
+| `emergencyContactName`      | string | No       | Max 100 chars              | Emergency contact person name                                                                       |
+| `emergencyContactPhone`     | string | No       | E.164 format, max 20 chars | Emergency contact phone                                                                             |
 
 #### Enum Values
 
@@ -511,42 +511,42 @@ Returns the archived member object with `status: "ARCHIVED"`.
 
 ### Complete Member Field Table
 
-| Field                       | Type               | Required on Create | System-Managed | Max Length | Validation                                 | Notes                        |
-| --------------------------- | ------------------ | ------------------ | -------------- | ---------- | ------------------------------------------ | ---------------------------- |
-| `id`                        | string (cuid)      | -                  | ✅ Yes         | -          | -                                          | Auto-generated               |
-| `tenantId`                  | string             | -                  | ✅ Yes         | -          | -                                          | From JWT context             |
-| `branchId`                  | string             | ✅ Yes             | No             | -          | Must exist                                 | Valid branch in tenant       |
-| `firstName`                 | string             | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                      |
-| `lastName`                  | string             | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                      |
-| `phone`                     | string             | ✅ Yes             | No             | 20         | E.164 regex                                | Unique per tenant, trimmed   |
-| `gender`                    | enum               | No                 | No             | -          | `MALE`, `FEMALE`                           | Optional                     |
-| `dateOfBirth`               | ISO 8601 date      | No                 | No             | -          | Valid date                                 | Optional                     |
-| `email`                     | string             | No                 | No             | -          | Valid email                                | Optional, trimmed            |
-| `photoUrl`                  | string             | No                 | No             | -          | Valid URL                                  | Optional                     |
-| `address`                   | string             | No                 | No             | 500        | -                                          | Optional, trimmed            |
-| `district`                  | string             | No                 | No             | 100        | -                                          | Optional, trimmed            |
-| `nationalId`                | string             | No                 | No             | 20         | -                                          | Optional, trimmed            |
-| `maritalStatus`             | enum               | No                 | No             | -          | See enum values                            | Optional                     |
-| `occupation`                | string             | No                 | No             | 100        | -                                          | Optional, trimmed            |
-| `industry`                  | string             | No                 | No             | 100        | -                                          | Optional, trimmed            |
-| `bloodType`                 | enum               | No                 | No             | -          | See enum values                            | Optional                     |
-| `emergencyContactName`      | string             | No                 | No             | 100        | -                                          | Optional, trimmed            |
-| `emergencyContactPhone`     | string             | No                 | No             | 20         | E.164 regex                                | Optional, trimmed            |
-| `membershipPlanId`          | string             | ✅ Yes             | No             | -          | Must exist                                 | Valid active plan            |
-| `membershipStartDate`       | ISO 8601 date      | No                 | Partial        | -          | Valid date                                 | Defaults to today            |
-| `membershipEndDate`         | ISO 8601 date      | No                 | ✅ Yes         | -          | Valid date                                 | Auto-calculated from plan    |
-| `membershipPriceAtPurchase` | decimal            | No                 | Partial        | -          | Positive number                            | Defaults to plan price       |
-| `status`                    | enum               | No                 | Partial        | -          | `ACTIVE`, `PAUSED`, `INACTIVE`, `ARCHIVED` | Defaults to `ACTIVE`         |
-| `pausedAt`                  | ISO 8601 timestamp | No                 | ✅ Yes         | -          | -                                          | Set when status → `PAUSED`   |
-| `resumedAt`                 | ISO 8601 timestamp | No                 | ✅ Yes         | -          | -                                          | Set when `PAUSED` → `ACTIVE` |
-| `notes`                     | string             | No                 | No             | 5000       | -                                          | Optional, trimmed            |
-| `createdAt`                 | ISO 8601 timestamp | -                  | ✅ Yes         | -          | -                                          | Auto-generated               |
-| `updatedAt`                 | ISO 8601 timestamp | -                  | ✅ Yes         | -          | -                                          | Auto-updated                 |
-| `remainingDays`             | number             | -                  | ✅ Computed    | -          | -                                          | Legacy field (computed)      |
-| `isMembershipActive`        | boolean            | -                  | ✅ Computed    | -          | -                                          | Derived from endDate         |
-| `membershipState`           | enum               | -                  | ✅ Computed    | -          | `ACTIVE`, `EXPIRED`                        | Derived field                |
-| `daysRemaining`             | number/null        | -                  | ✅ Computed    | -          | -                                          | Null if expired              |
-| `isExpiringSoon`            | boolean            | -                  | ✅ Computed    | -          | -                                          | True if < 7 days remaining   |
+| Field                       | Type                     | Required on Create | System-Managed | Max Length | Validation                                 | Notes                                                       |
+| --------------------------- | ------------------------ | ------------------ | -------------- | ---------- | ------------------------------------------ | ----------------------------------------------------------- |
+| `id`                        | string (cuid)            | -                  | ✅ Yes         | -          | -                                          | Auto-generated                                              |
+| `tenantId`                  | string                   | -                  | ✅ Yes         | -          | -                                          | From JWT context                                            |
+| `branchId`                  | string                   | ✅ Yes             | No             | -          | Must exist                                 | Valid branch in tenant                                      |
+| `firstName`                 | string                   | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                                                     |
+| `lastName`                  | string                   | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                                                     |
+| `phone`                     | string                   | ✅ Yes             | No             | 20         | E.164 regex                                | **Unique per tenant** (DB-level compound index), trimmed    |
+| `gender`                    | enum                     | No                 | No             | -          | `MALE`, `FEMALE`                           | Optional                                                    |
+| `dateOfBirth`               | ISO 8601 date            | No                 | No             | -          | Valid date                                 | Optional                                                    |
+| `email`                     | string                   | No                 | No             | -          | Valid email                                | Optional, trimmed                                           |
+| `photoUrl`                  | string                   | No                 | No             | -          | Valid URL                                  | Optional                                                    |
+| `address`                   | string                   | No                 | No             | 500        | -                                          | Optional, trimmed                                           |
+| `district`                  | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `nationalId`                | string                   | No                 | No             | 20         | -                                          | Optional, trimmed                                           |
+| `maritalStatus`             | enum                     | No                 | No             | -          | See enum values                            | Optional                                                    |
+| `occupation`                | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `industry`                  | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `bloodType`                 | enum                     | No                 | No             | -          | See enum values                            | Optional                                                    |
+| `emergencyContactName`      | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `emergencyContactPhone`     | string                   | No                 | No             | 20         | E.164 regex                                | Optional, trimmed                                           |
+| `membershipPlanId`          | string                   | ✅ Yes             | No             | -          | Must exist                                 | Valid active plan                                           |
+| `membershipStartDate`       | ISO 8601 date            | No                 | Partial        | -          | Valid date                                 | Defaults to today                                           |
+| `membershipEndDate`         | ISO 8601 date            | No                 | ✅ Yes         | -          | Valid date                                 | Auto-calculated from plan                                   |
+| `membershipPriceAtPurchase` | decimal (string in JSON) | No                 | Partial        | -          | Positive number                            | Defaults to plan price. Returned as string (e.g., "150.00") |
+| `status`                    | enum                     | No                 | Partial        | -          | `ACTIVE`, `PAUSED`, `INACTIVE`, `ARCHIVED` | Defaults to `ACTIVE`                                        |
+| `pausedAt`                  | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when status → `PAUSED`                                  |
+| `resumedAt`                 | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when `PAUSED` → `ACTIVE`                                |
+| `notes`                     | string                   | No                 | No             | 5000       | -                                          | Optional, trimmed                                           |
+| `createdAt`                 | ISO 8601 timestamp       | -                  | ✅ Yes         | -          | -                                          | Auto-generated                                              |
+| `updatedAt`                 | ISO 8601 timestamp       | -                  | ✅ Yes         | -          | -                                          | Auto-updated                                                |
+| `remainingDays`             | number                   | -                  | ✅ Computed    | -          | -                                          | Legacy field (computed)                                     |
+| `isMembershipActive`        | boolean                  | -                  | ✅ Computed    | -          | -                                          | Derived from endDate                                        |
+| `membershipState`           | enum                     | -                  | ✅ Computed    | -          | `ACTIVE`, `EXPIRED`                        | Derived field                                               |
+| `daysRemaining`             | number/null              | -                  | ✅ Computed    | -          | -                                          | Null if expired                                             |
+| `isExpiringSoon`            | boolean                  | -                  | ✅ Computed    | -          | -                                          | True if < 7 days remaining                                  |
 
 ### Enum Reference
 
@@ -606,14 +606,18 @@ Extended profile fields can be added later via the Update endpoint.
 
 - All extended profile fields are optional
 - Send `null` or omit fields you don't want to set
-- Empty strings are converted to `null` on the backend
-- To clear a field on update, send `null` or empty string
+- **Empty strings (`""`) are automatically trimmed and converted to `null` by the backend**
+  - This applies to all optional string fields (email, address, notes, etc.)
+  - After trimming, if the result is empty, it's stored as `null`
+- To clear a field on update, send `null` or empty string `""`
 
 ### Phone Uniqueness
 
 - Phone numbers must be unique **per tenant**
+- **Enforced at DATABASE level** via compound unique index: `(tenantId, phone)`
 - The same phone can exist in different tenants
-- On conflict (409), display user-friendly message:
+- Uniqueness check occurs on both CREATE and UPDATE operations
+- On conflict (409), display the exact error message:
   ```
   "Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz."
   ```
@@ -623,9 +627,19 @@ Extended profile fields can be added later via the Update endpoint.
 
 All string fields are automatically trimmed on the backend. Leading/trailing whitespace is removed.
 
+**Important:** After trimming, if an optional string field becomes empty (`""`), it is converted to `null`.
+
+### Decimal Fields in JSON Responses
+
+**Important:** The `membershipPriceAtPurchase` field is a `Decimal` type in the database. However, in JSON responses, it is returned as a **string** (e.g., `"150.00"` instead of `150.00`).
+
+- When sending this field in CREATE requests, you can send it as a number (e.g., `150` or `150.00`)
+- The backend will store it as a Decimal and return it as a string in all responses
+- This ensures precision for monetary values without JavaScript floating-point issues
+
 ### Computed Fields
 
-Fields like `remainingDays`, `isMembershipActive`, `membershipState`, `daysRemaining`, and `isExpiringSoon` are computed by the backend. Do not send these in create/update requests.
+Fields like `remainingDays`, `isMembershipActive`, `membershipState`, `daysRemaining`, and `isExpiringSoon` are computed by the backend. **Do not send these in create/update requests.**
 
 ### Membership Date Calculation
 
@@ -667,8 +681,13 @@ Validation errors return a 400 status with an array of error messages. Display t
 ## Version
 
 **API Version:** v1  
-**Last Updated:** January 29, 2026  
+**Last Updated:** January 29, 2026
+
 **Changelog:**
 
-- Added extended member profile fields: address, district, nationalId, maritalStatus, occupation, industry, bloodType, emergencyContactName, emergencyContactPhone
-- Added MaritalStatus and BloodType enums
+- **January 29, 2026:**
+  - ✅ **Phone Uniqueness:** Enforced at database level via compound unique index `(tenantId, phone)`
+  - ✅ **Empty String Normalization:** Optional string fields with empty values (`""`) are automatically converted to `null` after trimming
+  - ✅ **Decimal Type Clarification:** `membershipPriceAtPurchase` returns as string in JSON (e.g., `"150.00"`)
+  - ✅ Added extended member profile fields: `address`, `district`, `nationalId`, `maritalStatus`, `occupation`, `industry`, `bloodType`, `emergencyContactName`, `emergencyContactPhone`
+  - ✅ Added `MaritalStatus` and `BloodType` enums
