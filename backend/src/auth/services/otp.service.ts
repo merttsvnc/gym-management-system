@@ -25,6 +25,12 @@ export class OtpService {
       'true';
     this.devFixedCode =
       this.configService.get<string>('AUTH_OTP_DEV_FIXED_CODE') || null;
+
+    // Log environment configuration at startup (safely, without exposing secrets)
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    this.logger.log(
+      `OTP Service initialized - NODE_ENV: ${nodeEnv}, AUTH_EMAIL_VERIFICATION_ENABLED: ${this.isEmailEnabled}, AUTH_OTP_DEV_FIXED_CODE: ${this.devFixedCode ? `set (length: ${this.devFixedCode.length})` : 'not set'}`,
+    );
   }
 
   /**
@@ -160,11 +166,32 @@ export class OtpService {
    * Verify OTP code
    * Returns true if valid, false otherwise
    * Increments attemptCount on failure
+   * In dev mode (AUTH_EMAIL_VERIFICATION_ENABLED=false), accepts fixed code without DB lookup
    */
   async verifyOtpCode(email: string, code: string): Promise<boolean> {
     const normalizedEmail = email.toLowerCase().trim();
     const now = new Date();
 
+    // Dev mode: accept fixed code directly without database lookup
+    if (!this.isEmailEnabled) {
+      const expectedCode = this.devFixedCode || '000000';
+      // String comparison to handle leading zeros correctly
+      const isValid = code === expectedCode;
+
+      if (isValid) {
+        this.logger.log(
+          `OTP verified successfully for ${normalizedEmail} (dev mode, fixed code)`,
+        );
+        return true;
+      } else {
+        this.logger.warn(
+          `OTP verification failed for ${normalizedEmail} (dev mode): code mismatch`,
+        );
+        return false;
+      }
+    }
+
+    // Production mode: verify against database hash
     // Find active OTP
     const otpRecord = await this.prisma.emailOtp.findFirst({
       where: {

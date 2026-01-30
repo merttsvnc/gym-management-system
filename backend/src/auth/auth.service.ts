@@ -429,22 +429,60 @@ export class AuthService {
       });
     }
 
-    // Update user emailVerifiedAt
-    const user = await this.prisma.user.findUnique({
+    // Find user
+    let user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
-    if (!user) {
+    // In dev mode (email verification disabled), if user doesn't exist after successful OTP verification,
+    // create a temporary user structure to allow testing without requiring signup/start first
+    const isEmailVerificationEnabled =
+      this.configService.get<string>('AUTH_EMAIL_VERIFICATION_ENABLED') === 'true';
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    
+    if (!user && !isEmailVerificationEnabled && nodeEnv !== 'production') {
+      // Create temporary user in dev mode for testing purposes
+      const tempPassword = await bcrypt.hash(`temp-${Date.now()}`, 10);
+      
+      user = await this.prisma.$transaction(async (tx) => {
+        // Create temporary tenant
+        const tempTenant = await tx.tenant.create({
+          data: {
+            name: 'Dev Test Tenant',
+            slug: `dev-test-${Date.now()}`,
+            planKey: PlanKey.SINGLE,
+            billingStatus: BillingStatus.TRIAL,
+            defaultCurrency: 'TRY',
+          },
+        });
+
+        // Create user with temporary tenant
+        return await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            passwordHash: tempPassword,
+            firstName: 'Dev',
+            lastName: 'User',
+            role: 'ADMIN',
+            isActive: true,
+            emailVerifiedAt: new Date(),
+            tenantId: tempTenant.id,
+          },
+        });
+      });
+    } else if (!user) {
+      // Production mode or email verification enabled: user must exist
       throw new BadRequestException({
         code: 'INVALID_OTP',
         message: 'Geçersiz veya süresi dolmuş doğrulama kodu',
       });
+    } else {
+      // User exists, update emailVerifiedAt
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
+      });
     }
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerifiedAt: new Date() },
-    });
 
     // Generate short-lived signup completion token
     const signupTokenPayload: SignupTokenPayload = {

@@ -228,6 +228,101 @@ describe('OtpService', () => {
       expect(result).toBe(false);
       expect(mockPrismaService.emailOtp.update).not.toHaveBeenCalled();
     });
+
+    describe('dev mode (AUTH_EMAIL_VERIFICATION_ENABLED=false)', () => {
+      let devService: OtpService;
+      const devMockConfigService = {
+        get: jest.fn((key: string) => {
+          if (key === 'AUTH_EMAIL_VERIFICATION_ENABLED') return 'false';
+          if (key === 'AUTH_OTP_DEV_FIXED_CODE') return '123456';
+          if (key === 'NODE_ENV') return 'development';
+          return null;
+        }),
+      };
+
+      beforeEach(async () => {
+        const module: TestingModule = await Test.createTestingModule({
+          providers: [
+            OtpService,
+            {
+              provide: PrismaService,
+              useValue: mockPrismaService,
+            },
+            {
+              provide: EmailService,
+              useValue: mockEmailService,
+            },
+            {
+              provide: ConfigService,
+              useValue: devMockConfigService,
+            },
+          ],
+        }).compile();
+
+        devService = module.get<OtpService>(OtpService);
+        jest.clearAllMocks();
+      });
+
+      it('should accept fixed dev code without database lookup', async () => {
+        const email = 'test@example.com';
+        const code = '123456'; // Matches AUTH_OTP_DEV_FIXED_CODE
+
+        const result = await devService.verifyOtpCode(email, code);
+
+        expect(result).toBe(true);
+        // Should not query database in dev mode
+        expect(mockPrismaService.emailOtp.findFirst).not.toHaveBeenCalled();
+        expect(mockPrismaService.emailOtp.update).not.toHaveBeenCalled();
+      });
+
+      it('should reject incorrect code in dev mode', async () => {
+        const email = 'test@example.com';
+        const code = '000000'; // Wrong code
+
+        const result = await devService.verifyOtpCode(email, code);
+
+        expect(result).toBe(false);
+        expect(mockPrismaService.emailOtp.findFirst).not.toHaveBeenCalled();
+      });
+
+      it('should use default 000000 if AUTH_OTP_DEV_FIXED_CODE not set', async () => {
+        const defaultMockConfigService = {
+          get: jest.fn((key: string) => {
+            if (key === 'AUTH_EMAIL_VERIFICATION_ENABLED') return 'false';
+            if (key === 'AUTH_OTP_DEV_FIXED_CODE') return null;
+            if (key === 'NODE_ENV') return 'development';
+            return null;
+          }),
+        };
+
+        const module: TestingModule = await Test.createTestingModule({
+          providers: [
+            OtpService,
+            {
+              provide: PrismaService,
+              useValue: mockPrismaService,
+            },
+            {
+              provide: EmailService,
+              useValue: mockEmailService,
+            },
+            {
+              provide: ConfigService,
+              useValue: defaultMockConfigService,
+            },
+          ],
+        }).compile();
+
+        const defaultDevService = module.get<OtpService>(OtpService);
+
+        const result = await defaultDevService.verifyOtpCode(
+          'test@example.com',
+          '000000',
+        );
+
+        expect(result).toBe(true);
+      });
+    });
   });
 
   describe('hasActiveOtp', () => {
