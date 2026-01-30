@@ -16,13 +16,18 @@ export class SignupTokenStrategy extends PassportStrategy(
   'signup-token',
 ) {
   constructor(private configService: ConfigService) {
+    const signupSecret = configService.get<string>('JWT_SIGNUP_SECRET');
+
+    if (!signupSecret) {
+      throw new Error(
+        'JWT_SIGNUP_SECRET is required for signup token verification. Please set it in your environment variables.',
+      );
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey:
-        configService.get<string>('JWT_SIGNUP_SECRET') ||
-        configService.get<string>('JWT_ACCESS_SECRET') ||
-        'your_signup_secret_here',
+      secretOrKey: signupSecret,
     });
   }
 

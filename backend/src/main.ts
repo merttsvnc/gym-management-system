@@ -5,6 +5,17 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
+  // Production safety check: fail startup if email verification is disabled in production
+  const nodeEnv = process.env.NODE_ENV;
+  const emailVerificationEnabled =
+    process.env.AUTH_EMAIL_VERIFICATION_ENABLED === 'true';
+
+  if (nodeEnv === 'production' && !emailVerificationEnabled) {
+    throw new Error(
+      'FATAL: AUTH_EMAIL_VERIFICATION_ENABLED must be true in production. Email verification cannot be disabled in production environments.',
+    );
+  }
+
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS for frontend development

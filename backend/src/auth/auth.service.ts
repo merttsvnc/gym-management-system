@@ -86,18 +86,10 @@ export class AuthService {
     const accessExpiresIn = (this.configService.get<string>(
       'JWT_ACCESS_EXPIRES_IN',
     ) || '900s') as StringValue;
-    const refreshExpiresIn = (this.configService.get<string>(
-      'JWT_REFRESH_EXPIRES_IN',
-    ) || '30d') as StringValue;
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
       expiresIn: accessExpiresIn,
-    });
-
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: refreshExpiresIn,
     });
 
     return {
@@ -321,21 +313,13 @@ export class AuthService {
       const accessExpiresIn = (this.configService.get<string>(
         'JWT_ACCESS_EXPIRES_IN',
       ) || '900s') as StringValue;
-      const refreshExpiresIn = (this.configService.get<string>(
-        'JWT_REFRESH_EXPIRES_IN',
-      ) || '30d') as StringValue;
 
       const accessToken = this.jwtService.sign(payload, {
         secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
         expiresIn: accessExpiresIn,
       });
 
-      const refreshToken = this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: refreshExpiresIn,
-      });
-
-      // Return same format as login, plus branch info (no refreshToken)
+      // Return same format as login, plus branch info
       return {
         accessToken,
         user: {
@@ -415,15 +399,8 @@ export class AuthService {
       });
     }
 
-    // User exists - update password if provided (for password reset flow compatibility)
-    // But don't reveal user existence (anti-enumeration)
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    await this.prisma.user.update({
-      where: { id: existingUser.id },
-      data: { passwordHash },
-    });
-
-    // Always send OTP (anti-enumeration)
+    // User exists - do NOT update password (DoS prevention)
+    // Only send OTP, maintain anti-enumeration behavior
     await this.otpService.createAndSendOtp(normalizedEmail);
 
     return {
@@ -475,11 +452,15 @@ export class AuthService {
       email: user.email,
     };
 
+    const signupSecret = this.configService.get<string>('JWT_SIGNUP_SECRET');
+    if (!signupSecret) {
+      throw new Error(
+        'JWT_SIGNUP_SECRET is required for signup token generation. Please set it in your environment variables.',
+      );
+    }
+
     const signupToken = this.jwtService.sign(signupTokenPayload, {
-      secret:
-        this.configService.get<string>('JWT_SIGNUP_SECRET') ||
-        this.configService.get<string>('JWT_ACCESS_SECRET') ||
-        'your_signup_secret_here',
+      secret: signupSecret,
       expiresIn: '900s', // 15 minutes
     });
 

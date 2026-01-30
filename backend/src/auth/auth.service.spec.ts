@@ -5,6 +5,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersRepository } from '../users/users.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { OtpService } from './services/otp.service';
 import { User, BillingStatus } from '@prisma/client';
 import {
   BILLING_ERROR_CODES,
@@ -33,10 +34,21 @@ describe('AuthService', () => {
   const mockPrismaService = {
     tenant: {
       findUnique: jest.fn(),
+      create: jest.fn(),
     },
     branch: {
       findFirst: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
+  };
+
+  const mockOtpService = {
+    createAndSendOtp: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -59,14 +71,14 @@ describe('AuthService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: OtpService,
+          useValue: mockOtpService,
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    usersRepository = module.get<UsersRepository>(UsersRepository);
-    jwtService = module.get<JwtService>(JwtService);
-    configService = module.get<ConfigService>(ConfigService);
-    prismaService = module.get<PrismaService>(PrismaService);
 
     // Setup default config values
     mockConfigService.get.mockImplementation((key: string) => {
@@ -74,10 +86,13 @@ describe('AuthService', () => {
       if (key === 'JWT_REFRESH_SECRET') return 'test-refresh-secret';
       if (key === 'JWT_ACCESS_EXPIRES_IN') return '900s';
       if (key === 'JWT_REFRESH_EXPIRES_IN') return '30d';
+      if (key === 'JWT_SIGNUP_SECRET') return 'test-signup-secret';
       return undefined;
     });
 
     mockJwtService.sign.mockImplementation(() => 'mock-jwt-token');
+    mockOtpService.createAndSendOtp.mockResolvedValue(undefined);
+    mockPrismaService.$transaction.mockImplementation((callback) => callback(mockPrismaService));
   });
 
   afterEach(() => {
@@ -226,7 +241,7 @@ describe('AuthService', () => {
 
       // Assert
       expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).not.toHaveProperty('refreshToken');
       expect(result.user).toEqual({
         id: mockUser.id,
         email: mockUser.email,
@@ -238,7 +253,7 @@ describe('AuthService', () => {
         name: 'Test Gym',
         billingStatus: BillingStatus.PAST_DUE,
       });
-      expect(mockJwtService.sign).toHaveBeenCalledTimes(2); // accessToken and refreshToken
+      expect(mockJwtService.sign).toHaveBeenCalledTimes(1); // accessToken only
     });
   });
 
@@ -268,9 +283,9 @@ describe('AuthService', () => {
 
       // Assert
       expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).not.toHaveProperty('refreshToken');
       expect(result.tenant.billingStatus).toBe(BillingStatus.ACTIVE);
-      expect(mockJwtService.sign).toHaveBeenCalledTimes(2);
+      expect(mockJwtService.sign).toHaveBeenCalledTimes(1); // accessToken only
     });
 
     it('should allow TRIAL tenant login normally', async () => {
@@ -298,9 +313,9 @@ describe('AuthService', () => {
 
       // Assert
       expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).not.toHaveProperty('refreshToken');
       expect(result.tenant.billingStatus).toBe(BillingStatus.TRIAL);
-      expect(mockJwtService.sign).toHaveBeenCalledTimes(2);
+      expect(mockJwtService.sign).toHaveBeenCalledTimes(1); // accessToken only
     });
   });
 
@@ -487,6 +502,75 @@ describe('AuthService', () => {
       // Assert
       expect(result).not.toBeNull();
       expect(result?.tenant.billingStatus).toBe(BillingStatus.PAST_DUE);
+    });
+  });
+
+  describe('signupStart', () => {
+    it('should not update passwordHash for existing users (DoS prevention)', async () => {
+      // Arrange
+      const dto = {
+        email: 'existing@example.com',
+        password: 'NewPassword123',
+        passwordConfirm: 'NewPassword123',
+      };
+
+      const existingUser = {
+        id: 'user-123',
+        tenantId: 'tenant-123',
+      };
+
+      mockPrismaService.user.findUnique.mockResolvedValue(existingUser);
+      const originalPasswordHash = 'original-hash';
+
+      // Mock user update to track if it was called
+      mockPrismaService.user.update.mockResolvedValue({
+        ...existingUser,
+        passwordHash: originalPasswordHash,
+      });
+
+      // Act
+      const result = await service.signupStart(dto);
+
+      // Assert
+      expect(result).toEqual({
+        ok: true,
+        message: 'Eğer bu e-posta adresi uygunsa doğrulama kodu gönderildi.',
+      });
+      expect(mockOtpService.createAndSendOtp).toHaveBeenCalledWith('existing@example.com');
+      // Verify passwordHash was NOT updated
+      expect(mockPrismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it('should create new user and send OTP for new email', async () => {
+      // Arrange
+      const dto = {
+        email: 'new@example.com',
+        password: 'Password123',
+        passwordConfirm: 'Password123',
+      };
+
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockPrismaService.tenant.create.mockResolvedValue({
+        id: 'tenant-new',
+        name: 'Temp',
+        slug: 'temp-123',
+      });
+      mockPrismaService.user.create.mockResolvedValue({
+        id: 'user-new',
+        email: 'new@example.com',
+        tenantId: 'tenant-new',
+      });
+
+      // Act
+      const result = await service.signupStart(dto);
+
+      // Assert
+      expect(result).toEqual({
+        ok: true,
+        message: 'Eğer bu e-posta adresi uygunsa doğrulama kodu gönderildi.',
+      });
+      expect(mockOtpService.createAndSendOtp).toHaveBeenCalledWith('new@example.com');
+      expect(mockPrismaService.user.create).toHaveBeenCalled();
     });
   });
 });
