@@ -21,11 +21,16 @@ import {
 import { RegisterDto } from './dto/register.dto';
 import { PLAN_CONFIG } from '../plan/plan.config';
 import { OtpService } from './services/otp.service';
+import { PasswordResetOtpService } from './services/password-reset-otp.service';
 import { SignupStartDto } from './dto/signup-start.dto';
 import { SignupVerifyOtpDto } from './dto/signup-verify-otp.dto';
 import { SignupCompleteDto } from './dto/signup-complete.dto';
 import { SignupResendOtpDto } from './dto/signup-resend-otp.dto';
 import { SignupTokenPayload } from './strategies/signup-token.strategy';
+import { PasswordResetStartDto } from './dto/password-reset-start.dto';
+import { PasswordResetVerifyOtpDto } from './dto/password-reset-verify-otp.dto';
+import { PasswordResetCompleteDto } from './dto/password-reset-complete.dto';
+import { ResetTokenPayload } from './strategies/reset-token.strategy';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +40,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly otpService: OtpService,
+    private readonly passwordResetOtpService: PasswordResetOtpService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -668,6 +674,131 @@ export class AuthService {
     return {
       ok: true,
       message: 'Eğer mümkünse yeni doğrulama kodu gönderildi.',
+    };
+  }
+
+  /**
+   * Start password reset process: send OTP
+   * Anti-enumeration: always returns success message
+   */
+  async passwordResetStart(dto: PasswordResetStartDto) {
+    const normalizedEmail = dto.email.toLowerCase().trim();
+
+    // Find user (but don't reveal if exists)
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+
+    // If user exists, create and send OTP
+    if (user) {
+      await this.passwordResetOtpService.createAndSendOtp(
+        user.id,
+        normalizedEmail,
+      );
+    }
+    // If user doesn't exist, still return success (anti-enumeration)
+
+    return {
+      ok: true,
+      message: 'Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.',
+    };
+  }
+
+  /**
+   * Verify password reset OTP and issue reset token
+   */
+  async passwordResetVerifyOtp(dto: PasswordResetVerifyOtpDto) {
+    const normalizedEmail = dto.email.toLowerCase().trim();
+
+    // Find user
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+
+    // Anti-enumeration: return generic error if user doesn't exist
+    if (!user) {
+      throw new BadRequestException({
+        code: 'INVALID_OTP',
+        message: 'Kod hatalı veya süresi dolmuş',
+      });
+    }
+
+    // Verify OTP
+    const isValid = await this.passwordResetOtpService.verifyOtpCode(
+      user.id,
+      dto.code,
+    );
+
+    if (!isValid) {
+      // Generic error for anti-enumeration
+      throw new BadRequestException({
+        code: 'INVALID_OTP',
+        message: 'Kod hatalı veya süresi dolmuş',
+      });
+    }
+
+    // Generate short-lived reset token
+    const resetTokenPayload: ResetTokenPayload = {
+      sub: user.id,
+      type: 'password_reset',
+    };
+
+    const resetSecret = this.configService.get<string>('JWT_RESET_SECRET');
+    if (!resetSecret) {
+      throw new Error(
+        'JWT_RESET_SECRET is required for password reset token generation. Please set it in your environment variables.',
+      );
+    }
+
+    const resetToken = this.jwtService.sign(resetTokenPayload, {
+      secret: resetSecret,
+      expiresIn: '900s', // 15 minutes
+    });
+
+    return {
+      ok: true,
+      resetToken,
+      expiresIn: 900,
+    };
+  }
+
+  /**
+   * Complete password reset: update password
+   * Requires reset token
+   */
+  async passwordResetComplete(
+    resetTokenPayload: ResetTokenPayload,
+    dto: PasswordResetCompleteDto,
+  ) {
+    const userId = resetTokenPayload.sub;
+
+    // Get user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid reset token');
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+
+    // Update password and clear all password reset OTPs
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      });
+
+      // Clear all password reset OTPs for this user
+      await this.passwordResetOtpService.clearOtpsForUser(userId);
+    });
+
+    return {
+      ok: true,
     };
   }
 }

@@ -19,6 +19,9 @@ import { SignupStartDto } from './dto/signup-start.dto';
 import { SignupVerifyOtpDto } from './dto/signup-verify-otp.dto';
 import { SignupCompleteDto } from './dto/signup-complete.dto';
 import { SignupResendOtpDto } from './dto/signup-resend-otp.dto';
+import { PasswordResetStartDto } from './dto/password-reset-start.dto';
+import { PasswordResetVerifyOtpDto } from './dto/password-reset-verify-otp.dto';
+import { PasswordResetCompleteDto } from './dto/password-reset-complete.dto';
 import { SkipBillingStatusCheck } from './decorators/skip-billing-status-check.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthUser } from './types/auth-user.type';
@@ -26,6 +29,8 @@ import { Logger } from '@nestjs/common';
 import { ThrottlerExceptionFilter } from '../common/filters/throttler-exception.filter';
 import { SignupTokenGuard } from './guards/signup-token.guard';
 import { SignupTokenPayload } from './strategies/signup-token.strategy';
+import { ResetTokenGuard } from './guards/reset-token.guard';
+import { ResetTokenPayload } from './strategies/reset-token.strategy';
 
 /**
  * Auth controller - all routes excluded from billing status check
@@ -147,5 +152,46 @@ export class AuthController {
       }
       throw error;
     }
+  }
+
+  @Post('password-reset/start')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
+  @UseFilters(ThrottlerExceptionFilter)
+  async passwordResetStart(@Body() dto: PasswordResetStartDto) {
+    try {
+      return await this.authService.passwordResetStart(dto);
+    } catch (error) {
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(`Rate limit exceeded for password reset start: ${dto.email}`);
+      }
+      throw error;
+    }
+  }
+
+  @Post('password-reset/verify-otp')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 900000 } }) // 10 attempts per 15 minutes
+  @UseFilters(ThrottlerExceptionFilter)
+  async passwordResetVerifyOtp(@Body() dto: PasswordResetVerifyOtpDto) {
+    try {
+      return await this.authService.passwordResetVerifyOtp(dto);
+    } catch (error) {
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(
+          `Rate limit exceeded for password reset OTP verification: ${dto.email}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  @Post('password-reset/complete')
+  @UseGuards(ResetTokenGuard)
+  async passwordResetComplete(
+    @CurrentUser() resetTokenPayload: ResetTokenPayload,
+    @Body() dto: PasswordResetCompleteDto,
+  ) {
+    return await this.authService.passwordResetComplete(resetTokenPayload, dto);
   }
 }
