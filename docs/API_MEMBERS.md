@@ -400,6 +400,7 @@ Content-Type: application/json
 All fields from Create Member are available as optional fields for update, **with the following restrictions:**
 
 **🚫 Fields that CANNOT be updated (v1 restriction):**
+
 - `membershipPlanId` - Cannot be changed after member creation. Use the **Schedule Membership Plan Change** endpoint instead. If sent in PATCH request, returns **400 Bad Request** with error:
   ```
   "membershipPlanId bu endpoint ile güncellenemez (v1 kısıtı). Üyelik planı değişikliği için ayrı bir işlem gereklidir."
@@ -410,15 +411,18 @@ All fields from Create Member are available as optional fields for update, **wit
   ```
 
 **📋 Pending Plan Change Fields:**
+
 - `pendingMembershipPlanId`, `pendingMembershipStartDate`, `pendingMembershipEndDate`, `pendingMembershipPriceAtPurchase`, `pendingMembershipScheduledAt`, `pendingMembershipScheduledByUserId` - These fields are system-managed and cannot be updated via PATCH. Use the **Schedule Membership Plan Change** and **Cancel Pending Plan Change** endpoints instead.
 
 **⚠️ Fields that should NOT typically be updated from mobile:**
+
 - `membershipStartDate`, `membershipEndDate` - These are system-managed based on plan duration
   - Can be updated if needed, but manual changes should be rare (e.g., manual extensions by admin)
   - Mobile apps should treat these as read-only in standard member edit flow
   - If updated, backend validates that `membershipEndDate > membershipStartDate` (returns 400 if invalid)
 
 **📝 Field Update Behavior:**
+
 - Empty strings (`""`) are automatically trimmed and converted to `null` for optional string fields
 - Sending `null` explicitly also clears the field
 - Phone uniqueness is enforced: updating to another member's phone returns **409 Conflict**
@@ -597,9 +601,9 @@ Content-Type: application/json
 
 #### Request Body
 
-| Field             | Type   | Required | Validation        | Description                    |
-| ----------------- | ------ | -------- | ----------------- | ------------------------------ |
-| `membershipPlanId` | string | Yes      | Valid plan ID     | New membership plan to activate when current period ends |
+| Field              | Type   | Required | Validation    | Description                                              |
+| ------------------ | ------ | -------- | ------------- | -------------------------------------------------------- |
+| `membershipPlanId` | string | Yes      | Valid plan ID | New membership plan to activate when current period ends |
 
 #### Business Rules
 
@@ -744,48 +748,48 @@ The job is idempotent: if it runs twice, it will not re-apply already applied ch
 
 ### Complete Member Field Table
 
-| Field                       | Type                     | Required on Create | System-Managed | Max Length | Validation                                 | Notes                                                       |
-| --------------------------- | ------------------------ | ------------------ | -------------- | ---------- | ------------------------------------------ | ----------------------------------------------------------- |
-| `id`                        | string (cuid)            | -                  | ✅ Yes         | -          | -                                          | Auto-generated                                              |
-| `tenantId`                  | string                   | -                  | ✅ Yes         | -          | -                                          | From JWT context                                            |
-| `branchId`                  | string                   | ✅ Yes             | No             | -          | Must exist                                 | Valid branch in tenant                                      |
-| `firstName`                 | string                   | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                                                     |
-| `lastName`                  | string                   | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                                                     |
-| `phone`                     | string                   | ✅ Yes             | No             | 20         | E.164 regex                                | **Unique per tenant** (DB-level compound index), trimmed    |
-| `gender`                    | enum                     | No                 | No             | -          | `MALE`, `FEMALE`                           | Optional                                                    |
-| `dateOfBirth`               | ISO 8601 date            | No                 | No             | -          | Valid date                                 | Optional                                                    |
-| `email`                     | string                   | No                 | No             | -          | Valid email                                | Optional, trimmed                                           |
-| `photoUrl`                  | string                   | No                 | No             | -          | Valid URL                                  | Optional                                                    |
-| `address`                   | string                   | No                 | No             | 500        | -                                          | Optional, trimmed                                           |
-| `district`                  | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
-| `nationalId`                | string                   | No                 | No             | 20         | -                                          | Optional, trimmed                                           |
-| `maritalStatus`             | enum                     | No                 | No             | -          | See enum values                            | Optional                                                    |
-| `occupation`                | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
-| `industry`                  | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
-| `bloodType`                 | enum                     | No                 | No             | -          | See enum values                            | Optional                                                    |
-| `emergencyContactName`      | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
-| `emergencyContactPhone`     | string                   | No                 | No             | 20         | E.164 regex                                | Optional, trimmed                                           |
-| `membershipPlanId`          | string                   | ✅ Yes             | No             | -          | Must exist                                 | Valid active plan                                           |
-| `membershipStartDate`       | ISO 8601 date            | No                 | Partial        | -          | Valid date                                 | Defaults to today                                           |
-| `membershipEndDate`         | ISO 8601 date            | No                 | ✅ Yes         | -          | Valid date                                 | Auto-calculated from plan                                   |
-| `membershipPriceAtPurchase` | decimal (string in JSON) | No                 | Partial        | -          | Positive number                            | Defaults to plan price. Returned as string (e.g., "150.00") |
-| `pendingMembershipPlanId`  | string                   | No                 | ✅ System      | -          | Valid plan ID                              | Set when plan change is scheduled                          |
-| `pendingMembershipStartDate` | ISO 8601 date          | No                 | ✅ System      | -          | Valid date                                 | Calculated as (membershipEndDate + 1 day)                  |
-| `pendingMembershipEndDate` | ISO 8601 date            | No                 | ✅ System      | -          | Valid date                                 | Calculated from plan duration                               |
-| `pendingMembershipPriceAtPurchase` | decimal (string in JSON) | No | ✅ System      | -          | Positive number                            | Snapshot of plan price at schedule time                    |
-| `pendingMembershipScheduledAt` | ISO 8601 timestamp    | No                 | ✅ System      | -          | -                                          | Timestamp when change was scheduled                        |
-| `pendingMembershipScheduledByUserId` | string            | No                 | ✅ System      | -          | Valid user ID                              | User who scheduled the change                              |
-| `status`                    | enum                     | No                 | Partial        | -          | `ACTIVE`, `PAUSED`, `INACTIVE`, `ARCHIVED` | Defaults to `ACTIVE`                                        |
-| `pausedAt`                  | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when status → `PAUSED`                                  |
-| `resumedAt`                 | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when `PAUSED` → `ACTIVE`                                |
-| `notes`                     | string                   | No                 | No             | 5000       | -                                          | Optional, trimmed                                           |
-| `createdAt`                 | ISO 8601 timestamp       | -                  | ✅ Yes         | -          | -                                          | Auto-generated                                              |
-| `updatedAt`                 | ISO 8601 timestamp       | -                  | ✅ Yes         | -          | -                                          | Auto-updated                                                |
-| `remainingDays`             | number                   | -                  | ✅ Computed    | -          | -                                          | Legacy field (computed)                                     |
-| `isMembershipActive`        | boolean                  | -                  | ✅ Computed    | -          | -                                          | Derived from endDate                                        |
-| `membershipState`           | enum                     | -                  | ✅ Computed    | -          | `ACTIVE`, `EXPIRED`                        | Derived field                                               |
-| `daysRemaining`             | number/null              | -                  | ✅ Computed    | -          | -                                          | Null if expired                                             |
-| `isExpiringSoon`            | boolean                  | -                  | ✅ Computed    | -          | -                                          | True if < 7 days remaining                                  |
+| Field                                | Type                     | Required on Create | System-Managed | Max Length | Validation                                 | Notes                                                       |
+| ------------------------------------ | ------------------------ | ------------------ | -------------- | ---------- | ------------------------------------------ | ----------------------------------------------------------- |
+| `id`                                 | string (cuid)            | -                  | ✅ Yes         | -          | -                                          | Auto-generated                                              |
+| `tenantId`                           | string                   | -                  | ✅ Yes         | -          | -                                          | From JWT context                                            |
+| `branchId`                           | string                   | ✅ Yes             | No             | -          | Must exist                                 | Valid branch in tenant                                      |
+| `firstName`                          | string                   | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                                                     |
+| `lastName`                           | string                   | ✅ Yes             | No             | 50         | Min 1 char                                 | Trimmed                                                     |
+| `phone`                              | string                   | ✅ Yes             | No             | 20         | E.164 regex                                | **Unique per tenant** (DB-level compound index), trimmed    |
+| `gender`                             | enum                     | No                 | No             | -          | `MALE`, `FEMALE`                           | Optional                                                    |
+| `dateOfBirth`                        | ISO 8601 date            | No                 | No             | -          | Valid date                                 | Optional                                                    |
+| `email`                              | string                   | No                 | No             | -          | Valid email                                | Optional, trimmed                                           |
+| `photoUrl`                           | string                   | No                 | No             | -          | Valid URL                                  | Optional                                                    |
+| `address`                            | string                   | No                 | No             | 500        | -                                          | Optional, trimmed                                           |
+| `district`                           | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `nationalId`                         | string                   | No                 | No             | 20         | -                                          | Optional, trimmed                                           |
+| `maritalStatus`                      | enum                     | No                 | No             | -          | See enum values                            | Optional                                                    |
+| `occupation`                         | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `industry`                           | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `bloodType`                          | enum                     | No                 | No             | -          | See enum values                            | Optional                                                    |
+| `emergencyContactName`               | string                   | No                 | No             | 100        | -                                          | Optional, trimmed                                           |
+| `emergencyContactPhone`              | string                   | No                 | No             | 20         | E.164 regex                                | Optional, trimmed                                           |
+| `membershipPlanId`                   | string                   | ✅ Yes             | No             | -          | Must exist                                 | Valid active plan                                           |
+| `membershipStartDate`                | ISO 8601 date            | No                 | Partial        | -          | Valid date                                 | Defaults to today                                           |
+| `membershipEndDate`                  | ISO 8601 date            | No                 | ✅ Yes         | -          | Valid date                                 | Auto-calculated from plan                                   |
+| `membershipPriceAtPurchase`          | decimal (string in JSON) | No                 | Partial        | -          | Positive number                            | Defaults to plan price. Returned as string (e.g., "150.00") |
+| `pendingMembershipPlanId`            | string                   | No                 | ✅ System      | -          | Valid plan ID                              | Set when plan change is scheduled                           |
+| `pendingMembershipStartDate`         | ISO 8601 date            | No                 | ✅ System      | -          | Valid date                                 | Calculated as (membershipEndDate + 1 day)                   |
+| `pendingMembershipEndDate`           | ISO 8601 date            | No                 | ✅ System      | -          | Valid date                                 | Calculated from plan duration                               |
+| `pendingMembershipPriceAtPurchase`   | decimal (string in JSON) | No                 | ✅ System      | -          | Positive number                            | Snapshot of plan price at schedule time                     |
+| `pendingMembershipScheduledAt`       | ISO 8601 timestamp       | No                 | ✅ System      | -          | -                                          | Timestamp when change was scheduled                         |
+| `pendingMembershipScheduledByUserId` | string                   | No                 | ✅ System      | -          | Valid user ID                              | User who scheduled the change                               |
+| `status`                             | enum                     | No                 | Partial        | -          | `ACTIVE`, `PAUSED`, `INACTIVE`, `ARCHIVED` | Defaults to `ACTIVE`                                        |
+| `pausedAt`                           | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when status → `PAUSED`                                  |
+| `resumedAt`                          | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when `PAUSED` → `ACTIVE`                                |
+| `notes`                              | string                   | No                 | No             | 5000       | -                                          | Optional, trimmed                                           |
+| `createdAt`                          | ISO 8601 timestamp       | -                  | ✅ Yes         | -          | -                                          | Auto-generated                                              |
+| `updatedAt`                          | ISO 8601 timestamp       | -                  | ✅ Yes         | -          | -                                          | Auto-updated                                                |
+| `remainingDays`                      | number                   | -                  | ✅ Computed    | -          | -                                          | Legacy field (computed)                                     |
+| `isMembershipActive`                 | boolean                  | -                  | ✅ Computed    | -          | -                                          | Derived from endDate                                        |
+| `membershipState`                    | enum                     | -                  | ✅ Computed    | -          | `ACTIVE`, `EXPIRED`                        | Derived field                                               |
+| `daysRemaining`                      | number/null              | -                  | ✅ Computed    | -          | -                                          | Null if expired                                             |
+| `isExpiringSoon`                     | boolean                  | -                  | ✅ Computed    | -          | -                                          | True if < 7 days remaining                                  |
 
 ### Enum Reference
 
