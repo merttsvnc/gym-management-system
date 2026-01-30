@@ -3,6 +3,7 @@
 ## Environment Setup Required
 
 Backend must be running with:
+
 ```bash
 NODE_ENV=development
 AUTH_EMAIL_VERIFICATION_ENABLED=false
@@ -10,6 +11,7 @@ AUTH_OTP_DEV_FIXED_CODE=123456
 ```
 
 ## Fixed OTP Code for Development
+
 ```
 123456
 ```
@@ -29,6 +31,7 @@ curl -X POST http://localhost:3000/api/v1/auth/signup/verify-otp \
 ```
 
 **Expected Response (HTTP 201)**:
+
 ```json
 {
   "ok": true,
@@ -76,18 +79,22 @@ Content-Type: application/json
 ## Common Issues
 
 ### Issue: "Kod hatalı veya süresi dolmuş"
+
 **Causes**:
+
 - ❌ Using wrong field name (`otp` instead of `code`)
 - ❌ Using wrong OTP code (not "123456")
 - ❌ Backend not started with `AUTH_EMAIL_VERIFICATION_ENABLED=false`
 - ❌ Backend not started with `AUTH_OTP_DEV_FIXED_CODE=123456`
 
 **Solution**: Check backend logs at startup:
+
 ```
 [OtpService] OTP Service initialized - NODE_ENV: development, AUTH_EMAIL_VERIFICATION_ENABLED: false, AUTH_OTP_DEV_FIXED_CODE: set (length: 6)
 ```
 
 ### Issue: Rate Limiting (HTTP 429)
+
 The endpoint has throttling: 10 attempts per 15 minutes.
 
 Wait 15 minutes or restart the backend.
@@ -143,7 +150,7 @@ curl -X POST http://localhost:3000/api/v1/auth/signup/verify-otp \
 ```typescript
 interface VerifyOtpRequest {
   email: string;
-  code: string;  // ⚠️ Not "otp"
+  code: string; // ⚠️ Not "otp"
 }
 
 interface VerifyOtpResponse {
@@ -152,21 +159,27 @@ interface VerifyOtpResponse {
   expiresIn: number;
 }
 
-async function verifyOtp(email: string, otpCode: string): Promise<VerifyOtpResponse> {
-  const response = await fetch('http://localhost:3000/api/v1/auth/signup/verify-otp', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+async function verifyOtp(
+  email: string,
+  otpCode: string,
+): Promise<VerifyOtpResponse> {
+  const response = await fetch(
+    "http://localhost:3000/api/v1/auth/signup/verify-otp",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: email.toLowerCase().trim(),
+        code: otpCode, // ⚠️ Use "code", not "otp"
+      }),
     },
-    body: JSON.stringify({
-      email: email.toLowerCase().trim(),
-      code: otpCode,  // ⚠️ Use "code", not "otp"
-    }),
-  });
+  );
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.message || 'OTP verification failed');
+    throw new Error(error.message || "OTP verification failed");
   }
 
   return response.json();
@@ -174,17 +187,18 @@ async function verifyOtp(email: string, otpCode: string): Promise<VerifyOtpRespo
 
 // Usage
 try {
-  const result = await verifyOtp('test@example.com', '123456');
-  console.log('Signup token:', result.signupToken);
+  const result = await verifyOtp("test@example.com", "123456");
+  console.log("Signup token:", result.signupToken);
   // Store the signup token for the complete step
 } catch (error) {
-  console.error('OTP verification failed:', error.message);
+  console.error("OTP verification failed:", error.message);
 }
 ```
 
 ## Verification Script
 
 Run the comprehensive test script:
+
 ```bash
 cd backend
 ./verify-otp-fix.sh
