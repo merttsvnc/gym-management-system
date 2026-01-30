@@ -9,6 +9,7 @@
 ## Quick Reference
 
 ### Flow Overview
+
 ```
 1. User clicks "Forgot Password"
    ↓
@@ -41,6 +42,7 @@ Content-Type: application/json
 ```
 
 **Response:** Always 201 (success or not)
+
 ```json
 {
   "ok": true,
@@ -50,6 +52,7 @@ Content-Type: application/json
 
 **Rate Limit:** 5 requests per 15 minutes per IP  
 **Behavior:**
+
 - ✅ Email exists → Sends OTP email
 - ✅ Email doesn't exist → Returns same response (anti-enumeration)
 - ⚠️ Too frequent → Returns same response (60s cooldown)
@@ -69,6 +72,7 @@ Content-Type: application/json
 ```
 
 **Success Response:** 201
+
 ```json
 {
   "ok": true,
@@ -78,6 +82,7 @@ Content-Type: application/json
 ```
 
 **Error Response:** 400
+
 ```json
 {
   "statusCode": 400,
@@ -88,6 +93,7 @@ Content-Type: application/json
 
 **Rate Limit:** 10 requests per 15 minutes per IP  
 **OTP Rules:**
+
 - 6-digit numeric code
 - Valid for 10 minutes
 - Max 5 verification attempts
@@ -109,6 +115,7 @@ Authorization: Bearer <resetToken>
 ```
 
 **Success Response:** 201
+
 ```json
 {
   "ok": true
@@ -117,14 +124,15 @@ Authorization: Bearer <resetToken>
 
 **Error Responses:**
 
-| Status | Code | Message | Cause |
-|--------|------|---------|-------|
-| 401 | - | Unauthorized | Missing/invalid resetToken |
-| 401 | - | Invalid token type | Using accessToken instead |
-| 400 | INVALID_INPUT | Validation errors | Password too short/weak |
-| 400 | PASSWORD_MISMATCH | Passwords don't match | Confirm mismatch |
+| Status | Code              | Message               | Cause                      |
+| ------ | ----------------- | --------------------- | -------------------------- |
+| 401    | -                 | Unauthorized          | Missing/invalid resetToken |
+| 401    | -                 | Invalid token type    | Using accessToken instead  |
+| 400    | INVALID_INPUT     | Validation errors     | Password too short/weak    |
+| 400    | PASSWORD_MISMATCH | Passwords don't match | Confirm mismatch           |
 
 **Password Rules:**
+
 - Min length: 10 characters
 - Must contain: letters and numbers
 - Must match confirmation
@@ -138,7 +146,7 @@ Authorization: Bearer <resetToken>
 ```swift
 class PasswordResetService {
     let baseURL = "https://your-api.com/api/v1/auth"
-    
+
     // Step 1: Start reset
     func startReset(email: String) async throws {
         let url = URL(string: "\(baseURL)/password-reset/start")!
@@ -146,13 +154,13 @@ class PasswordResetService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["email": email])
-        
+
         let (_, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 201 else {
             throw PasswordResetError.networkError
         }
     }
-    
+
     // Step 2: Verify OTP
     func verifyOTP(email: String, code: String) async throws -> String {
         let url = URL(string: "\(baseURL)/password-reset/verify-otp")!
@@ -163,13 +171,13 @@ class PasswordResetService {
             "email": email,
             "code": code
         ])
-        
+
         let (data, response) = try await URLSession.shared.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw PasswordResetError.networkError
         }
-        
+
         if httpResponse.statusCode == 201 {
             let result = try JSONDecoder().decode(VerifyOTPResponse.self, from: data)
             return result.resetToken
@@ -178,7 +186,7 @@ class PasswordResetService {
             throw PasswordResetError.invalidOTP(error.message)
         }
     }
-    
+
     // Step 3: Complete reset
     func completeReset(
         resetToken: String,
@@ -194,7 +202,7 @@ class PasswordResetService {
             "newPassword": newPassword,
             "newPasswordConfirm": confirm
         ])
-        
+
         let (_, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 201 else {
             throw PasswordResetError.resetFailed
@@ -214,7 +222,7 @@ struct VerifyOTPResponse: Codable {
 ```kotlin
 class PasswordResetService(private val httpClient: HttpClient) {
     private val baseURL = "https://your-api.com/api/v1/auth"
-    
+
     suspend fun startReset(email: String) {
         val response = httpClient.post("$baseURL/password-reset/start") {
             contentType(ContentType.Application.Json)
@@ -222,13 +230,13 @@ class PasswordResetService(private val httpClient: HttpClient) {
         }
         require(response.status == HttpStatusCode.Created)
     }
-    
+
     suspend fun verifyOTP(email: String, code: String): String {
         val response = httpClient.post("$baseURL/password-reset/verify-otp") {
             contentType(ContentType.Application.Json)
             setBody(mapOf("email" to email, "code" to code))
         }
-        
+
         return when (response.status) {
             HttpStatusCode.Created -> {
                 val result = response.body<VerifyOTPResponse>()
@@ -240,7 +248,7 @@ class PasswordResetService(private val httpClient: HttpClient) {
             }
         }
     }
-    
+
     suspend fun completeReset(
         resetToken: String,
         newPassword: String,
@@ -271,20 +279,24 @@ data class VerifyOTPResponse(
 ## Error Handling
 
 ### Generic Success Response
+
 **Always show:** "If this email is registered, a verification code has been sent."
 
 **Why?** Anti-enumeration - don't reveal if email exists
 
 ### OTP Error
+
 **Show:** "Code is incorrect or expired. Please try again."
 
 **Countdown:** After 5 failed attempts, disable retry and show:
 "Too many attempts. Please request a new code."
 
 ### Rate Limit Error (429)
+
 **Show:** "Too many requests. Please wait a few minutes and try again."
 
 ### Password Validation Errors
+
 ```
 - "Password must be at least 10 characters"
 - "Password must contain letters and numbers"
@@ -292,6 +304,7 @@ data class VerifyOTPResponse(
 ```
 
 ### Token Expiry
+
 **Show:** "Reset link expired. Please request a new code."
 
 **Trigger:** After 15 minutes from verification
@@ -301,6 +314,7 @@ data class VerifyOTPResponse(
 ## UI/UX Best Practices
 
 ### 1. Start Reset Screen
+
 ```
 ┌─────────────────────────┐
 │  Forgot Password?       │
@@ -315,11 +329,13 @@ data class VerifyOTPResponse(
 ```
 
 **After send:**
+
 - Show: "Code sent! Check your email."
 - Navigate to OTP screen
 - Auto-fill email
 
 ### 2. OTP Verification Screen
+
 ```
 ┌─────────────────────────┐
 │  Enter Code             │
@@ -336,6 +352,7 @@ data class VerifyOTPResponse(
 ```
 
 **Features:**
+
 - 6 separate input boxes
 - Auto-focus next box
 - Auto-submit when complete
@@ -343,6 +360,7 @@ data class VerifyOTPResponse(
 - Show attempts remaining: "2 attempts left"
 
 ### 3. New Password Screen
+
 ```
 ┌─────────────────────────┐
 │  Set New Password       │
@@ -360,12 +378,14 @@ data class VerifyOTPResponse(
 ```
 
 **Validation:**
+
 - Real-time feedback on requirements
 - Show/hide password toggle
 - Strength indicator
 - Match indicator for confirm
 
 ### 4. Success Screen
+
 ```
 ┌─────────────────────────┐
 │  ✓ Password Reset!      │
@@ -382,6 +402,7 @@ data class VerifyOTPResponse(
 ## Testing
 
 ### Dev Mode (EMAIL_VERIFICATION=false)
+
 ```bash
 # Fixed OTP code for testing
 CODE = "123456"
@@ -393,6 +414,7 @@ CODE = "123456"
 ```
 
 ### Production
+
 - Real OTPs sent via email
 - No fixed code
 - All security checks enabled
@@ -402,6 +424,7 @@ CODE = "123456"
 ## Security Notes for Mobile Devs
 
 ### ✅ DO:
+
 - Store resetToken in memory only (never persist)
 - Clear resetToken after 15 minutes
 - Show generic success messages (anti-enumeration)
@@ -409,6 +432,7 @@ CODE = "123456"
 - Use biometric auth after successful reset
 
 ### ❌ DON'T:
+
 - Don't persist resetToken in UserDefaults/SharedPreferences
 - Don't show "email not found" errors
 - Don't reveal attempt counts to users
@@ -424,7 +448,7 @@ CODE = "123456"
 **Issue:** Rate limiter enumeration leak  
 **Status:** Backend fix required  
 **ETA:** 1 hour  
-**Impact:** Email enumeration possible  
+**Impact:** Email enumeration possible
 
 **Wait for:** Backend team to confirm fix deployed
 

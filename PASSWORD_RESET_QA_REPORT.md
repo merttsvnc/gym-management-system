@@ -1,4 +1,5 @@
 # Password Reset QA Validation Report
+
 **Date:** 2026-01-30  
 **QA Engineer:** Senior QA Validation  
 **Target:** NestJS Password Reset Email OTP Flow  
@@ -13,33 +14,37 @@
 The password reset implementation has been validated with comprehensive end-to-end tests covering security invariants, anti-enumeration, rate limiting, token enforcement, and OTP attempt limits.
 
 **Key Findings:**
+
 1. ✅ Core functionality works correctly
 2. ✅ Anti-enumeration patterns implemented properly
 3. ✅ Token type enforcement working
-4. ⚠️  **CRITICAL**: Rate limiter causes enumeration leak (status code 429 vs 201)
-5. ⚠️  Rate limits may be too aggressive for testing/development
+4. ⚠️ **CRITICAL**: Rate limiter causes enumeration leak (status code 429 vs 201)
+5. ⚠️ Rate limits may be too aggressive for testing/development
 
 ---
 
 ## Test Results
 
 ### TEST 1: Smoke Test - Happy Path
+
 **Status:** ⚠️ PARTIAL (Rate Limit Interference)
 
-| Test Case | Expected | Actual | Result |
-|-----------|----------|--------|--------|
-| 1.1: Start password reset | 201, ok:true | 201, ok:true | ✅ PASS |
-| 1.2: Verify OTP (dev code) | 201, resetToken + expiresIn | 400 (user may not exist) | ⚠️ BLOCKED |
-| 1.3: Complete reset | 201, ok:true | Not tested | ⏭️ SKIPPED |
-| 1.4: Login with new password | 200/201, accessToken | Not tested | ⏭️ SKIPPED |
-| 1.5: Login with old password fails | 401/400 | Not tested | ⏭️ SKIPPED |
+| Test Case                          | Expected                    | Actual                   | Result     |
+| ---------------------------------- | --------------------------- | ------------------------ | ---------- |
+| 1.1: Start password reset          | 201, ok:true                | 201, ok:true             | ✅ PASS    |
+| 1.2: Verify OTP (dev code)         | 201, resetToken + expiresIn | 400 (user may not exist) | ⚠️ BLOCKED |
+| 1.3: Complete reset                | 201, ok:true                | Not tested               | ⏭️ SKIPPED |
+| 1.4: Login with new password       | 200/201, accessToken        | Not tested               | ⏭️ SKIPPED |
+| 1.5: Login with old password fails | 401/400                     | Not tested               | ⏭️ SKIPPED |
 
 **Issue:** Tests 1.2-1.5 failed because:
+
 1. Rate limits from previous test runs
 2. Test user `admin@example.com` may not exist in database
 3. Need fresh database or known test user
 
 **Recommendations:**
+
 - Create dedicated test user before running tests
 - Add rate limit reset between test suites
 - Use unique emails with timestamps for each test run
@@ -47,17 +52,19 @@ The password reset implementation has been validated with comprehensive end-to-e
 ---
 
 ### TEST 2: Anti-Enumeration (Email Existence)
+
 **Status:** ❌ CRITICAL FAILURE
 
-| Test Case | Expected | Actual | Result |
-|-----------|----------|--------|--------|
-| 2.1: Same status code | Both return 201 | Exist: 201, Non-exist: 429 | ❌ FAIL |
-| 2.1: Same message | Identical messages | Different messages | ❌ FAIL |
-| 2.2: Response timing | < 30% difference | 20% difference | ✅ PASS |
+| Test Case             | Expected           | Actual                     | Result  |
+| --------------------- | ------------------ | -------------------------- | ------- |
+| 2.1: Same status code | Both return 201    | Exist: 201, Non-exist: 429 | ❌ FAIL |
+| 2.1: Same message     | Identical messages | Different messages         | ❌ FAIL |
+| 2.2: Response timing  | < 30% difference   | 20% difference             | ✅ PASS |
 
 **CRITICAL ISSUE FOUND:**
 
 The rate limiter exposes email existence:
+
 - **Existing email:** Returns 201 even within rate limit window
 - **Non-existing email:** Returns 429 when rate limit hit
 
@@ -79,6 +86,7 @@ curl -X POST /api/v1/auth/password-reset/start \
 The Throttler is applied at the controller level and doesn't distinguish between existing/non-existing users. However, cooldown logic for existing users bypasses email sending but still returns 201, while rate-limited requests immediately return 429.
 
 **Security Impact:**
+
 - **HIGH**: Allows email enumeration attack
 - Attacker can determine if email exists by observing status codes
 - Violates anti-enumeration requirement
@@ -91,7 +99,7 @@ The Throttler is applied at the controller level and doesn't distinguish between
 async passwordResetStart(dto: PasswordResetStartDto) {
   // BEFORE checking user existence, enforce a rate limit check
   // that applies uniformly to all emails (existing or not)
-  
+
   const user = await this.prisma.user.findUnique({
     where: { email: dto.email },
   });
@@ -114,9 +122,9 @@ async passwordResetStart(dto: PasswordResetStartDto) {
   });
 
   if (existingOtp) {
-    const secondsSinceLastSend = 
+    const secondsSinceLastSend =
       (now.getTime() - existingOtp.lastSentAt.getTime()) / 1000;
-    
+
     if (secondsSinceLastSend < 60) {
       // CRITICAL: Do NOT reveal cooldown status in response
       // Return same success message but don't send email
@@ -137,16 +145,18 @@ Move rate limiting to IP-based throttling BEFORE email check, ensuring uniform b
 ---
 
 ### TEST 3: Verify Endpoint Anti-Enumeration
+
 **Status:** ✅ PASS
 
-| Test Case | Expected | Actual | Result |
-|-----------|----------|--------|--------|
+| Test Case                     | Expected    | Actual                               | Result  |
+| ----------------------------- | ----------- | ------------------------------------ | ------- |
 | 3.1: Non-existing email error | Generic 400 | 400, "Kod hatalı veya süresi dolmuş" | ✅ PASS |
-| 3.2: Wrong code error | Generic 400 | 400, "Kod hatalı veya süresi dolmuş" | ✅ PASS |
-| 3.3: Same error messages | Identical | Identical | ✅ PASS |
-| 3.4: Same status codes | Both 400 | Both 400 | ✅ PASS |
+| 3.2: Wrong code error         | Generic 400 | 400, "Kod hatalı veya süresi dolmuş" | ✅ PASS |
+| 3.3: Same error messages      | Identical   | Identical                            | ✅ PASS |
+| 3.4: Same status codes        | Both 400    | Both 400                             | ✅ PASS |
 
 **Verification:**
+
 ```bash
 # Non-existing email + any code
 {"statusCode":400,"message":"Kod hatalı veya süresi dolmuş","code":"INVALID_OTP"}
@@ -160,15 +170,17 @@ Move rate limiting to IP-based throttling BEFORE email check, ensuring uniform b
 ---
 
 ### TEST 4: Rate Limiting and Caps
+
 **Status:** ⚠️ PARTIAL (Too Aggressive)
 
-| Test Case | Expected | Actual | Result |
-|-----------|----------|--------|--------|
-| 4.1: Start rate limit (5/15min) | 429 after 6 requests | 429 after 1 request | ⚠️ TOO AGGRESSIVE |
-| 4.2: Verify rate limit (10/15min) | 429 after 11 requests | 429 after 7 requests | ⚠️ TOO AGGRESSIVE |
-| 4.3: Resend cooldown (60s) | Second request skips email | Both return 201 | ✅ PASS |
+| Test Case                         | Expected                   | Actual               | Result            |
+| --------------------------------- | -------------------------- | -------------------- | ----------------- |
+| 4.1: Start rate limit (5/15min)   | 429 after 6 requests       | 429 after 1 request  | ⚠️ TOO AGGRESSIVE |
+| 4.2: Verify rate limit (10/15min) | 429 after 11 requests      | 429 after 7 requests | ⚠️ TOO AGGRESSIVE |
+| 4.3: Resend cooldown (60s)        | Second request skips email | Both return 201      | ✅ PASS           |
 
 **Issues:**
+
 1. **Rate limits trigger too early** - This is likely due to:
    - Previous test runs not clearing storage
    - In-memory throttler accumulating requests
@@ -177,6 +189,7 @@ Move rate limiting to IP-based throttling BEFORE email check, ensuring uniform b
 2. **Cooldown enforcement unclear** - Timing alone can't verify email was skipped
 
 **Recommendations:**
+
 - Add `/api/v1/auth/dev/reset-rate-limits` endpoint for testing (dev mode only)
 - Log cooldown enforcement: "OTP send skipped due to cooldown" (without PII)
 - Consider Redis-based throttler for production (clears on restart)
@@ -184,16 +197,18 @@ Move rate limiting to IP-based throttling BEFORE email check, ensuring uniform b
 ---
 
 ### TEST 5: OTP Attempt Limits
+
 **Status:** ❌ FAIL (Rate Limiting Interference)
 
-| Test Case | Expected | Actual | Result |
-|-----------|----------|--------|--------|
-| 5.1: Max 5 attempts | 400 after 6th attempt | 429 (rate limited) | ❌ BLOCKED |
+| Test Case                         | Expected              | Actual             | Result     |
+| --------------------------------- | --------------------- | ------------------ | ---------- |
+| 5.1: Max 5 attempts               | 400 after 6th attempt | 429 (rate limited) | ❌ BLOCKED |
 | 5.2: OTP not reusable after limit | 400 with correct code | 429 (rate limited) | ❌ BLOCKED |
 
 **Issue:** Cannot test attempt limits due to rate limiter triggering first.
 
 **Actual Expected Behavior:**
+
 ```bash
 # After 5 wrong attempts:
 POST /password-reset/verify-otp
@@ -206,13 +221,14 @@ POST /password-reset/verify-otp
 {"statusCode":400,"message":"Kod hatalı veya süresi dolmuş","code":"INVALID_OTP"}
 ```
 
-**Code Review:** 
+**Code Review:**
 Looking at `PasswordResetOtpService.verifyOtp()`:
+
 ```typescript
 if (otpRecord.attemptCount >= 5) {
   return {
     isValid: false,
-    message: 'Kod hatalı veya süresi dolmuş',
+    message: "Kod hatalı veya süresi dolmuş",
   };
 }
 ```
@@ -222,18 +238,20 @@ This logic exists and should work once rate limits are addressed.
 ---
 
 ### TEST 6: Token Type Enforcement
+
 **Status:** ⚠️ PARTIAL
 
-| Test Case | Expected | Actual | Result |
-|-----------|----------|--------|--------|
-| 6.1: Missing Authorization | 401 | 401 | ✅ PASS |
-| 6.2: AccessToken rejected | 401 | Could not obtain token | ⚠️ BLOCKED |
-| 6.3: ResetToken accepted | 201 | Could not obtain token | ⚠️ BLOCKED |
+| Test Case                  | Expected | Actual                 | Result     |
+| -------------------------- | -------- | ---------------------- | ---------- |
+| 6.1: Missing Authorization | 401      | 401                    | ✅ PASS    |
+| 6.2: AccessToken rejected  | 401      | Could not obtain token | ⚠️ BLOCKED |
+| 6.3: ResetToken accepted   | 201      | Could not obtain token | ⚠️ BLOCKED |
 
 **Issue:** Cannot obtain tokens due to earlier test failures.
 
 **Code Review:**
 `ResetTokenGuard` implementation looks correct:
+
 ```typescript
 // reset-token.strategy.ts
 async validate(payload: any) {
@@ -249,10 +267,11 @@ This should correctly reject access tokens and signup tokens.
 ---
 
 ### TEST 7: Reset Token Expiry
+
 **Status:** ✅ DOCUMENTED
 
-| Test Case | Expected | Actual | Result |
-|-----------|----------|--------|--------|
+| Test Case         | Expected          | Actual                   | Result  |
+| ----------------- | ----------------- | ------------------------ | ------- |
 | 7.1: Token expiry | 15 minutes (900s) | Documented, JWT enforced | ✅ PASS |
 
 **Note:** Live testing would require 15+ minute wait. JWT library enforces expiry automatically.
@@ -264,15 +283,17 @@ This should correctly reject access tokens and signup tokens.
 ### Issue #1: Rate Limiter Enumeration Leak (CRITICAL - P0)
 
 **Severity:** HIGH  
-**Impact:** Email enumeration attack possible  
+**Impact:** Email enumeration attack possible
 
 **Problem:**
+
 ```
 Existing email (within cooldown) → Status 201
 Non-existing email (rate limited) → Status 429
 ```
 
 **Minimal Patch:**
+
 ```typescript
 // File: backend/src/auth/auth.service.ts
 // Method: passwordResetStart()
@@ -301,9 +322,9 @@ async passwordResetStart(dto: PasswordResetStartDto) {
   });
 
   if (existingOtp) {
-    const secondsSinceLastSend = 
+    const secondsSinceLastSend =
       (Date.now() - existingOtp.lastSentAt.getTime()) / 1000;
-    
+
     if (secondsSinceLastSend < 60) {
       // CRITICAL FIX: Return same response, don't send email
       // Log internally but don't reveal to client
@@ -312,7 +333,7 @@ async passwordResetStart(dto: PasswordResetStartDto) {
     }
 
     // Check daily cap
-    if (existingOtp.dailySentCount >= 10 && 
+    if (existingOtp.dailySentCount >= 10 &&
         this.isSameDay(existingOtp.dailySentAt, new Date())) {
       this.logger.log(`Daily cap: ${dto.email}`);
       return genericResponse; // Same response
@@ -328,16 +349,18 @@ async passwordResetStart(dto: PasswordResetStartDto) {
 ### Issue #2: Rate Limiting Too Aggressive for Testing (MEDIUM - P1)
 
 **Severity:** MEDIUM  
-**Impact:** Development/testing difficult, but not a security issue  
+**Impact:** Development/testing difficult, but not a security issue
 
 **Problem:** Rate limits trigger after 1-2 requests instead of configured 5/10
 
 **Possible Causes:**
+
 1. In-memory throttler not clearing between test runs
 2. IP-based throttling accumulating across all endpoints
 3. Missing test environment configuration
 
 **Recommended Fix:**
+
 ```typescript
 // File: backend/src/auth/auth.module.ts
 
@@ -363,6 +386,7 @@ async passwordResetStart(dto: PasswordResetStartDto) {
 ```
 
 Add dev-only reset endpoint:
+
 ```typescript
 // In auth.controller.ts (guarded by NODE_ENV check)
 
@@ -380,11 +404,13 @@ async resetRateLimits() {
 ## Test Script (Copy-Pasteable)
 
 The complete test script is available at:
+
 ```
 /Users/mertsevinc/Project/gym-management-system/test-password-reset-qa-fixed.sh
 ```
 
 **Prerequisites:**
+
 1. Server running: `npm run start:dev`
 2. Environment variables set:
    - `AUTH_EMAIL_VERIFICATION_ENABLED=false`
@@ -393,6 +419,7 @@ The complete test script is available at:
 4. Test user exists with email `admin@example.com` OR modify script to create one
 
 **Usage:**
+
 ```bash
 chmod +x test-password-reset-qa-fixed.sh
 ./test-password-reset-qa-fixed.sh
@@ -403,17 +430,21 @@ chmod +x test-password-reset-qa-fixed.sh
 ## Recommendations for Mobile Integration
 
 ### Must Fix Before Mobile Release (P0):
+
 1. ✅ **Fix rate limiter enumeration leak** - Apply Issue #1 patch above
 
 ### Should Fix (P1):
+
 2. ⚠️ **Add dev-only rate limit reset endpoint** - For testing/development
 3. ⚠️ **Configure environment-specific rate limits** - Less aggressive in dev/test
 
 ### Nice to Have (P2):
+
 4. ✅ **Add structured logging** - Log cooldown/cap enforcement without PII
 5. ✅ **Add E2E tests with test fixtures** - Automated validation
 
 ### Already Compliant:
+
 - ✅ Generic error messages (no enumeration in verify endpoint)
 - ✅ Token type enforcement architecture correct
 - ✅ OTP hashing at rest
@@ -448,6 +479,7 @@ After applying Issue #1 patch:
    ```
 
 **Expected Results After Patch:**
+
 - ✅ All status codes 201 for start endpoint (exist/non-exist)
 - ✅ All messages identical
 - ✅ Response times < 30% difference
@@ -459,12 +491,15 @@ After applying Issue #1 patch:
 ## Final Verdict
 
 ### Current State:
+
 **❌ NO-GO FOR MOBILE** (Critical enumeration leak)
 
 ### After Applying Issue #1 Patch:
+
 **⚠️ CONDITIONAL GO** (Pending retest confirmation)
 
 ### After Applying All Patches + Retest:
+
 **✅ GO FOR MOBILE** (All security invariants satisfied)
 
 ---

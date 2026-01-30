@@ -3,6 +3,7 @@
 ## Problem
 
 The rate limiter exposes email existence through status code differences:
+
 - **Existing email** (within cooldown): Returns `201` with generic message
 - **Non-existing email** (rate limited): Returns `429` with "Too many requests"
 
@@ -18,19 +19,22 @@ Request → ThrottlerGuard (IP-based, returns 429 if exceeded)
 ```
 
 For existing users within cooldown:
+
 - Service returns early with success (no email sent)
 - Response: `201`
 
 For non-existing users OR rate-limited requests:
+
 - If rate limit not hit: Service logic runs, returns `201`
 - If rate limit hit: ThrottlerGuard returns `429` BEFORE service
 
 ## Security Impact
 
 **Severity:** HIGH  
-**Attack Vector:** Email enumeration  
+**Attack Vector:** Email enumeration
 
 Attacker can:
+
 1. Rapidly send requests for different emails
 2. Observe status codes:
    - `201` repeatedly → Email exists (cooldown protection)
@@ -44,11 +48,14 @@ Remove `@Throttle()` decorator and implement IP-based rate limiting in service:
 
 ```typescript
 // auth.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
 export class AuthService {
-  private readonly rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+  private readonly rateLimitStore = new Map<
+    string,
+    { count: number; resetAt: number }
+  >();
   private readonly logger = new Logger(AuthService.name);
 
   async passwordResetStart(dto: PasswordResetStartDto, clientIp: string) {
@@ -63,14 +70,14 @@ export class AuthService {
       if (existing.count >= limit) {
         // Rate limited - but STILL return same response for anti-enumeration
         this.logger.warn(`Rate limit exceeded for IP ${clientIp}`);
-        
+
         // Add small delay to prevent timing attacks
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         // Return SAME response as success case
         return {
           ok: true,
-          message: 'Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.',
+          message: "Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.",
         };
       }
       existing.count++;
@@ -86,15 +93,18 @@ export class AuthService {
     });
 
     if (user) {
-      await this.passwordResetOtpService.createAndSendOtp(user.id, normalizedEmail);
+      await this.passwordResetOtpService.createAndSendOtp(
+        user.id,
+        normalizedEmail,
+      );
     } else {
       // Add small delay for non-existent users
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     return {
       ok: true,
-      message: 'Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.',
+      message: "Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.",
     };
   }
 }
@@ -106,8 +116,8 @@ Create a custom throttler that always returns `201`:
 
 ```typescript
 // anti-enum-throttler.guard.ts
-import { Injectable, ExecutionContext } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { Injectable, ExecutionContext } from "@nestjs/common";
+import { ThrottlerGuard } from "@nestjs/throttler";
 
 @Injectable()
 export class AntiEnumThrottlerGuard extends ThrottlerGuard {
@@ -126,6 +136,7 @@ export class AntiEnumThrottlerGuard extends ThrottlerGuard {
 ```
 
 Then in controller:
+
 ```typescript
 @Post('password-reset/start')
 @UseGuards(AntiEnumThrottlerGuard)
@@ -138,7 +149,7 @@ async passwordResetStart(@Body() dto: PasswordResetStartDto, @Req() req) {
       message: 'Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.',
     };
   }
-  
+
   return await this.authService.passwordResetStart(dto);
 }
 ```
@@ -164,6 +175,7 @@ async passwordResetStart(@Body() dto: PasswordResetStartDto) {
 ## Recommended Approach
 
 **Use Option 1** (Service-level rate limiting) because:
+
 1. ✅ Maintains anti-enumeration
 2. ✅ Applies rate limiting uniformly
 3. ✅ Single source of truth for limits
@@ -174,7 +186,7 @@ async passwordResetStart(@Body() dto: PasswordResetStartDto) {
 ```typescript
 // File: backend/src/auth/auth.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
 export class AuthService {
@@ -183,19 +195,22 @@ export class AuthService {
     string,
     { count: number; resetAt: number }
   >();
-  
+
   private readonly logger = new Logger(AuthService.name);
 
   constructor(/* ... */) {
     // Clean up expired rate limit entries every 5 minutes
-    setInterval(() => {
-      const now = Date.now();
-      for (const [key, value] of this.rateLimitStore.entries()) {
-        if (value.resetAt < now) {
-          this.rateLimitStore.delete(key);
+    setInterval(
+      () => {
+        const now = Date.now();
+        for (const [key, value] of this.rateLimitStore.entries()) {
+          if (value.resetAt < now) {
+            this.rateLimitStore.delete(key);
+          }
         }
-      }
-    }, 5 * 60 * 1000);
+      },
+      5 * 60 * 1000,
+    );
   }
 
   private async checkRateLimit(
@@ -218,27 +233,26 @@ export class AuthService {
     return true;
   }
 
-  async passwordResetStart(
-    dto: PasswordResetStartDto,
-    clientIp?: string,
-  ) {
+  async passwordResetStart(dto: PasswordResetStartDto, clientIp?: string) {
     const normalizedEmail = dto.email.toLowerCase().trim();
-    
+
     // Generic response for anti-enumeration
     const genericResponse = {
       ok: true,
-      message: 'Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.',
+      message: "Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.",
     };
 
     // Apply rate limiting (5 per 15 minutes per IP)
     if (clientIp) {
       const rateKey = `password-reset:${clientIp}`;
       const allowed = await this.checkRateLimit(rateKey, 5, 15 * 60 * 1000);
-      
+
       if (!allowed) {
-        this.logger.warn(`Rate limit exceeded for password reset from IP ${clientIp}`);
+        this.logger.warn(
+          `Rate limit exceeded for password reset from IP ${clientIp}`,
+        );
         // Add delay to prevent timing attacks
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         return genericResponse; // SAME response as success
       }
     }
@@ -257,7 +271,7 @@ export class AuthService {
       );
     } else {
       // User doesn't exist - add small delay to prevent timing attacks
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     return genericResponse;
@@ -266,6 +280,7 @@ export class AuthService {
 ```
 
 Controller changes:
+
 ```typescript
 // File: backend/src/auth/auth.controller.ts
 
@@ -316,7 +331,7 @@ done
 For production, replace in-memory Map with Redis:
 
 ```typescript
-import { Redis } from 'ioredis';
+import { Redis } from "ioredis";
 
 @Injectable()
 export class AuthService {
@@ -326,7 +341,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     // ... other services
   ) {
-    this.redis = new Redis(configService.get('REDIS_URL'));
+    this.redis = new Redis(configService.get("REDIS_URL"));
   }
 
   private async checkRateLimit(
@@ -335,11 +350,11 @@ export class AuthService {
     windowSeconds: number,
   ): Promise<boolean> {
     const count = await this.redis.incr(key);
-    
+
     if (count === 1) {
       await this.redis.expire(key, windowSeconds);
     }
-    
+
     return count <= limit;
   }
 }
