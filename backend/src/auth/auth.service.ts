@@ -534,15 +534,31 @@ export class AuthService {
       throw new BadRequestException('Email not verified');
     }
 
-    // Check if user already completed signup (tenant name is not 'Temp')
-    if (user.tenant && user.tenant.name !== 'Temp') {
+    // Check if user already completed signup
+    // Allow completion if tenant name is temporary (created in signupStart or dev mode)
+    const isTemporaryTenant =
+      user.tenant &&
+      (user.tenant.name === 'Temp' ||
+        user.tenant.name === 'Dev Test Tenant' ||
+        user.tenant.slug.startsWith('dev-test-') ||
+        user.tenant.slug.startsWith('temp-'));
+
+    if (user.tenant && !isTemporaryTenant) {
       // User already completed signup, return normal login response
       return this.login(user);
     }
 
+    // Get tenant name from DTO (supports both tenantName and gymName)
+    const tenantNameFinal = dto.getTenantName();
+    
+    // Validate that we have a tenant name (should be caught by DTO validation, but double-check)
+    if (!tenantNameFinal || tenantNameFinal.length < 2) {
+      throw new BadRequestException('Salon adı gereklidir (tenantName veya gymName)');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       // Generate unique slug
-      const baseSlug = this.generateSlug(dto.gymName);
+      const baseSlug = this.generateSlug(tenantNameFinal);
       const slug = await this.generateUniqueSlug(tx, baseSlug);
 
       // Calculate trial dates (7 days from now)
@@ -554,7 +570,7 @@ export class AuthService {
       const tenant = await tx.tenant.update({
         where: { id: user.tenantId },
         data: {
-          name: dto.gymName,
+          name: tenantNameFinal,
           slug,
           trialStartedAt: now,
           trialEndsAt,

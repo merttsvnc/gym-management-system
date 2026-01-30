@@ -1,10 +1,25 @@
-import { IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
+import {
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  ValidateIf,
+} from 'class-validator';
 
 export class SignupCompleteDto {
-  @IsString()
+  // Primary field: tenantName (preferred)
+  @ValidateIf((o) => !o.gymName)
+  @IsString({ message: 'Salon adı gereklidir' })
   @MinLength(2, { message: 'Salon adı en az 2 karakter olmalıdır' })
   @MaxLength(100, { message: 'Salon adı en fazla 100 karakter olabilir' })
-  gymName: string;
+  tenantName?: string;
+
+  // Alias field: gymName (for backward compatibility)
+  @ValidateIf((o) => !o.tenantName)
+  @IsString({ message: 'Salon adı gereklidir' })
+  @MinLength(2, { message: 'Salon adı en az 2 karakter olmalıdır' })
+  @MaxLength(100, { message: 'Salon adı en fazla 100 karakter olabilir' })
+  gymName?: string;
 
   @IsString()
   @MinLength(2, { message: 'İsim en az 2 karakter olmalıdır' })
@@ -20,4 +35,13 @@ export class SignupCompleteDto {
   @IsOptional()
   @IsString()
   branchAddress?: string;
+
+  /**
+   * Get the tenant name from either tenantName (primary) or gymName (alias)
+   * This ensures backward compatibility while preferring the standard field name
+   */
+  getTenantName(): string {
+    const name = this.tenantName || this.gymName || '';
+    return name.trim();
+  }
 }
