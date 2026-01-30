@@ -163,7 +163,6 @@ model User {
   tenant               Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   scheduledPlanChanges Member[]                  @relation("ScheduledByUser")
   planChangeHistory    MemberPlanChangeHistory[]
-  emailOtps            EmailOtp[]
 
   @@index([tenantId])
   @@index([email])
