@@ -386,7 +386,7 @@ GET /api/v1/members/clxy456789012?includePlan=true
 
 **PATCH** `/api/v1/members/:id`
 
-Updates an existing member. All fields are optional—only send fields that need to be updated.
+Updates an existing member. All fields are optional—only send fields that need to be updated. Follows PATCH semantics: only provided fields are updated.
 
 #### Request Headers
 
@@ -397,19 +397,73 @@ Content-Type: application/json
 
 #### Request Body
 
-All fields from Create Member are available as optional fields for update. See **Field Reference** below for complete list.
+All fields from Create Member are available as optional fields for update, **with the following restrictions:**
 
-#### Example Request
+**🚫 Fields that CANNOT be updated (v1 restriction):**
+- `membershipPlanId` - Cannot be changed after member creation. If sent in PATCH request, returns **400 Bad Request** with error:
+  ```
+  "membershipPlanId bu endpoint ile güncellenemez (v1 kısıtı). Üyelik planı değişikliği için ayrı bir işlem gereklidir."
+  ```
+- `membershipPriceAtPurchase` - Locked at purchase time. If sent in PATCH request, returns **400 Bad Request** with error:
+  ```
+  "membershipPriceAtPurchase bu endpoint ile güncellenemez (v1 kısıtı). Satın alma fiyatı değiştirilemez."
+  ```
+
+**⚠️ Fields that should NOT typically be updated from mobile:**
+- `membershipStartDate`, `membershipEndDate` - These are system-managed based on plan duration
+  - Can be updated if needed, but manual changes should be rare (e.g., manual extensions by admin)
+  - Mobile apps should treat these as read-only in standard member edit flow
+  - If updated, backend validates that `membershipEndDate > membershipStartDate` (returns 400 if invalid)
+
+**📝 Field Update Behavior:**
+- Empty strings (`""`) are automatically trimmed and converted to `null` for optional string fields
+- Sending `null` explicitly also clears the field
+- Phone uniqueness is enforced: updating to another member's phone returns **409 Conflict**
+
+See **Field Reference** below for complete list of all editable fields.
+
+#### Example Request - Comprehensive Update
 
 ```json
 {
+  "firstName": "Mehmet",
+  "lastName": "Demir",
+  "phone": "+905559998877",
+  "email": "mehmet.demir@example.com",
+  "photoUrl": "https://storage.example.com/photos/member-123.jpg",
+  "gender": "MALE",
+  "dateOfBirth": "1990-05-20",
   "address": "Yeni Mahalle Sok. No:45",
   "district": "Beşiktaş",
+  "nationalId": "98765432109",
   "maritalStatus": "MARRIED",
+  "occupation": "Mühendis",
+  "industry": "İnşaat",
+  "bloodType": "B_POS",
+  "emergencyContactName": "Fatma Demir",
   "emergencyContactPhone": "+905551112233",
-  "notes": "Adres güncellendi"
+  "notes": "Diz ameliyatı geçirdi, ağır squat yapmamalı"
 }
 ```
+
+#### Example Request - Minimal Update (Single Field)
+
+```json
+{
+  "firstName": "Mehmet Updated"
+}
+```
+
+#### Example Request - Clearing Optional Fields
+
+```json
+{
+  "email": "",
+  "notes": null
+}
+```
+
+Both `email` and `notes` will be set to `null` after this update.
 
 #### Success Response (200 OK)
 
@@ -417,7 +471,15 @@ Returns the updated member object (same structure as Get Member Details).
 
 #### Error Responses
 
-Same as Create Member, plus:
+**400 Bad Request** - Validation errors or forbidden fields
+
+```json
+{
+  "statusCode": 400,
+  "message": "membershipPlanId bu endpoint ile güncellenemez (v1 kısıtı). Üyelik planı değişikliği için ayrı bir işlem gereklidir.",
+  "error": "Bad Request"
+}
+```
 
 **404 Not Found** - Member doesn't exist or doesn't belong to tenant
 
@@ -426,6 +488,16 @@ Same as Create Member, plus:
   "statusCode": 404,
   "message": "Üye bulunamadı",
   "error": "Not Found"
+}
+```
+
+**409 Conflict** - Phone number already exists
+
+```json
+{
+  "statusCode": 409,
+  "message": "Bu telefon numarası zaten kullanılıyor. Lütfen farklı bir telefon numarası giriniz.",
+  "error": "Conflict"
 }
 ```
 

@@ -330,6 +330,7 @@ export class MembersService {
    * - Validates branch belongs to tenant if branchId is being updated
    * - Enforces phone uniqueness within tenant (excluding current member)
    * - Validates membershipEndAt is after membershipStartAt if dates are being updated
+   * - Rejects membershipPlanId and membershipPriceAtPurchase updates (v1 restriction - enforced at DTO level)
    */
 
   async update(tenantId: string, id: string, dto: UpdateMemberDto) {

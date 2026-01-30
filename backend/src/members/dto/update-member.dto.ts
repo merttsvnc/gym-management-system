@@ -10,8 +10,22 @@ import {
   Matches,
 } from 'class-validator';
 import { MemberGender, MaritalStatus, BloodType } from '@prisma/client';
+import { IsForbidden } from './validators/forbidden-field.validator';
 
 export class UpdateMemberDto {
+  // v1 restriction: membershipPlanId cannot be updated via PATCH
+  // If this field is present in the request, validation will fail with Turkish error message
+  @IsForbidden(
+    'membershipPlanId bu endpoint ile güncellenemez (v1 kısıtı). Üyelik planı değişikliği için ayrı bir işlem gereklidir.',
+  )
+  membershipPlanId?: never;
+
+  // v1 restriction: membershipPriceAtPurchase cannot be updated via PATCH
+  // If this field is present in the request, validation will fail with Turkish error message
+  @IsForbidden(
+    'membershipPriceAtPurchase bu endpoint ile güncellenemez (v1 kısıtı). Satın alma fiyatı değiştirilemez.',
+  )
+  membershipPriceAtPurchase?: never;
   @IsOptional()
   @IsString({ message: 'Şube ID metin olmalıdır' })
   branchId?: string;

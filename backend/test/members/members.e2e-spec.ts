@@ -1047,6 +1047,195 @@ describe('Members E2E Tests', () => {
         .send(updateDto)
         .expect(404);
     });
+
+    // v1 restriction tests
+    it('should reject PATCH with membershipPlanId (v1 restriction)', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id);
+
+      const updateDto = {
+        firstName: 'Updated',
+        membershipPlanId: 'plan-tenant1', // This should be rejected
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(400);
+
+      expect(response.body.message).toContain('membershipPlanId');
+      expect(response.body.message).toContain('güncellenemez');
+      expect(response.body.message).toContain('v1 kısıtı');
+    });
+
+    it('should reject PATCH with membershipPriceAtPurchase (v1 restriction)', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id);
+
+      const updateDto = {
+        firstName: 'Updated',
+        membershipPriceAtPurchase: 200, // This should be rejected
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(400);
+
+      expect(response.body.message).toContain('membershipPriceAtPurchase');
+      expect(response.body.message).toContain('güncellenemez');
+      expect(response.body.message).toContain('v1 kısıtı');
+    });
+
+    it('should reject PATCH with both forbidden fields', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id);
+
+      const updateDto = {
+        firstName: 'Updated',
+        membershipPlanId: 'plan-tenant1',
+        membershipPriceAtPurchase: 200,
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(400);
+
+      // Should return error about at least one forbidden field
+      expect(response.body.message).toBeDefined();
+    });
+
+    it('should update multiple normal fields successfully', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        address: 'Old Address',
+      });
+
+      const updateDto = {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane@example.com',
+        address: 'New Address',
+        notes: 'Updated notes',
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(response.body.firstName).toBe('Jane');
+      expect(response.body.lastName).toBe('Smith');
+      expect(response.body.email).toBe('jane@example.com');
+      expect(response.body.address).toBe('New Address');
+      expect(response.body.notes).toBe('Updated notes');
+    });
+
+    it('should clear optional fields when sending empty string', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+        email: 'test@example.com',
+        notes: 'Some notes',
+      });
+
+      const updateDto = {
+        email: '',
+        notes: '',
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(200);
+
+      // Empty strings should be normalized to null
+      expect(response.body.email).toBeNull();
+      expect(response.body.notes).toBeNull();
+    });
+
+    it('should clear optional fields when sending null', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id, {
+        email: 'test@example.com',
+        notes: 'Some notes',
+      });
+
+      const updateDto = {
+        email: null,
+        notes: null,
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(response.body.email).toBeNull();
+      expect(response.body.notes).toBeNull();
+    });
+
+    it('should reject phone update to another member\'s phone (409 Conflict)', async () => {
+      const phone1 = '+905551111111';
+      const phone2 = '+905552222222';
+
+      const member1 = await createTestMember(prisma, tenant1.id, branch1.id, {
+        phone: phone1,
+      });
+      const member2 = await createTestMember(prisma, tenant1.id, branch1.id, {
+        phone: phone2,
+      });
+
+      // Try to update member1's phone to member2's phone
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member1.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ phone: phone2 })
+        .expect(409);
+
+      expect(response.body.message).toContain('telefon numarası');
+      expect(response.body.message).toContain('zaten kullanılıyor');
+    });
+
+    it('should validate membership dates: endDate must be after startDate', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id);
+
+      const updateDto = {
+        membershipStartDate: '2024-12-31',
+        membershipEndDate: '2024-01-01', // End date before start date
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(400);
+
+      expect(response.body.message).toContain('bitiş tarihi');
+      expect(response.body.message).toContain('başlangıç tarihinden sonra');
+    });
+
+    it('should allow valid membership date updates', async () => {
+      const member = await createTestMember(prisma, tenant1.id, branch1.id);
+
+      const updateDto = {
+        membershipStartDate: '2024-01-01',
+        membershipEndDate: '2024-12-31', // Valid: end date after start date
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(new Date(response.body.membershipEndDate).getTime()).toBeGreaterThan(
+        new Date(response.body.membershipStartDate).getTime(),
+      );
+    });
   });
 
   // =====================================================================
