@@ -14,6 +14,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { EmailModule } from '../email/email.module';
 import { OtpService } from './services/otp.service';
 import { PasswordResetOtpService } from './services/password-reset-otp.service';
+import { RateLimiterService } from './services/rate-limiter.service';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PasswordResetOtpService } from './services/password-reset-otp.service';
     RolesGuard,
     OtpService,
     PasswordResetOtpService,
+    RateLimiterService,
   ],
   controllers: [AuthController],
   exports: [AuthService],

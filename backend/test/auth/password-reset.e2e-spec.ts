@@ -3,6 +3,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { RateLimiterService } from '../../src/auth/services/rate-limiter.service';
 import { createTestApp, closeTestApp } from '../utils/test-app';
 import { setupTestDatabase, cleanupTestDatabase } from '../utils/test-db';
 import * as bcrypt from 'bcrypt';
@@ -11,6 +12,7 @@ import * as jwt from 'jsonwebtoken';
 describe('Auth: Password Reset (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let rateLimiterService: RateLimiterService;
   const resetSecret = process.env.JWT_RESET_SECRET || 'test_reset_secret';
   const accessSecret = process.env.JWT_ACCESS_SECRET || 'test_access_secret';
 
@@ -18,6 +20,7 @@ describe('Auth: Password Reset (e2e)', () => {
     await setupTestDatabase();
     app = await createTestApp();
     prisma = app.get<PrismaService>(PrismaService);
+    rateLimiterService = app.get<RateLimiterService>(RateLimiterService);
   });
 
   afterAll(async () => {
@@ -28,6 +31,8 @@ describe('Auth: Password Reset (e2e)', () => {
   afterEach(async () => {
     // Clean up data after each test
     await prisma.passwordResetOtp.deleteMany();
+    // Clear rate limiter for each test
+    rateLimiterService.clearAll();
     await prisma.user.deleteMany();
     await prisma.tenant.deleteMany();
   });
@@ -46,7 +51,11 @@ describe('Auth: Password Reset (e2e)', () => {
   /**
    * Helper to create an access token for testing
    */
-  function createAccessToken(userId: string, tenantId: string, email: string): string {
+  function createAccessToken(
+    userId: string,
+    tenantId: string,
+    email: string,
+  ): string {
     const payload = {
       sub: userId,
       email,
@@ -131,6 +140,90 @@ describe('Auth: Password Reset (e2e)', () => {
 
       // Assert
       expect(response.status).toBe(400);
+    });
+
+    /**
+     * SECURITY TEST: Email enumeration via rate limiting
+     * This test verifies that rate limiting does NOT reveal user existence
+     */
+    it('should return 201 for both existing and non-existing emails when rate limited (anti-enumeration)', async () => {
+      // Arrange
+      const existingEmail = 'existing@example.com';
+      const nonExistingEmail = 'nonexistent@example.com';
+      await createUser(existingEmail, 'SecurePass123!');
+
+      // Act: Exceed rate limit for both emails
+      const requests = 30; // More than the IP limit (20)
+      const responses: { existing: number[]; nonExisting: number[] } = {
+        existing: [],
+        nonExisting: [],
+      };
+
+      for (let i = 0; i < requests; i++) {
+        const existingRes = await request(app.getHttpServer())
+          .post('/api/v1/auth/password-reset/start')
+          .send({ email: existingEmail });
+
+        const nonExistingRes = await request(app.getHttpServer())
+          .post('/api/v1/auth/password-reset/start')
+          .send({ email: nonExistingEmail });
+
+        responses.existing.push(existingRes.status);
+        responses.nonExisting.push(nonExistingRes.status);
+      }
+
+      // Assert: ALL responses should be 201 (never 429)
+      responses.existing.forEach((status, idx) => {
+        expect(status).toBe(201);
+      });
+      responses.nonExisting.forEach((status, idx) => {
+        expect(status).toBe(201);
+      });
+
+      // Verify response body is always the same
+      const finalExistingRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/password-reset/start')
+        .send({ email: existingEmail });
+
+      const finalNonExistingRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/password-reset/start')
+        .send({ email: nonExistingEmail });
+
+      expect(finalExistingRes.status).toBe(201);
+      expect(finalNonExistingRes.status).toBe(201);
+      expect(finalExistingRes.body).toEqual(finalNonExistingRes.body);
+      expect(finalExistingRes.body).toEqual({
+        ok: true,
+        message: 'Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.',
+      });
+    });
+
+    /**
+     * SECURITY TEST: Verify rate limiting is actually enforced
+     * Even though we return 201, we should skip sending emails after limit
+     */
+    it('should skip sending OTP after rate limit is reached', async () => {
+      // Arrange
+      const email = 'test@example.com';
+      const { user } = await createUser(email, 'SecurePass123!');
+
+      // Act: Send many requests to exceed rate limit
+      for (let i = 0; i < 25; i++) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/password-reset/start')
+          .send({ email });
+      }
+
+      // Assert: Check that not all requests created OTP records
+      // (rate limiting should have prevented some)
+      const otpCount = await prisma.passwordResetOtp.count({
+        where: { userId: user.id },
+      });
+
+      // Should be less than 25 (rate limited)
+      // But at least 1 (first request should succeed)
+      expect(otpCount).toBeGreaterThan(0);
+      expect(otpCount).toBeLessThan(25);
     });
   });
 
@@ -271,11 +364,17 @@ describe('Auth: Password Reset (e2e)', () => {
         where: { id: user.id },
       });
       expect(updatedUser).toBeDefined();
-      const isNewPasswordValid = await bcrypt.compare(newPassword, updatedUser!.passwordHash);
+      const isNewPasswordValid = await bcrypt.compare(
+        newPassword,
+        updatedUser!.passwordHash,
+      );
       expect(isNewPasswordValid).toBe(true);
 
       // Verify old password no longer works
-      const isOldPasswordValid = await bcrypt.compare(oldPassword, updatedUser!.passwordHash);
+      const isOldPasswordValid = await bcrypt.compare(
+        oldPassword,
+        updatedUser!.passwordHash,
+      );
       expect(isOldPasswordValid).toBe(false);
     });
 

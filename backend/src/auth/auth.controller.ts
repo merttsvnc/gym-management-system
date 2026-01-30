@@ -6,6 +6,7 @@ import {
   Get,
   UseFilters,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   Throttle,
@@ -31,6 +32,7 @@ import { SignupTokenGuard } from './guards/signup-token.guard';
 import { SignupTokenPayload } from './strategies/signup-token.strategy';
 import { ResetTokenGuard } from './guards/reset-token.guard';
 import { ResetTokenPayload } from './strategies/reset-token.strategy';
+import { RequestWithIp } from '../common/middleware/client-ip.middleware';
 
 /**
  * Auth controller - all routes excluded from billing status check
@@ -155,18 +157,14 @@ export class AuthController {
   }
 
   @Post('password-reset/start')
-  @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
-  @UseFilters(ThrottlerExceptionFilter)
-  async passwordResetStart(@Body() dto: PasswordResetStartDto) {
-    try {
-      return await this.authService.passwordResetStart(dto);
-    } catch (error) {
-      if (error instanceof ThrottlerException) {
-        this.logger.warn(`Rate limit exceeded for password reset start: ${dto.email}`);
-      }
-      throw error;
-    }
+  // NOTE: No @Throttle decorator here - rate limiting is handled at service level
+  // to prevent email enumeration through 429 vs 201 status code differences
+  async passwordResetStart(
+    @Body() dto: PasswordResetStartDto,
+    @Req() req: RequestWithIp,
+  ) {
+    const clientIp = req.clientIp || 'unknown';
+    return await this.authService.passwordResetStart(dto, clientIp);
   }
 
   @Post('password-reset/verify-otp')

@@ -22,6 +22,7 @@ import { RegisterDto } from './dto/register.dto';
 import { PLAN_CONFIG } from '../plan/plan.config';
 import { OtpService } from './services/otp.service';
 import { PasswordResetOtpService } from './services/password-reset-otp.service';
+import { RateLimiterService } from './services/rate-limiter.service';
 import { SignupStartDto } from './dto/signup-start.dto';
 import { SignupVerifyOtpDto } from './dto/signup-verify-otp.dto';
 import { SignupCompleteDto } from './dto/signup-complete.dto';
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly otpService: OtpService,
     private readonly passwordResetOtpService: PasswordResetOtpService,
+    private readonly rateLimiterService: RateLimiterService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -399,8 +401,7 @@ export class AuthService {
 
         return {
           ok: true,
-          message:
-            'Eğer bu e-posta adresi uygunsa doğrulama kodu gönderildi.',
+          message: 'Eğer bu e-posta adresi uygunsa doğrulama kodu gönderildi.',
         };
       });
     }
@@ -443,13 +444,14 @@ export class AuthService {
     // In dev mode (email verification disabled), if user doesn't exist after successful OTP verification,
     // create a temporary user structure to allow testing without requiring signup/start first
     const isEmailVerificationEnabled =
-      this.configService.get<string>('AUTH_EMAIL_VERIFICATION_ENABLED') === 'true';
+      this.configService.get<string>('AUTH_EMAIL_VERIFICATION_ENABLED') ===
+      'true';
     const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
-    
+
     if (!user && !isEmailVerificationEnabled && nodeEnv !== 'production') {
       // Create temporary user in dev mode for testing purposes
       const tempPassword = await bcrypt.hash(`temp-${Date.now()}`, 10);
-      
+
       user = await this.prisma.$transaction(async (tx) => {
         // Create temporary tenant
         const tempTenant = await tx.tenant.create({
@@ -556,10 +558,12 @@ export class AuthService {
 
     // Get tenant name from DTO (supports both tenantName and gymName)
     const tenantNameFinal = dto.getTenantName();
-    
+
     // Validate that we have a tenant name (should be caught by DTO validation, but double-check)
     if (!tenantNameFinal || tenantNameFinal.length < 2) {
-      throw new BadRequestException('Salon adı gereklidir (tenantName veya gymName)');
+      throw new BadRequestException(
+        'Salon adı gereklidir (tenantName veya gymName)',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -680,9 +684,32 @@ export class AuthService {
   /**
    * Start password reset process: send OTP
    * Anti-enumeration: always returns success message
+   *
+   * SECURITY FIX: Service-level rate limiting prevents enumeration via 429 status codes.
+   * Even when rate limited, we return the same 201 response.
    */
-  async passwordResetStart(dto: PasswordResetStartDto) {
+  async passwordResetStart(
+    dto: PasswordResetStartDto,
+    clientIp: string = 'unknown',
+  ) {
     const normalizedEmail = dto.email.toLowerCase().trim();
+
+    // Check rate limits BEFORE any user lookup (prevents enumeration)
+    const rateLimitCheck = this.rateLimiterService.checkPasswordResetLimit(
+      clientIp,
+      normalizedEmail,
+    );
+
+    if (rateLimitCheck.isLimited) {
+      // Rate limited: return same success response, but skip sending email
+      // Add small constant delay to reduce timing attacks
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      return {
+        ok: true,
+        message: 'Eğer bu e-posta kayıtlıysa doğrulama kodu gönderildi.',
+      };
+    }
 
     // Find user (but don't reveal if exists)
     const user = await this.prisma.user.findUnique({

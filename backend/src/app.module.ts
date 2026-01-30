@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -17,6 +17,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { BillingStatusGuard } from './auth/guards/billing-status.guard';
+import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -54,4 +55,9 @@ import { BillingStatusGuard } from './auth/guards/billing-status.guard';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply ClientIpMiddleware globally to extract client IP for rate limiting
+    consumer.apply(ClientIpMiddleware).forRoutes('*');
+  }
+}
