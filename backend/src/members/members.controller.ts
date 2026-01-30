@@ -18,6 +18,7 @@ import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { MemberListQueryDto } from './dto/member-list-query.dto';
 import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
+import { SchedulePlanChangeDto } from './dto/schedule-plan-change.dto';
 
 @Controller('api/v1/members')
 @UseGuards(JwtAuthGuard, TenantGuard)
@@ -110,5 +111,38 @@ export class MembersController {
   @HttpCode(HttpStatus.OK)
   archive(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.membersService.archive(tenantId, id);
+  }
+
+  /**
+   * POST /api/v1/members/:id/schedule-membership-plan-change
+   * Schedules a membership plan change to take effect when current period ends
+   * Returns 404 if member or plan doesn't belong to tenant
+   * Returns 400 if plan is inactive or branch mismatch
+   * Returns 200 with no-op message if same plan selected and no pending exists
+   */
+  @Post(':id/schedule-membership-plan-change')
+  @HttpCode(HttpStatus.OK)
+  schedulePlanChange(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: SchedulePlanChangeDto,
+  ) {
+    return this.membersService.schedulePlanChange(tenantId, id, dto, userId);
+  }
+
+  /**
+   * DELETE /api/v1/members/:id/schedule-membership-plan-change
+   * Cancels a pending membership plan change
+   * Returns 404 if member doesn't belong to tenant
+   * Returns 200 no-op if no pending change exists
+   */
+  @Delete(':id/schedule-membership-plan-change')
+  @HttpCode(HttpStatus.OK)
+  cancelPendingPlanChange(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+  ) {
+    return this.membersService.cancelPendingPlanChange(tenantId, id);
   }
 }

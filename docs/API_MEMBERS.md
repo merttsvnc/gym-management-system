@@ -400,7 +400,7 @@ Content-Type: application/json
 All fields from Create Member are available as optional fields for update, **with the following restrictions:**
 
 **🚫 Fields that CANNOT be updated (v1 restriction):**
-- `membershipPlanId` - Cannot be changed after member creation. If sent in PATCH request, returns **400 Bad Request** with error:
+- `membershipPlanId` - Cannot be changed after member creation. Use the **Schedule Membership Plan Change** endpoint instead. If sent in PATCH request, returns **400 Bad Request** with error:
   ```
   "membershipPlanId bu endpoint ile güncellenemez (v1 kısıtı). Üyelik planı değişikliği için ayrı bir işlem gereklidir."
   ```
@@ -408,6 +408,9 @@ All fields from Create Member are available as optional fields for update, **wit
   ```
   "membershipPriceAtPurchase bu endpoint ile güncellenemez (v1 kısıtı). Satın alma fiyatı değiştirilemez."
   ```
+
+**📋 Pending Plan Change Fields:**
+- `pendingMembershipPlanId`, `pendingMembershipStartDate`, `pendingMembershipEndDate`, `pendingMembershipPriceAtPurchase`, `pendingMembershipScheduledAt`, `pendingMembershipScheduledByUserId` - These fields are system-managed and cannot be updated via PATCH. Use the **Schedule Membership Plan Change** and **Cancel Pending Plan Change** endpoints instead.
 
 **⚠️ Fields that should NOT typically be updated from mobile:**
 - `membershipStartDate`, `membershipEndDate` - These are system-managed based on plan duration
@@ -579,6 +582,164 @@ Returns the archived member object with `status: "ARCHIVED"`.
 
 ---
 
+### 7. Schedule Membership Plan Change
+
+**POST** `/api/v1/members/:id/schedule-membership-plan-change`
+
+Schedules a membership plan change to take effect when the current paid period ends. The new plan starts only after the current `membershipEndDate` expires. This allows members to change plans without interrupting their current membership.
+
+#### Request Headers
+
+```
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+#### Request Body
+
+| Field             | Type   | Required | Validation        | Description                    |
+| ----------------- | ------ | -------- | ----------------- | ------------------------------ |
+| `membershipPlanId` | string | Yes      | Valid plan ID     | New membership plan to activate when current period ends |
+
+#### Business Rules
+
+- **New plan starts after current period ends:** The pending plan's start date is calculated as `(current membershipEndDate + 1 day)` as date-only
+- **Active plan stays until period end:** The current plan remains active until `membershipEndDate`
+- **Overwrite behavior:** If a pending change already exists, scheduling again replaces it with the new plan
+- **No-op behavior:** If the new plan equals the current plan and no pending change exists, returns 200 with message: `"Zaten aktif olan plan seçildi. Değişiklik yapılmadı."`
+- **Price snapshot:** The plan's price at schedule time is stored in `pendingMembershipPriceAtPurchase`
+- **Branch constraints:** If the plan is branch-scoped (`scope: "BRANCH"`), it must match the member's `branchId`
+
+#### Example Request
+
+```json
+{
+  "membershipPlanId": "clxy987654321"
+}
+```
+
+#### Success Response (200 OK)
+
+Returns the updated member object with pending plan fields populated:
+
+```json
+{
+  "id": "clxy456789012",
+  "membershipPlanId": "clxy111222333",
+  "membershipStartDate": "2026-01-29T00:00:00.000Z",
+  "membershipEndDate": "2026-02-28T00:00:00.000Z",
+  "pendingMembershipPlanId": "clxy987654321",
+  "pendingMembershipStartDate": "2026-03-01T00:00:00.000Z",
+  "pendingMembershipEndDate": "2026-05-31T00:00:00.000Z",
+  "pendingMembershipPriceAtPurchase": "250.00",
+  "pendingMembershipScheduledAt": "2026-01-30T10:00:00.000Z",
+  "pendingMembershipScheduledByUserId": "clxy999888777",
+  ...
+}
+```
+
+#### No-Op Response (200 OK)
+
+When same plan is selected and no pending exists:
+
+```json
+{
+  "id": "clxy456789012",
+  "membershipPlanId": "clxy987654321",
+  "pendingMembershipPlanId": null,
+  "message": "Zaten aktif olan plan seçildi. Değişiklik yapılmadı.",
+  ...
+}
+```
+
+#### Error Responses
+
+**400 Bad Request** - Plan is inactive or branch mismatch
+
+```json
+{
+  "statusCode": 400,
+  "message": "Bu üyelik planı aktif değil.",
+  "error": "Bad Request"
+}
+```
+
+```json
+{
+  "statusCode": 400,
+  "message": "Seçilen plan bu şube için geçerli değil.",
+  "error": "Bad Request"
+}
+```
+
+**404 Not Found** - Member or plan doesn't exist or doesn't belong to tenant
+
+```json
+{
+  "statusCode": 404,
+  "message": "Üye bulunamadı",
+  "error": "Not Found"
+}
+```
+
+```json
+{
+  "statusCode": 404,
+  "message": "Üyelik planı bulunamadı.",
+  "error": "Not Found"
+}
+```
+
+---
+
+### 8. Cancel Pending Plan Change
+
+**DELETE** `/api/v1/members/:id/schedule-membership-plan-change`
+
+Cancels a pending membership plan change. If no pending change exists, returns 200 no-op.
+
+#### Request Headers
+
+```
+Authorization: Bearer <token>
+```
+
+#### Success Response (200 OK)
+
+Returns the updated member object with pending fields cleared to `null`:
+
+```json
+{
+  "id": "clxy456789012",
+  "pendingMembershipPlanId": null,
+  "pendingMembershipStartDate": null,
+  "pendingMembershipEndDate": null,
+  "pendingMembershipPriceAtPurchase": null,
+  "pendingMembershipScheduledAt": null,
+  "pendingMembershipScheduledByUserId": null,
+  ...
+}
+```
+
+#### Error Responses
+
+**404 Not Found** - Member doesn't exist or doesn't belong to tenant
+
+---
+
+### Automatic Plan Change Application
+
+A scheduled job runs daily at 02:00 AM to automatically apply pending plan changes. The job:
+
+- Finds members where `pendingMembershipPlanId IS NOT NULL` and `pendingMembershipStartDate <= today` (date-only comparison)
+- Updates active membership fields (`membershipPlanId`, `membershipPriceAtPurchase`, `membershipStartDate`, `membershipEndDate`)
+- Clears pending fields to `null`
+- Creates history record with `changeType: "APPLIED"` and `appliedAt: now`
+
+The job is idempotent: if it runs twice, it will not re-apply already applied changes (pending fields will be `null` after first run).
+
+---
+
 ## Field Reference
 
 ### Complete Member Field Table
@@ -608,6 +769,12 @@ Returns the archived member object with `status: "ARCHIVED"`.
 | `membershipStartDate`       | ISO 8601 date            | No                 | Partial        | -          | Valid date                                 | Defaults to today                                           |
 | `membershipEndDate`         | ISO 8601 date            | No                 | ✅ Yes         | -          | Valid date                                 | Auto-calculated from plan                                   |
 | `membershipPriceAtPurchase` | decimal (string in JSON) | No                 | Partial        | -          | Positive number                            | Defaults to plan price. Returned as string (e.g., "150.00") |
+| `pendingMembershipPlanId`  | string                   | No                 | ✅ System      | -          | Valid plan ID                              | Set when plan change is scheduled                          |
+| `pendingMembershipStartDate` | ISO 8601 date          | No                 | ✅ System      | -          | Valid date                                 | Calculated as (membershipEndDate + 1 day)                  |
+| `pendingMembershipEndDate` | ISO 8601 date            | No                 | ✅ System      | -          | Valid date                                 | Calculated from plan duration                               |
+| `pendingMembershipPriceAtPurchase` | decimal (string in JSON) | No | ✅ System      | -          | Positive number                            | Snapshot of plan price at schedule time                    |
+| `pendingMembershipScheduledAt` | ISO 8601 timestamp    | No                 | ✅ System      | -          | -                                          | Timestamp when change was scheduled                        |
+| `pendingMembershipScheduledByUserId` | string            | No                 | ✅ System      | -          | Valid user ID                              | User who scheduled the change                              |
 | `status`                    | enum                     | No                 | Partial        | -          | `ACTIVE`, `PAUSED`, `INACTIVE`, `ARCHIVED` | Defaults to `ACTIVE`                                        |
 | `pausedAt`                  | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when status → `PAUSED`                                  |
 | `resumedAt`                 | ISO 8601 timestamp       | No                 | ✅ Yes         | -          | -                                          | Set when `PAUSED` → `ACTIVE`                                |
@@ -753,9 +920,17 @@ Validation errors return a 400 status with an array of error messages. Display t
 ## Version
 
 **API Version:** v1  
-**Last Updated:** January 29, 2026
+**Last Updated:** January 30, 2026
 
 **Changelog:**
+
+- **January 30, 2026:**
+  - ✅ **Scheduled Membership Plan Changes:** Added endpoints to schedule plan changes that take effect when current period ends
+    - `POST /api/v1/members/:id/schedule-membership-plan-change` - Schedule a plan change
+    - `DELETE /api/v1/members/:id/schedule-membership-plan-change` - Cancel pending change
+  - ✅ **Automatic Plan Application:** Daily cron job (02:00 AM) automatically applies scheduled changes
+  - ✅ **Plan Change History:** Added `MemberPlanChangeHistory` table for audit trail
+  - ✅ **Pending Plan Fields:** Added `pendingMembershipPlanId`, `pendingMembershipStartDate`, `pendingMembershipEndDate`, `pendingMembershipPriceAtPurchase`, `pendingMembershipScheduledAt`, `pendingMembershipScheduledByUserId` to Member model
 
 - **January 29, 2026:**
   - ✅ **Phone Uniqueness:** Enforced at database level via compound unique index `(tenantId, phone)`

@@ -110,11 +110,12 @@ model Tenant {
   updatedAt              DateTime      @updatedAt
 
   // Relations
-  branches        Branch[]
-  users           User[]
-  members         Member[]
-  membershipPlans MembershipPlan[]
-  payments        Payment[]
+  branches          Branch[]
+  users             User[]
+  members           Member[]
+  membershipPlans   MembershipPlan[]
+  payments          Payment[]
+  planChangeHistory MemberPlanChangeHistory[]
 
   @@index([slug])
   @@index([billingStatus])
@@ -158,7 +159,9 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant               Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scheduledPlanChanges Member[]                  @relation("ScheduledByUser")
+  planChangeHistory    MemberPlanChangeHistory[]
 
   @@index([tenantId])
   @@index([email])
@@ -185,9 +188,10 @@ model MembershipPlan {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch  Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  members Member[]
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch         Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  members        Member[]
+  pendingMembers Member[] @relation("PendingMembershipPlan")
 
   @@unique([tenantId, scope, scopeKey, name])
   @@index([tenantId])
@@ -233,6 +237,14 @@ model Member {
   membershipEndDate         DateTime
   membershipPriceAtPurchase Decimal? @db.Decimal(10, 2)
 
+  // Pending membership plan change (scheduled for period end)
+  pendingMembershipPlanId            String?
+  pendingMembershipStartDate         DateTime?
+  pendingMembershipEndDate           DateTime?
+  pendingMembershipPriceAtPurchase   Decimal?  @db.Decimal(10, 2)
+  pendingMembershipScheduledAt       DateTime?
+  pendingMembershipScheduledByUserId String?
+
   // Status
   status    MemberStatus @default(ACTIVE)
   pausedAt  DateTime?
@@ -246,10 +258,13 @@ model Member {
   updatedAt DateTime @updatedAt
 
   // Relations
-  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch         Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id])
-  payments       Payment[]
+  tenant                       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch                       Branch                    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  membershipPlan               MembershipPlan            @relation(fields: [membershipPlanId], references: [id])
+  pendingMembershipPlan        MembershipPlan?           @relation("PendingMembershipPlan", fields: [pendingMembershipPlanId], references: [id])
+  pendingMembershipScheduledBy User?                     @relation("ScheduledByUser", fields: [pendingMembershipScheduledByUserId], references: [id])
+  payments                     Payment[]
+  planChangeHistory            MemberPlanChangeHistory[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, branchId])
@@ -258,6 +273,8 @@ model Member {
   @@index([tenantId, membershipPlanId])
   @@index([tenantId, nationalId])
   @@index([tenantId, emergencyContactPhone])
+  @@index([tenantId, pendingMembershipPlanId])
+  @@index([tenantId, pendingMembershipStartDate])
 }
 
 // Payment model
@@ -325,4 +342,40 @@ model IdempotencyKey {
 
   @@index([key])
   @@index([expiresAt]) // For cleanup job
+}
+
+// MemberPlanChangeHistory model (audit trail for plan changes)
+model MemberPlanChangeHistory {
+  id       String @id @default(cuid())
+  tenantId String
+  memberId String
+
+  // Plan change details
+  oldPlanId          String?
+  newPlanId          String?
+  oldStartDate       DateTime?
+  oldEndDate         DateTime?
+  newStartDate       DateTime?
+  newEndDate         DateTime?
+  oldPriceAtPurchase Decimal?  @db.Decimal(10, 2)
+  newPriceAtPurchase Decimal?  @db.Decimal(10, 2)
+
+  // Change tracking
+  changeType      String // "SCHEDULED" | "APPLIED" | "CANCELLED"
+  scheduledAt     DateTime?
+  appliedAt       DateTime?
+  changedByUserId String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Relations
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member        Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  changedByUser User?  @relation(fields: [changedByUserId], references: [id])
+
+  @@index([tenantId, memberId])
+  @@index([tenantId, appliedAt])
+  @@index([tenantId, scheduledAt])
+  @@index([memberId])
 }

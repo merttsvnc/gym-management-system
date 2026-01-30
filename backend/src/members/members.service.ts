@@ -11,6 +11,7 @@ import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { MemberListQueryDto } from './dto/member-list-query.dto';
 import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
+import { SchedulePlanChangeDto } from './dto/schedule-plan-change.dto';
 import { MemberStatus } from '@prisma/client';
 import { MembershipPlansService } from '../membership-plans/membership-plans.service';
 import { calculateMembershipEndDate } from '../membership-plans/utils/duration-calculator';
@@ -302,6 +303,7 @@ export class MembersService {
    * - Enforces tenant isolation - throws NotFoundException if member doesn't belong to tenant
    * - Always includes branch information
    * - Optionally includes membership plan details if includePlan is true
+   * - Always includes pending membership plan if pendingMembershipPlanId exists
    */
   async findOne(tenantId: string, id: string, includePlan = false) {
     const member = await this.prisma.member.findUnique({
@@ -309,6 +311,7 @@ export class MembersService {
       include: {
         branch: true,
         ...(includePlan ? { membershipPlan: true } : {}),
+        ...(includePlan ? { pendingMembershipPlan: true } : {}),
       },
     });
 
@@ -716,5 +719,180 @@ export class MembersService {
     const remainingDays = totalDays - activeDaysElapsed;
 
     return Math.round(remainingDays);
+  }
+
+  /**
+   * Schedule a membership plan change
+   * Business rules:
+   * - Validates member belongs to tenant
+   * - Validates plan exists, is ACTIVE, and belongs to tenant
+   * - Validates branch constraints (if plan is branch-scoped, must match member's branch)
+   * - Computes start date: (member.membershipEndDate + 1 day) as date-only
+   * - Computes end date from plan duration
+   * - Snapshots price at schedule time
+   * - Overwrites existing pending change if present
+   * - No-op if new plan equals current plan and no pending exists
+   * - Creates history record with changeType="SCHEDULED"
+   */
+  async schedulePlanChange(
+    tenantId: string,
+    memberId: string,
+    dto: SchedulePlanChangeDto,
+    userId: string,
+  ) {
+    // Get member and validate tenant isolation
+    const member = await this.findOne(tenantId, memberId);
+
+    // Fetch and validate plan
+    const plan = await this.membershipPlansService.getPlanByIdForTenant(
+      tenantId,
+      dto.membershipPlanId,
+    );
+
+    // Validate plan is ACTIVE
+    if (plan.status !== 'ACTIVE') {
+      throw new BadRequestException('Bu üyelik planı aktif değil.');
+    }
+
+    // Validate branch constraints (if plan is branch-scoped, must match member's branch)
+    if (plan.scope === 'BRANCH' && plan.branchId !== member.branchId) {
+      throw new BadRequestException(
+        'Seçilen plan bu şube için geçerli değil.',
+      );
+    }
+
+    // No-op: if new plan equals current plan and no pending exists
+    if (
+      dto.membershipPlanId === member.membershipPlanId &&
+      !member.pendingMembershipPlanId
+    ) {
+      return {
+        ...this.enrichMemberWithComputedFields(member),
+        message: 'Zaten aktif olan plan seçildi. Değişiklik yapılmadı.',
+      };
+    }
+
+    // Compute start date: (member.membershipEndDate + 1 day) as date-only
+    // If member has no membershipEndDate (edge case), startDate = today
+    // Use UTC normalization to avoid timezone issues
+    const currentEndDate = member.membershipEndDate || new Date();
+    const pendingStartDate = new Date(currentEndDate);
+    pendingStartDate.setUTCDate(pendingStartDate.getUTCDate() + 1);
+    // Set to start of day (date-only) in UTC to avoid timezone issues
+    pendingStartDate.setUTCHours(0, 0, 0, 0);
+
+    // Compute end date from plan duration
+    const pendingEndDate = calculateMembershipEndDate(
+      pendingStartDate,
+      plan.durationType,
+      plan.durationValue,
+    );
+
+    // Snapshot price at schedule time
+    const pendingPriceAtPurchase = plan.price.toNumber();
+
+    const now = new Date();
+
+    // Update member with pending plan change (overwrites existing if present)
+    // Also create history record in the same transaction
+    const updatedMember = await this.prisma.$transaction(async (tx) => {
+      // Update member with pending fields
+      const updated = await tx.member.update({
+        where: { id: memberId },
+        data: {
+          pendingMembershipPlanId: dto.membershipPlanId,
+          pendingMembershipStartDate: pendingStartDate,
+          pendingMembershipEndDate: pendingEndDate,
+          pendingMembershipPriceAtPurchase: pendingPriceAtPurchase,
+          pendingMembershipScheduledAt: now,
+          pendingMembershipScheduledByUserId: userId,
+        },
+      });
+
+      // Create history record with changeType="SCHEDULED"
+      await tx.memberPlanChangeHistory.create({
+        data: {
+          tenantId,
+          memberId,
+          oldPlanId: member.membershipPlanId,
+          newPlanId: dto.membershipPlanId,
+          oldStartDate: member.membershipStartDate,
+          oldEndDate: member.membershipEndDate,
+          newStartDate: pendingStartDate,
+          newEndDate: pendingEndDate,
+          oldPriceAtPurchase: member.membershipPriceAtPurchase
+            ? member.membershipPriceAtPurchase.toNumber()
+            : null,
+          newPriceAtPurchase: pendingPriceAtPurchase,
+          changeType: 'SCHEDULED',
+          scheduledAt: now,
+          changedByUserId: userId,
+        },
+      });
+
+      return updated;
+    });
+
+    return this.enrichMemberWithComputedFields(updatedMember);
+  }
+
+  /**
+   * Cancel pending plan change
+   * Business rules:
+   * - Validates member belongs to tenant
+   * - If pending exists, clears all pending fields and creates history record (CANCELLED)
+   * - If no pending exists, returns 200 no-op
+   */
+  async cancelPendingPlanChange(tenantId: string, memberId: string) {
+    // Get member and validate tenant isolation
+    const member = await this.findOne(tenantId, memberId);
+
+    // No-op if no pending change exists
+    if (!member.pendingMembershipPlanId) {
+      return this.enrichMemberWithComputedFields(member);
+    }
+
+    // Clear pending fields and create history record
+    const updatedMember = await this.prisma.$transaction(async (tx) => {
+      // Clear pending fields
+      const updated = await tx.member.update({
+        where: { id: memberId },
+        data: {
+          pendingMembershipPlanId: null,
+          pendingMembershipStartDate: null,
+          pendingMembershipEndDate: null,
+          pendingMembershipPriceAtPurchase: null,
+          pendingMembershipScheduledAt: null,
+          pendingMembershipScheduledByUserId: null,
+        },
+      });
+
+      // Create history record with changeType="CANCELLED"
+      await tx.memberPlanChangeHistory.create({
+        data: {
+          tenantId,
+          memberId,
+          oldPlanId: member.membershipPlanId,
+          newPlanId: member.pendingMembershipPlanId,
+          oldStartDate: member.membershipStartDate,
+          oldEndDate: member.membershipEndDate,
+          newStartDate: member.pendingMembershipStartDate,
+          newEndDate: member.pendingMembershipEndDate,
+          oldPriceAtPurchase: member.membershipPriceAtPurchase
+            ? member.membershipPriceAtPurchase.toNumber()
+            : null,
+          newPriceAtPurchase: member.pendingMembershipPriceAtPurchase
+            ? member.pendingMembershipPriceAtPurchase.toNumber()
+            : null,
+          changeType: 'CANCELLED',
+          scheduledAt: member.pendingMembershipScheduledAt,
+          changedByUserId: member.pendingMembershipScheduledByUserId,
+        },
+      });
+
+      return updated;
+    });
+
+    return this.enrichMemberWithComputedFields(updatedMember);
   }
 }
