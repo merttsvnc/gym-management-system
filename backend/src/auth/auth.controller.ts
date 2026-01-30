@@ -15,11 +15,17 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { SignupStartDto } from './dto/signup-start.dto';
+import { SignupVerifyOtpDto } from './dto/signup-verify-otp.dto';
+import { SignupCompleteDto } from './dto/signup-complete.dto';
+import { SignupResendOtpDto } from './dto/signup-resend-otp.dto';
 import { SkipBillingStatusCheck } from './decorators/skip-billing-status-check.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthUser } from './types/auth-user.type';
 import { Logger } from '@nestjs/common';
 import { ThrottlerExceptionFilter } from '../common/filters/throttler-exception.filter';
+import { SignupTokenGuard } from './guards/signup-token.guard';
+import { SignupTokenPayload } from './strategies/signup-token.strategy';
 
 /**
  * Auth controller - all routes excluded from billing status check
@@ -85,5 +91,61 @@ export class AuthController {
     }
 
     return this.authService.getCurrentUser(user.sub, user.tenantId);
+  }
+
+  @Post('signup/start')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
+  @UseFilters(ThrottlerExceptionFilter)
+  async signupStart(@Body() dto: SignupStartDto) {
+    try {
+      return await this.authService.signupStart(dto);
+    } catch (error) {
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(`Rate limit exceeded for signup start: ${dto.email}`);
+      }
+      throw error;
+    }
+  }
+
+  @Post('signup/verify-otp')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 900000 } }) // 10 attempts per 15 minutes
+  @UseFilters(ThrottlerExceptionFilter)
+  async signupVerifyOtp(@Body() dto: SignupVerifyOtpDto) {
+    try {
+      return await this.authService.signupVerifyOtp(dto);
+    } catch (error) {
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(
+          `Rate limit exceeded for OTP verification: ${dto.email}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  @Post('signup/complete')
+  @UseGuards(SignupTokenGuard)
+  async signupComplete(
+    @CurrentUser() signupTokenPayload: SignupTokenPayload,
+    @Body() dto: SignupCompleteDto,
+  ) {
+    return await this.authService.signupComplete(signupTokenPayload, dto);
+  }
+
+  @Post('signup/resend-otp')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 3600000 } }) // 3 attempts per hour
+  @UseFilters(ThrottlerExceptionFilter)
+  async signupResendOtp(@Body() dto: SignupResendOtpDto) {
+    try {
+      return await this.authService.signupResendOtp(dto);
+    } catch (error) {
+      if (error instanceof ThrottlerException) {
+        this.logger.warn(`Rate limit exceeded for OTP resend: ${dto.email}`);
+      }
+      throw error;
+    }
   }
 }

@@ -147,21 +147,23 @@ model Branch {
 
 // User model
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  email        String   @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  role         Role     @default(ADMIN)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String    @id @default(cuid())
+  tenantId       String
+  email          String    @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           Role      @default(ADMIN)
+  isActive       Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
   tenant               Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   scheduledPlanChanges Member[]                  @relation("ScheduledByUser")
   planChangeHistory    MemberPlanChangeHistory[]
+  emailOtps            EmailOtp[]
 
   @@index([tenantId])
   @@index([email])
@@ -378,4 +380,22 @@ model MemberPlanChangeHistory {
   @@index([tenantId, appliedAt])
   @@index([tenantId, scheduledAt])
   @@index([memberId])
+}
+
+// EmailOtp model (for email verification during signup)
+model EmailOtp {
+  id            String    @id @default(cuid())
+  email         String
+  otpHash       String    // Hashed OTP (never store plain)
+  expiresAt     DateTime
+  attemptCount  Int       @default(0)
+  consumedAt    DateTime?
+  lastSentAt    DateTime  @default(now())
+  dailySentCount Int      @default(0)
+  dailySentAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([email])
+  @@index([email, consumedAt])
+  @@index([email, expiresAt])
 }
