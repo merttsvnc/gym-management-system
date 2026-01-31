@@ -5,6 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMemberDto } from './dto/create-member.dto';
@@ -23,6 +24,8 @@ import {
 
 @Injectable()
 export class MembersService {
+  private readonly logger = new Logger(MembersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly membershipPlansService: MembershipPlansService,
@@ -212,12 +215,16 @@ export class MembersService {
    * - Supports filtering by branchId and status
    * - Supports search across firstName, lastName, and phone (substring, case-insensitive)
    * - Excludes archived members by default unless includeArchived is true
+   * - expired filter: membershipEndDate < today OR membershipEndDate IS NULL
    * - expiringDays filter: implicitly ACTIVE only, membershipEndDate in [today, today+expiringDays]
-   * - If both status and expiringDays provided, expiringDays takes precedence and status is treated as ACTIVE
+   * - isPassiveFilter: status IN (INACTIVE, PAUSED)
+   * - Priority: expired > expiringDays > status > default
    */
   async findAll(
     tenantId: string,
-    query: MemberListQueryDto & { isExpiredFilter?: boolean },
+    query: MemberListQueryDto & {
+      isPassiveFilter?: boolean;
+    },
   ) {
     // Ensure page and limit are numbers (convert if they come as strings)
     const page = Number(query.page) || 1;
@@ -228,8 +235,9 @@ export class MembersService {
       status,
       search,
       expiringDays,
+      expired = false,
       includeArchived = false,
-      isExpiredFilter = false,
+      isPassiveFilter = false,
     } = query;
 
     // Build where clause
@@ -245,7 +253,7 @@ export class MembersService {
 
     // Handle expired members filter (takes highest precedence)
     // Expired members are those with membershipEndDate < today OR membershipEndDate IS NULL
-    if (isExpiredFilter) {
+    if (expired) {
       // Use the utility function to get proper expired membership filter
       const expiredWhere = getExpiredMembershipWhere();
       // Don't filter by status for expired members (they can have any status)
@@ -304,8 +312,14 @@ export class MembersService {
         gte: today,
         lte: endDate,
       };
+    }
+    // Handle PASSIVE filter (INACTIVE + PAUSED)
+    else if (isPassiveFilter) {
+      where.status = {
+        in: [MemberStatus.INACTIVE, MemberStatus.PAUSED],
+      };
     } else {
-      // Filter by status (only if expiringDays not provided and not expired filter)
+      // Filter by status (only if expiringDays, expired, and isPassiveFilter not provided)
       if (status) {
         where.status = status;
       } else if (!includeArchived) {
@@ -318,7 +332,7 @@ export class MembersService {
 
     // Search across firstName, lastName, and phone (substring, case-insensitive)
     // Only add search OR if not already handled by expired filter
-    if (search && !isExpiredFilter) {
+    if (search && !expired) {
       where.OR = [
         {
           firstName: {
@@ -340,6 +354,11 @@ export class MembersService {
         },
       ];
     }
+
+    // DEBUG: Log sanitized where clause
+    this.logger.debug(
+      `Members findAll where clause: ${JSON.stringify(where, null, 2)}`,
+    );
 
     const [data, total] = await Promise.all([
       this.prisma.member.findMany({

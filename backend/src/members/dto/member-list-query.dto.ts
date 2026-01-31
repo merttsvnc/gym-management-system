@@ -47,6 +47,11 @@ export class MemberListQueryDto {
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'expired boolean olmalıdır' })
+  expired?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean({ message: 'includeArchived boolean olmalıdır' })
   includeArchived?: boolean = false;
 }

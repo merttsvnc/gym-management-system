@@ -1178,7 +1178,7 @@ describe('Members E2E Tests', () => {
       expect(response.body.notes).toBeNull();
     });
 
-    it('should reject phone update to another member\'s phone (409 Conflict)', async () => {
+    it("should reject phone update to another member's phone (409 Conflict)", async () => {
       const phone1 = '+905551111111';
       const phone2 = '+905552222222';
 
@@ -1232,9 +1232,9 @@ describe('Members E2E Tests', () => {
         .send(updateDto)
         .expect(200);
 
-      expect(new Date(response.body.membershipEndDate).getTime()).toBeGreaterThan(
-        new Date(response.body.membershipStartDate).getTime(),
-      );
+      expect(
+        new Date(response.body.membershipEndDate).getTime(),
+      ).toBeGreaterThan(new Date(response.body.membershipStartDate).getTime());
     });
   });
 
@@ -2115,30 +2115,256 @@ describe('Members E2E Tests', () => {
       expect(Array.isArray(response.body.data)).toBe(true);
     });
 
-    it('should filter by status=ACTIVE', async () => {
+    it('should filter by status=ACTIVE (only ACTIVE members)', async () => {
+      // Create test members with different statuses
+      const plan = await prisma.membershipPlan.findFirst({
+        where: { tenantId: tenant1.id, status: 'ACTIVE' },
+      });
+
+      if (!plan) {
+        throw new Error('No active plan found for tenant1');
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const futureDate = new Date(today);
+      futureDate.setDate(futureDate.getDate() + 30);
+
+      const activeMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Active',
+          lastName: 'Member',
+          phone: `555-active-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      const pausedMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Paused',
+          lastName: 'Member',
+          phone: `555-paused-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.PAUSED,
+        },
+      });
+
+      const inactiveMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Inactive',
+          lastName: 'Member',
+          phone: `555-inactive-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.INACTIVE,
+        },
+      });
+
       const response = await request(app.getHttpServer())
         .get('/api/mobile/members?status=ACTIVE')
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
 
-      if (response.body.data.length > 0) {
-        response.body.data.forEach((member: any) => {
-          expect(member.status).toBe(MemberStatus.ACTIVE);
-        });
-      }
+      const memberIds = response.body.data.map((m: any) => m.id);
+      expect(memberIds).toContain(activeMember.id);
+      expect(memberIds).not.toContain(pausedMember.id);
+      expect(memberIds).not.toContain(inactiveMember.id);
+
+      // All returned members should be ACTIVE
+      response.body.data.forEach((member: any) => {
+        expect(member.status).toBe(MemberStatus.ACTIVE);
+      });
+
+      // Clean up
+      await prisma.member.deleteMany({
+        where: {
+          id: { in: [activeMember.id, pausedMember.id, inactiveMember.id] },
+        },
+      });
     });
 
-    it('should map PASSIVE status to INACTIVE', async () => {
+    it('should map PASSIVE status to INACTIVE + PAUSED (exclude ACTIVE)', async () => {
+      // Create test members with different statuses
+      const plan = await prisma.membershipPlan.findFirst({
+        where: { tenantId: tenant1.id, status: 'ACTIVE' },
+      });
+
+      if (!plan) {
+        throw new Error('No active plan found for tenant1');
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const futureDate = new Date(today);
+      futureDate.setDate(futureDate.getDate() + 30);
+
+      const activeMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Active',
+          lastName: 'Member2',
+          phone: `555-active2-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      const pausedMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Paused',
+          lastName: 'Member2',
+          phone: `555-paused2-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.PAUSED,
+        },
+      });
+
+      const inactiveMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Inactive',
+          lastName: 'Member2',
+          phone: `555-inactive2-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.INACTIVE,
+        },
+      });
+
       const response = await request(app.getHttpServer())
         .get('/api/mobile/members?status=PASSIVE')
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
 
-      if (response.body.data.length > 0) {
-        response.body.data.forEach((member: any) => {
-          expect(member.status).toBe(MemberStatus.INACTIVE);
-        });
+      const memberIds = response.body.data.map((m: any) => m.id);
+      expect(memberIds).not.toContain(activeMember.id);
+      expect(memberIds).toContain(pausedMember.id);
+      expect(memberIds).toContain(inactiveMember.id);
+
+      // All returned members should be INACTIVE or PAUSED
+      response.body.data.forEach((member: any) => {
+        expect([MemberStatus.INACTIVE, MemberStatus.PAUSED]).toContain(
+          member.status,
+        );
+      });
+
+      // Clean up
+      await prisma.member.deleteMany({
+        where: {
+          id: { in: [activeMember.id, pausedMember.id, inactiveMember.id] },
+        },
+      });
+    });
+
+    it('should filter by expired=true (membershipEndDate < today)', async () => {
+      // Create test members with different end dates
+      const plan = await prisma.membershipPlan.findFirst({
+        where: { tenantId: tenant1.id, status: 'ACTIVE' },
+      });
+
+      if (!plan) {
+        throw new Error('No active plan found for tenant1');
       }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const lastWeek = new Date(today);
+      lastWeek.setDate(lastWeek.getDate() - 7);
+      const futureDate = new Date(today);
+      futureDate.setDate(futureDate.getDate() + 30);
+
+      // Expired members
+      const expiredMember1 = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expired',
+          lastName: 'Yesterday',
+          phone: `555-exp-yes-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: lastWeek,
+          membershipEndDate: yesterday,
+          status: MemberStatus.ACTIVE, // Can be any status
+        },
+      });
+
+      const expiredMember2 = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expired',
+          lastName: 'LastWeek',
+          phone: `555-exp-week-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: lastWeek,
+          membershipEndDate: lastWeek,
+          status: MemberStatus.INACTIVE,
+        },
+      });
+
+      // Active member (not expired)
+      const activeMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Active',
+          lastName: 'Future',
+          phone: `555-act-fut-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?expired=true')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      const memberIds = response.body.data.map((m: any) => m.id);
+      expect(memberIds).toContain(expiredMember1.id);
+      expect(memberIds).toContain(expiredMember2.id);
+      expect(memberIds).not.toContain(activeMember.id);
+
+      // All returned members should have expired membershipEndDate
+      response.body.data.forEach((member: any) => {
+        const endDate = new Date(member.membershipEndDate);
+        endDate.setHours(0, 0, 0, 0);
+        expect(endDate < today || !member.membershipEndDate).toBe(true);
+      });
+
+      // Clean up
+      await prisma.member.deleteMany({
+        where: {
+          id: {
+            in: [expiredMember1.id, expiredMember2.id, activeMember.id],
+          },
+        },
+      });
     });
 
     it('should filter by expiringDays (implicitly ACTIVE)', async () => {
@@ -2189,7 +2415,22 @@ describe('Members E2E Tests', () => {
         },
       });
 
-      // Filter with expiringDays=7 (should include 5Days, exclude 10Days)
+      // Also create a PAUSED member within 7 days - should be excluded
+      const pausedMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Paused',
+          lastName: '5Days',
+          phone: `555-paused-5days-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: endDate5Days,
+          status: MemberStatus.PAUSED,
+        },
+      });
+
+      // Filter with expiringDays=7 (should include 5Days, exclude 10Days and paused)
       const response = await request(app.getHttpServer())
         .get('/api/mobile/members?expiringDays=7')
         .set('Authorization', `Bearer ${token1}`)
@@ -2198,6 +2439,7 @@ describe('Members E2E Tests', () => {
       const memberIds = response.body.data.map((m: any) => m.id);
       expect(memberIds).toContain(member5Days.id);
       expect(memberIds).not.toContain(member10Days.id);
+      expect(memberIds).not.toContain(pausedMember.id);
 
       // All returned members should be ACTIVE
       response.body.data.forEach((member: any) => {
@@ -2206,7 +2448,9 @@ describe('Members E2E Tests', () => {
 
       // Clean up
       await prisma.member.deleteMany({
-        where: { id: { in: [member5Days.id, member10Days.id] } },
+        where: {
+          id: { in: [member5Days.id, member10Days.id, pausedMember.id] },
+        },
       });
     });
 
@@ -2238,6 +2482,47 @@ describe('Members E2E Tests', () => {
       });
     });
 
+    it('should not mix filters: expired should not return ACTIVE members', async () => {
+      const plan = await prisma.membershipPlan.findFirst({
+        where: { tenantId: tenant1.id, status: 'ACTIVE' },
+      });
+
+      if (!plan) {
+        throw new Error('No active plan found for tenant1');
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const futureDate = new Date(today);
+      futureDate.setDate(futureDate.getDate() + 30);
+
+      // Active member with future end date
+      const activeMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Active',
+          lastName: 'NotExpired',
+          phone: `555-active-notexp-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: futureDate,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?expired=true')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      const memberIds = response.body.data.map((m: any) => m.id);
+      expect(memberIds).not.toContain(activeMember.id);
+
+      // Clean up
+      await prisma.member.delete({ where: { id: activeMember.id } });
+    });
+
     it('should support q parameter as search alias', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/mobile/members?q=test')
@@ -2261,9 +2546,7 @@ describe('Members E2E Tests', () => {
     });
 
     it('should return 401 without authentication', async () => {
-      await request(app.getHttpServer())
-        .get('/api/mobile/members')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/mobile/members').expect(401);
     });
 
     it('should return 400 for invalid expiringDays', async () => {
@@ -2276,6 +2559,46 @@ describe('Members E2E Tests', () => {
         .get('/api/mobile/members?expiringDays=61')
         .set('Authorization', `Bearer ${token1}`)
         .expect(400);
+    });
+
+    it('should filter expired with search query', async () => {
+      const plan = await prisma.membershipPlan.findFirst({
+        where: { tenantId: tenant1.id, status: 'ACTIVE' },
+      });
+
+      if (!plan) {
+        throw new Error('No active plan found for tenant1');
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const expiredMember = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'SearchableExpired',
+          lastName: 'TestMember',
+          phone: `555-search-exp-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: yesterday,
+          membershipEndDate: yesterday,
+          status: MemberStatus.INACTIVE,
+        },
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?expired=true&search=SearchableExpired')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      const memberIds = response.body.data.map((m: any) => m.id);
+      expect(memberIds).toContain(expiredMember.id);
+
+      // Clean up
+      await prisma.member.delete({ where: { id: expiredMember.id } });
     });
   });
 });
