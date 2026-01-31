@@ -215,7 +215,10 @@ export class MembersService {
    * - expiringDays filter: implicitly ACTIVE only, membershipEndDate in [today, today+expiringDays]
    * - If both status and expiringDays provided, expiringDays takes precedence and status is treated as ACTIVE
    */
-  async findAll(tenantId: string, query: MemberListQueryDto & { isExpiredFilter?: boolean }) {
+  async findAll(
+    tenantId: string,
+    query: MemberListQueryDto & { isExpiredFilter?: boolean },
+  ) {
     // Ensure page and limit are numbers (convert if they come as strings)
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
@@ -297,9 +300,12 @@ export class MembersService {
       endDate.setDate(endDate.getDate() + expiringDays);
 
       where.membershipEndDate = {
-        not: null,
         gte: today,
         lte: endDate,
+      };
+      // Exclude null membershipEndDate separately
+      where.NOT = {
+        membershipEndDate: null,
       };
     } else {
       // Filter by status (only if expiringDays not provided and not expired filter)
