@@ -42,12 +42,12 @@ export class DashboardService {
    * Get dashboard summary statistics
    * Returns total, active, passive members, and expiring soon count
    *
-   * BUSINESS RULES:
-   * - totalMembers: all members (within tenant scope; if branchId provided, limit to that branch)
-   * - activeMembers: members whose status = ACTIVE (not derived from membershipEndDate)
-   * - passiveMembers: members whose status = INACTIVE (not expired, but explicitly inactive)
-   * - expiringSoonMembers: active members whose membershipEndDate is within [today, today + expiringDays]
-   *   If membershipEndDate is null, exclude from expiringSoon
+   * BUSINESS RULES (aligned with mobile filtering semantics):
+   * - totalMembers: all members except ARCHIVED (within tenant scope; if branchId provided, limit to that branch)
+   * - activeMembers: status = ACTIVE AND membershipEndDate >= today (CRITICAL: both conditions required)
+   * - passiveMembers: status IN (INACTIVE, PAUSED) (operationally passive, regardless of end date)
+   * - expiringSoonMembers: status = ACTIVE AND membershipEndDate in [today, today + expiringDays]
+   *   membershipEndDate is NOT NULL per schema, so no null check needed
    *
    * @param tenantId - Tenant ID for isolation
    * @param branchId - Optional branch filter
@@ -73,20 +73,32 @@ export class DashboardService {
     const where = this.buildMemberWhere(tenantId, branchId);
     const today = getTodayStart();
 
-    // Active members: status = ACTIVE
+    // Total members: all except ARCHIVED
+    const totalWhere: Prisma.MemberWhereInput = {
+      ...where,
+      status: {
+        not: 'ARCHIVED',
+      },
+    };
+
+    // Active members: status = ACTIVE AND membershipEndDate >= today
     const activeWhere: Prisma.MemberWhereInput = {
       ...where,
       status: 'ACTIVE',
+      membershipEndDate: {
+        gte: today,
+      },
     };
 
-    // Passive members: status = INACTIVE
+    // Passive members: status IN (INACTIVE, PAUSED)
     const passiveWhere: Prisma.MemberWhereInput = {
       ...where,
-      status: 'INACTIVE',
+      status: {
+        in: ['INACTIVE', 'PAUSED'],
+      },
     };
 
-    // Expiring soon: active members with membershipEndDate between today and today+expiringDays
-    // Exclude null membershipEndDate by using the date range filter (null values won't match gte/lte)
+    // Expiring soon: status = ACTIVE AND membershipEndDate in [today, today + expiringDays]
     const expiringSoonWhere: Prisma.MemberWhereInput = {
       ...where,
       status: 'ACTIVE',
@@ -98,7 +110,7 @@ export class DashboardService {
     // Execute all counts in parallel
     const [totalMembers, activeMembers, passiveMembers, expiringSoonMembers] =
       await Promise.all([
-        this.prisma.member.count({ where }),
+        this.prisma.member.count({ where: totalWhere }),
         this.prisma.member.count({ where: activeWhere }),
         this.prisma.member.count({ where: passiveWhere }),
         this.prisma.member.count({ where: expiringSoonWhere }),

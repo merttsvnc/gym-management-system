@@ -20,6 +20,7 @@ import {
   calculateMembershipStatus,
   DerivedMembershipStatus,
   getExpiredMembershipWhere,
+  getTodayStart,
 } from '../common/utils/membership-status.util';
 
 @Injectable()
@@ -215,10 +216,11 @@ export class MembersService {
    * - Supports filtering by branchId and status
    * - Supports search across firstName, lastName, and phone (substring, case-insensitive)
    * - Excludes archived members by default unless includeArchived is true
-   * - expired filter: membershipEndDate < today OR membershipEndDate IS NULL
-   * - expiringDays filter: implicitly ACTIVE only, membershipEndDate in [today, today+expiringDays]
+   * - expired filter: membershipEndDate < today (exclude ARCHIVED unless includeArchived=true)
+   * - expiringDays filter: status=ACTIVE AND membershipEndDate in [today, today+expiringDays]
+   * - status=ACTIVE filter: status=ACTIVE AND membershipEndDate >= today (CRITICAL FIX)
    * - isPassiveFilter: status IN (INACTIVE, PAUSED)
-   * - Priority: expired > expiringDays > status > default
+   * - Priority: expired > expiringDays > isPassiveFilter > status > default
    */
   async findAll(
     tenantId: string,
@@ -241,7 +243,6 @@ export class MembersService {
     } = query;
 
     // Build where clause
-
     const where: any = {
       tenantId,
     };
@@ -251,23 +252,26 @@ export class MembersService {
       where.branchId = branchId;
     }
 
+    // Get today's date at start of day for date comparisons
+    const today = getTodayStart();
+
     // Handle expired members filter (takes highest precedence)
-    // Expired members are those with membershipEndDate < today OR membershipEndDate IS NULL
+    // Expired = membershipEndDate < today (membershipEndDate is NOT NULL per schema)
     if (expired) {
-      // Use the utility function to get proper expired membership filter
-      const expiredWhere = getExpiredMembershipWhere();
-      // Don't filter by status for expired members (they can have any status)
-      // But exclude archived members unless includeArchived is true
+      // Exclude archived members unless includeArchived is true
       if (!includeArchived) {
         where.status = {
           not: 'ARCHIVED',
         };
       }
-      // Handle search and expired filter together using AND
+      // Filter by membershipEndDate < today
+      where.membershipEndDate = {
+        lt: today,
+      };
+      // Handle search with expired filter using AND
       if (search) {
-        // Both search and expired filter need to be satisfied
         where.AND = [
-          expiredWhere, // OR condition for expired membershipEndDate
+          { membershipEndDate: { lt: today } },
           {
             OR: [
               {
@@ -291,23 +295,16 @@ export class MembersService {
             ],
           },
         ];
-      } else {
-        // Just expired filter
-        Object.assign(where, expiredWhere);
+        // Remove the direct membershipEndDate assignment since it's in AND
+        delete where.membershipEndDate;
       }
     }
     // Handle expiringDays filter (takes precedence over status, but not over expired filter)
     else if (expiringDays !== undefined) {
-      // expiringDays implicitly requires ACTIVE status
+      // expiringDays requires ACTIVE status AND membershipEndDate in range
       where.status = 'ACTIVE';
-      // Filter by membershipEndDate: [today, today + expiringDays]
-      // Exclude null membershipEndDate
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       const endDate = new Date(today);
       endDate.setDate(endDate.getDate() + expiringDays);
-
-      // gte and lte automatically exclude null values
       where.membershipEndDate = {
         gte: today,
         lte: endDate,
@@ -321,7 +318,15 @@ export class MembersService {
     } else {
       // Filter by status (only if expiringDays, expired, and isPassiveFilter not provided)
       if (status) {
-        where.status = status;
+        // CRITICAL FIX: status=ACTIVE must also require membershipEndDate >= today
+        if (status === MemberStatus.ACTIVE) {
+          where.status = MemberStatus.ACTIVE;
+          where.membershipEndDate = {
+            gte: today,
+          };
+        } else {
+          where.status = status;
+        }
       } else if (!includeArchived) {
         // Exclude archived members by default
         where.status = {

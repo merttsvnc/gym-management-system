@@ -471,6 +471,66 @@ describe('MembersService', () => {
 
       expect(result.pagination.totalPages).toBe(3); // Math.ceil(25/10)
     });
+
+    it('should NOT return members with status=ACTIVE but expired membershipEndDate when filtering by status=ACTIVE', async () => {
+      // This is the critical regression test: members with status=ACTIVE but endDate < today
+      // should NOT appear in status=ACTIVE filter (they should only appear in expired filter)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiredDate = new Date(today);
+      expiredDate.setDate(expiredDate.getDate() - 10); // 10 days ago
+
+      mockPrismaService.member.findMany.mockResolvedValue([]);
+      mockPrismaService.member.count.mockResolvedValue(0);
+
+      await service.findAll(tenantId, {
+        page: 1,
+        limit: 20,
+        status: MemberStatus.ACTIVE,
+      });
+
+      // Verify the query includes both status=ACTIVE AND membershipEndDate >= today
+      expect(mockPrismaService.member.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId,
+            status: MemberStatus.ACTIVE,
+            membershipEndDate: {
+              gte: expect.any(Date),
+            },
+          }),
+        }),
+      );
+    });
+
+    it('should return expired members (status=ACTIVE but endDate < today) when expired=true', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      mockPrismaService.member.findMany.mockResolvedValue([]);
+      mockPrismaService.member.count.mockResolvedValue(0);
+
+      await service.findAll(tenantId, {
+        page: 1,
+        limit: 20,
+        expired: true,
+      });
+
+      // Verify the query filters by membershipEndDate < today and excludes ARCHIVED
+      expect(mockPrismaService.member.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId,
+            status: {
+              not: 'ARCHIVED',
+            },
+            membershipEndDate: {
+              lt: expect.any(Date),
+            },
+          }),
+        }),
+      );
+    });
   });
 
   // =====================================================================
