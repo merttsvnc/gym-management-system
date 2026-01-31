@@ -1,0 +1,13 @@
+[0;34m════════════════════════════════════════════════════════════════[0m
+[0;34m   FINAL-GATE SECURITY VALIDATION - PASSWORD RESET[0m
+[0;34m   Date: Fri Jan 30 22:17:11 JST 2026[0m
+[0;34m════════════════════════════════════════════════════════════════[0m
+
+
+[0;34m═══════════════════════════════════════════════════════════[0m
+[0;34m  CHECK 1: Status Code Invariance (Critical)[0m
+[0;34m═══════════════════════════════════════════════════════════[0m
+
+[0;34mℹ️  Testing with EXISTING email: admin@example.com[0m
+[0;34mℹ️  Testing with NON-EXISTING email: nonexistent-1769779031@example.com[0m
+Testing existing email (5 requests)...
