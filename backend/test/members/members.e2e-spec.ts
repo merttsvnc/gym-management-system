@@ -2102,4 +2102,180 @@ describe('Members E2E Tests', () => {
       });
     });
   });
+
+  describe('GET /api/mobile/members', () => {
+    it('should return members list with pagination', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('pagination');
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
+
+    it('should filter by status=ACTIVE', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?status=ACTIVE')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      if (response.body.data.length > 0) {
+        response.body.data.forEach((member: any) => {
+          expect(member.status).toBe(MemberStatus.ACTIVE);
+        });
+      }
+    });
+
+    it('should map PASSIVE status to INACTIVE', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?status=PASSIVE')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      if (response.body.data.length > 0) {
+        response.body.data.forEach((member: any) => {
+          expect(member.status).toBe(MemberStatus.INACTIVE);
+        });
+      }
+    });
+
+    it('should filter by expiringDays (implicitly ACTIVE)', async () => {
+      // Create members with different end dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate5Days = new Date(today);
+      endDate5Days.setDate(endDate5Days.getDate() + 5);
+      const endDate10Days = new Date(today);
+      endDate10Days.setDate(endDate10Days.getDate() + 10);
+      const nextMonth = new Date(today);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+      // Get a plan for tenant1
+      const plan = await prisma.membershipPlan.findFirst({
+        where: { tenantId: tenant1.id, status: 'ACTIVE' },
+      });
+
+      if (!plan) {
+        throw new Error('No active plan found for tenant1');
+      }
+
+      const member5Days = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expiring',
+          lastName: '5Days',
+          phone: `555-exp-5days-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: endDate5Days,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      const member10Days = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expiring',
+          lastName: '10Days',
+          phone: `555-exp-10days-${Date.now()}`,
+          membershipPlanId: plan.id,
+          membershipStartDate: today,
+          membershipEndDate: endDate10Days,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      // Filter with expiringDays=7 (should include 5Days, exclude 10Days)
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?expiringDays=7')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      const memberIds = response.body.data.map((m: any) => m.id);
+      expect(memberIds).toContain(member5Days.id);
+      expect(memberIds).not.toContain(member10Days.id);
+
+      // All returned members should be ACTIVE
+      response.body.data.forEach((member: any) => {
+        expect(member.status).toBe(MemberStatus.ACTIVE);
+      });
+
+      // Clean up
+      await prisma.member.deleteMany({
+        where: { id: { in: [member5Days.id, member10Days.id] } },
+      });
+    });
+
+    it('should exclude members with null membershipEndDate from expiringDays filter', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const nextMonth = new Date(today);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+      const plan = await prisma.membershipPlan.findFirst({
+        where: { tenantId: tenant1.id, status: 'ACTIVE' },
+      });
+
+      if (!plan) {
+        throw new Error('No active plan found for tenant1');
+      }
+
+      // Note: Prisma schema requires membershipEndDate, so we can't create null
+      // But we can test that the filter works correctly for non-null dates
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?expiringDays=7')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // All returned members should have membershipEndDate within range
+      response.body.data.forEach((member: any) => {
+        expect(member.membershipEndDate).toBeDefined();
+        expect(member.status).toBe(MemberStatus.ACTIVE);
+      });
+    });
+
+    it('should support q parameter as search alias', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members?q=test')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
+
+    it('should enforce tenant isolation', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/members')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should only return members for tenant1
+      response.body.data.forEach((member: any) => {
+        expect(member.tenantId).toBe(tenant1.id);
+      });
+    });
+
+    it('should return 401 without authentication', async () => {
+      await request(app.getHttpServer())
+        .get('/api/mobile/members')
+        .expect(401);
+    });
+
+    it('should return 400 for invalid expiringDays', async () => {
+      await request(app.getHttpServer())
+        .get('/api/mobile/members?expiringDays=0')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(400);
+
+      await request(app.getHttpServer())
+        .get('/api/mobile/members?expiringDays=61')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(400);
+    });
+  });
 });

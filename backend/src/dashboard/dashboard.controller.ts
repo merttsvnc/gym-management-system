@@ -17,17 +17,26 @@ export class DashboardController {
 
   /**
    * GET /api/v1/dashboard/summary
-   * Get dashboard summary statistics
+   * Get dashboard summary statistics for mobile home page cards
    * Query parameters:
    * - branchId?: string (optional branch filter)
-   * Returns: totalMembers, activeMembers, inactiveMembers, expiringSoon
+   * - expiringDays?: number (default 7, min 1, max 60)
+   * Returns: counts (totalMembers, activeMembers, passiveMembers, expiringSoonMembers) and meta
    */
   @Get('summary')
   async getSummary(
     @CurrentUser('tenantId') tenantId: string,
     @Query('branchId') branchId?: string,
+    @Query('expiringDays') expiringDays?: string,
   ): Promise<DashboardSummaryDto> {
-    return this.dashboardService.getSummary(tenantId, branchId);
+    const expiringDaysNum = expiringDays
+      ? parseInt(expiringDays, 10)
+      : undefined;
+    return this.dashboardService.getSummary(
+      tenantId,
+      branchId,
+      expiringDaysNum,
+    );
   }
 
   /**

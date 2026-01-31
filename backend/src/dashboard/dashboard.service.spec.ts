@@ -51,33 +51,46 @@ describe('DashboardService', () => {
       mockPrismaService.member.count
         .mockResolvedValueOnce(100) // totalMembers
         .mockResolvedValueOnce(80) // activeMembers
-        .mockResolvedValueOnce(15); // expiringSoon
+        .mockResolvedValueOnce(20) // passiveMembers
+        .mockResolvedValueOnce(15); // expiringSoonMembers
 
       const result = await service.getSummary(tenantId);
 
       expect(result).toEqual({
-        totalMembers: 100,
-        activeMembers: 80,
-        inactiveMembers: 20, // 100 - 80
-        expiringSoon: 15,
+        counts: {
+          totalMembers: 100,
+          activeMembers: 80,
+          passiveMembers: 20,
+          expiringSoonMembers: 15,
+        },
+        meta: {
+          expiringDays: 7,
+        },
       });
 
-      expect(prismaService.member.count).toHaveBeenCalledTimes(3);
+      expect(prismaService.member.count).toHaveBeenCalledTimes(4);
     });
 
     it('should respect branch filter', async () => {
       mockPrismaService.member.count
         .mockResolvedValueOnce(50) // totalMembers
         .mockResolvedValueOnce(40) // activeMembers
-        .mockResolvedValueOnce(8); // expiringSoon
+        .mockResolvedValueOnce(10) // passiveMembers
+        .mockResolvedValueOnce(8); // expiringSoonMembers
 
       const result = await service.getSummary(tenantId, branchId);
 
       expect(result).toEqual({
-        totalMembers: 50,
-        activeMembers: 40,
-        inactiveMembers: 10, // 50 - 40
-        expiringSoon: 8,
+        counts: {
+          totalMembers: 50,
+          activeMembers: 40,
+          passiveMembers: 10,
+          expiringSoonMembers: 8,
+        },
+        meta: {
+          expiringDays: 7,
+          branchId: branchId,
+        },
       });
 
       // Verify branchId is included in where clause
@@ -85,20 +98,23 @@ describe('DashboardService', () => {
       expect(calls[0][0].where.branchId).toBe(branchId);
       expect(calls[1][0].where.branchId).toBe(branchId);
       expect(calls[2][0].where.branchId).toBe(branchId);
+      expect(calls[3][0].where.branchId).toBe(branchId);
     });
 
     it('should calculate expiringSoon correctly (within 7 days)', async () => {
       mockPrismaService.member.count
         .mockResolvedValueOnce(100)
         .mockResolvedValueOnce(80)
-        .mockResolvedValueOnce(5); // expiringSoon
+        .mockResolvedValueOnce(20)
+        .mockResolvedValueOnce(5); // expiringSoonMembers
 
       const result = await service.getSummary(tenantId);
 
-      expect(result.expiringSoon).toBe(5);
+      expect(result.counts.expiringSoonMembers).toBe(5);
 
-      // Verify expiringSoon query uses correct date range (no status check)
-      const expiringSoonCall = mockPrismaService.member.count.mock.calls[2];
+      // Verify expiringSoon query uses correct date range and ACTIVE status
+      const expiringSoonCall = mockPrismaService.member.count.mock.calls[3];
+      expect(expiringSoonCall[0].where.status).toBe('ACTIVE');
       expect(expiringSoonCall[0].where.membershipEndDate).toBeDefined();
       expect(expiringSoonCall[0].where.membershipEndDate.gte).toBeDefined();
       expect(expiringSoonCall[0].where.membershipEndDate.lte).toBeDefined();
@@ -108,16 +124,45 @@ describe('DashboardService', () => {
       mockPrismaService.member.count
         .mockResolvedValueOnce(0) // totalMembers
         .mockResolvedValueOnce(0) // activeMembers
-        .mockResolvedValueOnce(0); // expiringSoon
+        .mockResolvedValueOnce(0) // passiveMembers
+        .mockResolvedValueOnce(0); // expiringSoonMembers
 
       const result = await service.getSummary(tenantId);
 
       expect(result).toEqual({
-        totalMembers: 0,
-        activeMembers: 0,
-        inactiveMembers: 0,
-        expiringSoon: 0,
+        counts: {
+          totalMembers: 0,
+          activeMembers: 0,
+          passiveMembers: 0,
+          expiringSoonMembers: 0,
+        },
+        meta: {
+          expiringDays: 7,
+        },
       });
+    });
+
+    it('should respect expiringDays parameter', async () => {
+      mockPrismaService.member.count
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(80)
+        .mockResolvedValueOnce(20)
+        .mockResolvedValueOnce(10);
+
+      const result = await service.getSummary(tenantId, undefined, 14);
+
+      expect(result.meta.expiringDays).toBe(14);
+      expect(result.counts.expiringSoonMembers).toBe(10);
+    });
+
+    it('should throw BadRequestException for invalid expiringDays', async () => {
+      await expect(
+        service.getSummary(tenantId, undefined, 0),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.getSummary(tenantId, undefined, 61),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

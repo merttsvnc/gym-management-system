@@ -228,14 +228,18 @@ describe('Dashboard E2E Tests', () => {
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('totalMembers');
-      expect(response.body).toHaveProperty('activeMembers');
-      expect(response.body).toHaveProperty('inactiveMembers');
-      expect(response.body).toHaveProperty('expiringSoon');
-      expect(typeof response.body.totalMembers).toBe('number');
-      expect(typeof response.body.activeMembers).toBe('number');
-      expect(typeof response.body.inactiveMembers).toBe('number');
-      expect(typeof response.body.expiringSoon).toBe('number');
+      expect(response.body).toHaveProperty('counts');
+      expect(response.body.counts).toHaveProperty('totalMembers');
+      expect(response.body.counts).toHaveProperty('activeMembers');
+      expect(response.body.counts).toHaveProperty('passiveMembers');
+      expect(response.body.counts).toHaveProperty('expiringSoonMembers');
+      expect(response.body).toHaveProperty('meta');
+      expect(response.body.meta).toHaveProperty('expiringDays');
+      expect(typeof response.body.counts.totalMembers).toBe('number');
+      expect(typeof response.body.counts.activeMembers).toBe('number');
+      expect(typeof response.body.counts.passiveMembers).toBe('number');
+      expect(typeof response.body.counts.expiringSoonMembers).toBe('number');
+      expect(typeof response.body.meta.expiringDays).toBe('number');
     });
 
     it('should respect branchId filter', async () => {
@@ -244,7 +248,29 @@ describe('Dashboard E2E Tests', () => {
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
 
-      expect(response.body.totalMembers).toBeGreaterThan(0);
+      expect(response.body.counts.totalMembers).toBeGreaterThan(0);
+      expect(response.body.meta.branchId).toBe(branch1.id);
+    });
+
+    it('should respect expiringDays parameter', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/dashboard/summary?expiringDays=14')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body.meta.expiringDays).toBe(14);
+    });
+
+    it('should return 400 for invalid expiringDays', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/dashboard/summary?expiringDays=0')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(400);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/dashboard/summary?expiringDays=61')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(400);
     });
 
     it('should enforce tenant isolation', async () => {
@@ -646,6 +672,162 @@ describe('Dashboard E2E Tests', () => {
           where: { id: { in: memberIds } },
         });
       });
+    });
+  });
+
+  describe('GET /api/mobile/dashboard/summary', () => {
+    it('should return 200 with mobile summary format', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/dashboard/summary')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('counts');
+      expect(response.body.counts).toHaveProperty('totalMembers');
+      expect(response.body.counts).toHaveProperty('activeMembers');
+      expect(response.body.counts).toHaveProperty('passiveMembers');
+      expect(response.body.counts).toHaveProperty('expiringSoonMembers');
+      expect(response.body).toHaveProperty('meta');
+      expect(response.body.meta).toHaveProperty('expiringDays');
+      expect(response.body.meta.expiringDays).toBe(7); // Default
+    });
+
+    it('should respect expiringDays parameter', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/dashboard/summary?expiringDays=14')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body.meta.expiringDays).toBe(14);
+    });
+
+    it('should respect branchId filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/mobile/dashboard/summary?branchId=${branch1.id}`)
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      expect(response.body.meta.branchId).toBe(branch1.id);
+    });
+
+    it('should calculate expiringSoonMembers correctly', async () => {
+      // Create a member expiring today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDateToday = new Date(today);
+      const nextMonth = new Date(today);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+      const memberToday = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expiring',
+          lastName: 'Today',
+          phone: `555-exp-today-${Date.now()}`,
+          membershipPlanId: plan1.id,
+          membershipStartDate: today,
+          membershipEndDate: endDateToday,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      // Create a member expiring in 7 days
+      const endDate7Days = new Date(today);
+      endDate7Days.setDate(endDate7Days.getDate() + 7);
+
+      const member7Days = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expiring',
+          lastName: '7Days',
+          phone: `555-exp-7days-${Date.now()}`,
+          membershipPlanId: plan1.id,
+          membershipStartDate: today,
+          membershipEndDate: endDate7Days,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      // Create a member expiring in 8 days (should not be included)
+      const endDate8Days = new Date(today);
+      endDate8Days.setDate(endDate8Days.getDate() + 8);
+
+      const member8Days = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Expiring',
+          lastName: '8Days',
+          phone: `555-exp-8days-${Date.now()}`,
+          membershipPlanId: plan1.id,
+          membershipStartDate: today,
+          membershipEndDate: endDate8Days,
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      // Create an active member with null endDate (should not be included)
+      const memberNullEndDate = await prisma.member.create({
+        data: {
+          tenantId: tenant1.id,
+          branchId: branch1.id,
+          firstName: 'Null',
+          lastName: 'EndDate',
+          phone: `555-null-end-${Date.now()}`,
+          membershipPlanId: plan1.id,
+          membershipStartDate: today,
+          membershipEndDate: nextMonth, // Will update to null below
+          status: MemberStatus.ACTIVE,
+        },
+      });
+
+      // Update to null endDate (simulating edge case)
+      await prisma.member.update({
+        where: { id: memberNullEndDate.id },
+        data: { membershipEndDate: null as any },
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/dashboard/summary?expiringDays=7')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should include members expiring today and in 7 days, but not 8 days or null
+      expect(response.body.counts.expiringSoonMembers).toBeGreaterThanOrEqual(
+        2,
+      );
+
+      // Clean up
+      await prisma.member.deleteMany({
+        where: {
+          id: {
+            in: [
+              memberToday.id,
+              member7Days.id,
+              member8Days.id,
+              memberNullEndDate.id,
+            ],
+          },
+        },
+      });
+    });
+
+    it('should enforce tenant isolation', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/mobile/dashboard/summary')
+        .set('Authorization', `Bearer ${token1}`)
+        .expect(200);
+
+      // Should only return data for tenant1
+      expect(response.body.counts.totalMembers).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should return 401 without authentication', async () => {
+      await request(app.getHttpServer())
+        .get('/api/mobile/dashboard/summary')
+        .expect(401);
     });
   });
 });

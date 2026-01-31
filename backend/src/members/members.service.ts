@@ -211,8 +211,9 @@ export class MembersService {
    * - Supports filtering by branchId and status
    * - Supports search across firstName, lastName, and phone (substring, case-insensitive)
    * - Excludes archived members by default unless includeArchived is true
+   * - expiringDays filter: implicitly ACTIVE only, membershipEndDate in [today, today+expiringDays]
+   * - If both status and expiringDays provided, expiringDays takes precedence and status is treated as ACTIVE
    */
-
   async findAll(tenantId: string, query: MemberListQueryDto) {
     const {
       page = 1,
@@ -220,6 +221,7 @@ export class MembersService {
       branchId,
       status,
       search,
+      expiringDays,
       includeArchived = false,
     } = query;
 
@@ -234,15 +236,32 @@ export class MembersService {
       where.branchId = branchId;
     }
 
-    // Filter by status
-    if (status) {
-      where.status = status;
-    } else if (!includeArchived) {
-      // Exclude archived members by default
+    // Handle expiringDays filter (takes precedence over status)
+    if (expiringDays !== undefined) {
+      // expiringDays implicitly requires ACTIVE status
+      where.status = 'ACTIVE';
+      // Filter by membershipEndDate: [today, today + expiringDays]
+      // Exclude null membershipEndDate
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + expiringDays);
 
-      where.status = {
-        not: 'ARCHIVED',
+      where.membershipEndDate = {
+        not: null,
+        gte: today,
+        lte: endDate,
       };
+    } else {
+      // Filter by status (only if expiringDays not provided)
+      if (status) {
+        where.status = status;
+      } else if (!includeArchived) {
+        // Exclude archived members by default
+        where.status = {
+          not: 'ARCHIVED',
+        };
+      }
     }
 
     // Search across firstName, lastName, and phone (substring, case-insensitive)

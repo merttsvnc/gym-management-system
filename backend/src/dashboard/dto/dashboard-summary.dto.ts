@@ -1,9 +1,16 @@
 /**
  * Response DTO for dashboard summary endpoint
+ * Used by mobile home page cards
  */
 export class DashboardSummaryDto {
-  totalMembers: number;
-  activeMembers: number;
-  inactiveMembers: number;
-  expiringSoon: number;
+  counts: {
+    totalMembers: number;
+    activeMembers: number;
+    passiveMembers: number;
+    expiringSoonMembers: number;
+  };
+  meta: {
+    expiringDays: number;
+    branchId?: string;
+  };
 }

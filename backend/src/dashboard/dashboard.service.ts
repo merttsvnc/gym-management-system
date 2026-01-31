@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DashboardSummaryDto } from './dto/dashboard-summary.dto';
 import { MembershipDistributionItemDto } from './dto/membership-distribution.dto';
@@ -12,6 +12,8 @@ import {
 
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -38,47 +40,81 @@ export class DashboardService {
 
   /**
    * Get dashboard summary statistics
-   * Returns total, active, inactive members, and expiring soon count
+   * Returns total, active, passive members, and expiring soon count
    *
-   * BUSINESS RULE: Uses derived membership status based on membershipEndDate only.
-   * Active = membershipEndDate >= today (start of day)
+   * BUSINESS RULES:
+   * - totalMembers: all members (within tenant scope; if branchId provided, limit to that branch)
+   * - activeMembers: members whose status = ACTIVE (not derived from membershipEndDate)
+   * - passiveMembers: members whose status = INACTIVE (not expired, but explicitly inactive)
+   * - expiringSoonMembers: active members whose membershipEndDate is within [today, today + expiringDays]
+   *   If membershipEndDate is null, exclude from expiringSoon
+   *
+   * @param tenantId - Tenant ID for isolation
+   * @param branchId - Optional branch filter
+   * @param expiringDays - Number of days to look ahead for expiring members (default 7, min 1, max 60)
    */
   async getSummary(
     tenantId: string,
     branchId?: string,
+    expiringDays: number = 7,
   ): Promise<DashboardSummaryDto> {
+    // Validate expiringDays
+    if (expiringDays < 1 || expiringDays > 60) {
+      throw new BadRequestException(
+        'expiringDays must be between 1 and 60',
+      );
+    }
+
+    // Log dashboard summary request (debug level, no PII)
+    this.logger.debug(
+      `Dashboard summary requested: tenantId=${tenantId}, branchId=${branchId || 'none'}, expiringDays=${expiringDays}`,
+    );
+
     const where = this.buildMemberWhere(tenantId, branchId);
     const today = getTodayStart();
 
-    // Active member definition: membershipEndDate >= today
-    // No longer checking status field - using derived status only
+    // Active members: status = ACTIVE
     const activeWhere: Prisma.MemberWhereInput = {
       ...where,
-      ...getActiveMembershipWhere(today),
+      status: 'ACTIVE',
     };
 
-    // Expiring soon: active members with membershipEndDate between today and today+7 days
+    // Passive members: status = INACTIVE
+    const passiveWhere: Prisma.MemberWhereInput = {
+      ...where,
+      status: 'INACTIVE',
+    };
+
+    // Expiring soon: active members with membershipEndDate between today and today+expiringDays
+    // Exclude null membershipEndDate by using the date range filter (null values won't match gte/lte)
     const expiringSoonWhere: Prisma.MemberWhereInput = {
       ...where,
-      ...getExpiringSoonMembershipWhere(today),
+      status: 'ACTIVE',
+      membershipEndDate: {
+        ...getExpiringSoonMembershipWhere(today, expiringDays).membershipEndDate,
+      },
     };
 
     // Execute all counts in parallel
-    const [totalMembers, activeMembers, expiringSoon] = await Promise.all([
-      this.prisma.member.count({ where }),
-      this.prisma.member.count({ where: activeWhere }),
-      this.prisma.member.count({ where: expiringSoonWhere }),
-    ]);
-
-    // Inactive/expired members calculation:
-    // totalMembers - activeMembers (includes expired, paused, archived)
-    const inactiveMembers = totalMembers - activeMembers;
+    const [totalMembers, activeMembers, passiveMembers, expiringSoonMembers] =
+      await Promise.all([
+        this.prisma.member.count({ where }),
+        this.prisma.member.count({ where: activeWhere }),
+        this.prisma.member.count({ where: passiveWhere }),
+        this.prisma.member.count({ where: expiringSoonWhere }),
+      ]);
 
     return {
-      totalMembers,
-      activeMembers,
-      inactiveMembers,
-      expiringSoon,
+      counts: {
+        totalMembers,
+        activeMembers,
+        passiveMembers,
+        expiringSoonMembers,
+      },
+      meta: {
+        expiringDays,
+        ...(branchId ? { branchId } : {}),
+      },
     };
   }
 

@@ -135,24 +135,26 @@ export function getExpiredMembershipWhere(
 
 /**
  * Create Prisma where clause for expiring soon members
- * Expiring soon = active (membershipEndDate >= today) AND membershipEndDate <= today+7
+ * Expiring soon = active (membershipEndDate >= today) AND membershipEndDate <= today+expiringDays
  *
  * @param referenceDate - Reference date for calculation (defaults to today)
+ * @param expiringDays - Number of days to look ahead (defaults to 7)
  * @returns Prisma where clause
  */
 export function getExpiringSoonMembershipWhere(
   referenceDate: Date = getTodayStart(),
+  expiringDays: number = 7,
 ) {
   const today = new Date(referenceDate);
   today.setHours(0, 0, 0, 0);
 
-  const sevenDaysFromToday = new Date(today);
-  sevenDaysFromToday.setDate(sevenDaysFromToday.getDate() + 7);
+  const daysFromToday = new Date(today);
+  daysFromToday.setDate(daysFromToday.getDate() + expiringDays);
 
   return {
     membershipEndDate: {
       gte: today,
-      lte: sevenDaysFromToday,
+      lte: daysFromToday,
     },
   };
 }

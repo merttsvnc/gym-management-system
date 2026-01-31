@@ -39,6 +39,13 @@ export class MemberListQueryDto {
   search?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'expiringDays tam sayı olmalıdır' })
+  @Min(1, { message: 'expiringDays en az 1 olmalıdır' })
+  @Max(60, { message: 'expiringDays en fazla 60 olabilir' })
+  expiringDays?: number;
+
+  @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean({ message: 'includeArchived boolean olmalıdır' })
   includeArchived?: boolean = false;
