@@ -18,6 +18,7 @@ import { calculateMembershipEndDate } from '../membership-plans/utils/duration-c
 import {
   calculateMembershipStatus,
   DerivedMembershipStatus,
+  getExpiredMembershipWhere,
 } from '../common/utils/membership-status.util';
 
 @Injectable()
@@ -214,15 +215,18 @@ export class MembersService {
    * - expiringDays filter: implicitly ACTIVE only, membershipEndDate in [today, today+expiringDays]
    * - If both status and expiringDays provided, expiringDays takes precedence and status is treated as ACTIVE
    */
-  async findAll(tenantId: string, query: MemberListQueryDto) {
+  async findAll(tenantId: string, query: MemberListQueryDto & { isExpiredFilter?: boolean }) {
+    // Ensure page and limit are numbers (convert if they come as strings)
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+
     const {
-      page = 1,
-      limit = 20,
       branchId,
       status,
       search,
       expiringDays,
       includeArchived = false,
+      isExpiredFilter = false,
     } = query;
 
     // Build where clause
@@ -236,8 +240,53 @@ export class MembersService {
       where.branchId = branchId;
     }
 
-    // Handle expiringDays filter (takes precedence over status)
-    if (expiringDays !== undefined) {
+    // Handle expired members filter (takes highest precedence)
+    // Expired members are those with membershipEndDate < today OR membershipEndDate IS NULL
+    if (isExpiredFilter) {
+      // Use the utility function to get proper expired membership filter
+      const expiredWhere = getExpiredMembershipWhere();
+      // Don't filter by status for expired members (they can have any status)
+      // But exclude archived members unless includeArchived is true
+      if (!includeArchived) {
+        where.status = {
+          not: 'ARCHIVED',
+        };
+      }
+      // Handle search and expired filter together using AND
+      if (search) {
+        // Both search and expired filter need to be satisfied
+        where.AND = [
+          expiredWhere, // OR condition for expired membershipEndDate
+          {
+            OR: [
+              {
+                firstName: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                lastName: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                phone: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          },
+        ];
+      } else {
+        // Just expired filter
+        Object.assign(where, expiredWhere);
+      }
+    }
+    // Handle expiringDays filter (takes precedence over status, but not over expired filter)
+    else if (expiringDays !== undefined) {
       // expiringDays implicitly requires ACTIVE status
       where.status = 'ACTIVE';
       // Filter by membershipEndDate: [today, today + expiringDays]
@@ -253,7 +302,7 @@ export class MembersService {
         lte: endDate,
       };
     } else {
-      // Filter by status (only if expiringDays not provided)
+      // Filter by status (only if expiringDays not provided and not expired filter)
       if (status) {
         where.status = status;
       } else if (!includeArchived) {
@@ -265,7 +314,8 @@ export class MembersService {
     }
 
     // Search across firstName, lastName, and phone (substring, case-insensitive)
-    if (search) {
+    // Only add search OR if not already handled by expired filter
+    if (search && !isExpiredFilter) {
       where.OR = [
         {
           firstName: {
@@ -775,9 +825,7 @@ export class MembersService {
 
     // Validate branch constraints (if plan is branch-scoped, must match member's branch)
     if (plan.scope === 'BRANCH' && plan.branchId !== member.branchId) {
-      throw new BadRequestException(
-        'Seçilen plan bu şube için geçerli değil.',
-      );
+      throw new BadRequestException('Seçilen plan bu şube için geçerli değil.');
     }
 
     // No-op: if new plan equals current plan and no pending exists

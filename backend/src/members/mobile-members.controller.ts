@@ -47,17 +47,21 @@ export class MobileMembersController {
     if (statusStr && statusStr.toUpperCase() === 'PASSIVE') {
       status = MemberStatus.INACTIVE;
     }
+    // Handle EXPIRED status (not a valid MemberStatus enum, but used by mobile for expired memberships)
+    // This will be handled specially in the service layer
+    const isExpiredFilter = Boolean(statusStr && statusStr.toUpperCase() === 'EXPIRED');
 
     // Build query object with mapped values
     // Ensure numeric values are preserved (page and limit should already be numbers from ValidationPipe)
-    const memberQuery: MemberListQueryDto = {
+    const memberQuery: MemberListQueryDto & { isExpiredFilter?: boolean } = {
       page: query.page,
       limit: query.limit,
       branchId: query.branchId,
       expiringDays: query.expiringDays,
       includeArchived: query.includeArchived,
       search: searchQuery,
-      status: status as MemberStatus | undefined,
+      status: isExpiredFilter ? undefined : (status as MemberStatus | undefined),
+      ...(isExpiredFilter && { isExpiredFilter: true }),
     };
 
     return this.membersService.findAll(tenantId, memberQuery);
