@@ -299,13 +299,10 @@ export class MembersService {
       const endDate = new Date(today);
       endDate.setDate(endDate.getDate() + expiringDays);
 
+      // gte and lte automatically exclude null values
       where.membershipEndDate = {
         gte: today,
         lte: endDate,
-      };
-      // Exclude null membershipEndDate separately
-      where.NOT = {
-        membershipEndDate: null,
       };
     } else {
       // Filter by status (only if expiringDays not provided and not expired filter)
