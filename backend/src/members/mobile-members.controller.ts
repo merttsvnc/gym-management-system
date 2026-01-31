@@ -1,14 +1,10 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { MembersService } from './members.service';
 import { MemberListQueryDto } from './dto/member-list-query.dto';
+import { MemberStatus } from '@prisma/client';
 
 /**
  * Mobile-specific members controller
@@ -49,14 +45,19 @@ export class MobileMembersController {
     let status = query.status;
     const statusStr = query.status as unknown as string | undefined;
     if (statusStr && statusStr.toUpperCase() === 'PASSIVE') {
-      status = 'INACTIVE' as any;
+      status = MemberStatus.INACTIVE;
     }
 
     // Build query object with mapped values
+    // Ensure numeric values are preserved (page and limit should already be numbers from ValidationPipe)
     const memberQuery: MemberListQueryDto = {
-      ...query,
+      page: query.page,
+      limit: query.limit,
+      branchId: query.branchId,
+      expiringDays: query.expiringDays,
+      includeArchived: query.includeArchived,
       search: searchQuery,
-      status: status as any, // Type assertion needed due to enum
+      status: status as MemberStatus | undefined,
     };
 
     return this.membersService.findAll(tenantId, memberQuery);
