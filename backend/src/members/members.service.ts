@@ -304,7 +304,12 @@ export class MembersService {
       // expiringDays requires ACTIVE status AND membershipEndDate in range
       where.status = 'ACTIVE';
       const endDate = new Date(today);
-      endDate.setDate(endDate.getDate() + expiringDays);
+      // CRITICAL FIX: Ensure expiringDays is treated as number (DTO validation may not cast properly in all cases)
+      const expiringDaysNum =
+        typeof expiringDays === 'string'
+          ? parseInt(expiringDays, 10)
+          : expiringDays;
+      endDate.setDate(endDate.getDate() + expiringDaysNum);
       where.membershipEndDate = {
         gte: today,
         lte: endDate,

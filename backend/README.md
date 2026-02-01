@@ -57,6 +57,20 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Seed Test Data
+
+Generate realistic test members for smoke testing:
+
+```bash
+# Seed 100 members for specified tenant
+$ ALLOW_TEST_SEED=true npm run seed:members -- --email info.vedweb@gmail.com
+
+# Custom count
+$ ALLOW_TEST_SEED=true npm run seed:members -- --email info.vedweb@gmail.com --count 50
+```
+
+📖 **[Full Documentation](./SEED_MEMBERS_README.md)**
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
