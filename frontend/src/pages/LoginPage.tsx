@@ -35,6 +35,14 @@ export function LoginPage() {
     } catch (e) {
       const err = toApiError(e);
 
+      // Log error details for debugging
+      console.error("Login error:", {
+        statusCode: err.statusCode,
+        code: err.code,
+        message: err.message,
+        error: e,
+      });
+
       // EXACT DECISION TREE:
       if (err.statusCode === 403 && err.code === "TENANT_BILLING_LOCKED") {
         // Clear auth storage
@@ -48,7 +56,9 @@ export function LoginPage() {
         setError("E-posta veya şifre hatalı");
       } else {
         // Generic error (network, 5xx, etc.)
-        setError("Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.");
+        // Show more specific error message if available
+        const errorMessage = err.message || "Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.";
+        setError(errorMessage);
       }
     } finally {
       setIsLoading(false);

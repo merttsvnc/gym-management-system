@@ -12,11 +12,18 @@ import { initDevToken } from "./lib/auth-dev";
 
 // Initialize dev token for development (only if not using real auth)
 // This will be skipped if user is already authenticated
+// Note: Dev token is only created once per session to avoid auto-login after logout
 if (import.meta.env.DEV) {
-  // Only init dev token if no auth exists
+  // Only init dev token if no auth exists AND user hasn't explicitly logged out
+  // Check for a flag that indicates user explicitly logged out
+  const explicitLogout = sessionStorage.getItem("explicit_logout");
   const existingAuth = localStorage.getItem("gymms_auth");
-  if (!existingAuth) {
+  
+  if (!existingAuth && !explicitLogout) {
     initDevToken();
+  } else if (explicitLogout) {
+    // Clear the flag after checking (so it doesn't persist across sessions)
+    sessionStorage.removeItem("explicit_logout");
   }
 }
 

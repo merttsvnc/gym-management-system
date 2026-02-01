@@ -27,17 +27,29 @@ const axiosInstance: AxiosInstance = axios.create({
 });
 
 /**
- * Safe localStorage access helper
+ * Safe storage access helper with sessionStorage fallback
+ * In incognito/private mode, localStorage often fails but sessionStorage works
  */
 function getStorageItem(key: string): string | null {
+  // Try localStorage first
   try {
     if (typeof window !== "undefined" && window.localStorage) {
-      return localStorage.getItem(key);
+      const value = localStorage.getItem(key);
+      if (value) return value;
     }
   } catch {
-    // localStorage access denied (incognito mode, iframe restrictions, etc.)
-    console.warn("⚠️ localStorage access denied. Using fallback.");
+    console.warn("⚠️ localStorage access denied, trying sessionStorage");
   }
+
+  // Fallback to sessionStorage (works better in incognito mode)
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      return sessionStorage.getItem(key);
+    }
+  } catch {
+    console.warn("⚠️ sessionStorage also denied");
+  }
+
   return null;
 }
 
@@ -63,7 +75,7 @@ axiosInstance.interceptors.request.use((config) => {
     }
   } else if (import.meta.env.DEV) {
     console.warn(
-      '⚠️ No auth data found. API requests may fail. Check localStorage for "gymms_auth"'
+      '⚠️ No auth data found. API requests may fail. Check localStorage for "gymms_auth"',
     );
   }
   return config;
@@ -84,11 +96,17 @@ axiosInstance.interceptors.response.use(
 
     // Centralized 401 handling: logout and redirect
     if (error.response?.status === 401) {
-      // Clear auth tokens
+      // Clear auth tokens from both localStorage and sessionStorage
       try {
         localStorage.removeItem("gymms_auth");
       } catch {
         console.warn("⚠️ Could not clear auth tokens from localStorage");
+      }
+
+      try {
+        sessionStorage.removeItem("gymms_auth");
+      } catch {
+        console.warn("⚠️ Could not clear auth tokens from sessionStorage");
       }
 
       // Dispatch custom event for components listening
@@ -99,6 +117,8 @@ axiosInstance.interceptors.response.use(
         window.location.href = "/login";
       }
       // Don't show toast for 401 errors as user is being redirected
+      // Return early to prevent toast notification
+      return Promise.reject(apiError);
     } else if (error.response?.status === 403) {
       // Handle billing status errors (403 Forbidden)
       // Detection is done ONLY via structured error code in handleBillingError
@@ -128,7 +148,7 @@ axiosInstance.interceptors.response.use(
 
     // Rethrow ApiError
     return Promise.reject(apiError);
-  }
+  },
 );
 
 /**
@@ -140,7 +160,7 @@ export const apiClient = {
    */
   get: <T = unknown>(
     url: string,
-    config?: AxiosRequestConfig & { tenantId?: string }
+    config?: AxiosRequestConfig & { tenantId?: string },
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {
@@ -157,7 +177,7 @@ export const apiClient = {
   post: <T = unknown, B = unknown>(
     url: string,
     body?: B,
-    config?: AxiosRequestConfig & { tenantId?: string }
+    config?: AxiosRequestConfig & { tenantId?: string },
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {
@@ -177,7 +197,7 @@ export const apiClient = {
   patch: <T = unknown, B = unknown>(
     url: string,
     body?: B,
-    config?: AxiosRequestConfig & { tenantId?: string }
+    config?: AxiosRequestConfig & { tenantId?: string },
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {
@@ -196,7 +216,7 @@ export const apiClient = {
    */
   del: <T = unknown>(
     url: string,
-    config?: AxiosRequestConfig & { tenantId?: string }
+    config?: AxiosRequestConfig & { tenantId?: string },
   ): Promise<T> => {
     const headers: Record<string, string> = {};
     if (config?.tenantId) {

@@ -33,7 +33,7 @@ export function generateDevToken(
   tenantId: string,
   userId: string = "dev-user-1",
   email: string = "dev@example.com",
-  role: string = "ADMIN"
+  role: string = "ADMIN",
 ): string {
   const payload: DevTokenPayload = {
     userId,
@@ -56,30 +56,56 @@ export function generateDevToken(
 }
 
 /**
- * Safe localStorage access helpers
+ * Safe storage access helpers with sessionStorage fallback
+ * In incognito/private mode, localStorage often fails but sessionStorage works
  */
 function safeGetItem(key: string): string | null {
+  // Try localStorage first
   try {
     if (typeof window !== "undefined" && window.localStorage) {
-      return localStorage.getItem(key);
+      const value = localStorage.getItem(key);
+      if (value) return value;
     }
   } catch {
-    // localStorage access denied
-    console.warn("⚠️ localStorage access denied");
+    console.warn("⚠️ localStorage access denied, trying sessionStorage");
   }
+
+  // Fallback to sessionStorage (works better in incognito mode)
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      return sessionStorage.getItem(key);
+    }
+  } catch {
+    console.warn("⚠️ sessionStorage also denied");
+  }
+
   return null;
 }
 
 function safeSetItem(key: string, value: string): boolean {
+  // Try localStorage first
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.setItem(key, value);
       return true;
     }
   } catch {
-    // localStorage access denied
-    console.warn("⚠️ localStorage access denied");
+    console.warn("⚠️ localStorage access denied, trying sessionStorage");
   }
+
+  // Fallback to sessionStorage (works better in incognito mode)
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      sessionStorage.setItem(key, value);
+      console.log(
+        "✅ Using sessionStorage as fallback (incognito mode detected)",
+      );
+      return true;
+    }
+  } catch {
+    console.error("⚠️ Both localStorage and sessionStorage denied");
+  }
+
   return false;
 }
 
@@ -106,14 +132,16 @@ export function initDevToken(): void {
     const token = generateDevToken(envTenantId);
     // Store in gymms_auth format (single source of truth)
     const authData = {
-      user: { id: "dev-user-1", email: "dev@example.com", role: "ADMIN" },
+      user: {
+        id: "dev-user-1",
+        email: "dev@example.com",
+        role: "ADMIN",
+        tenantId: envTenantId, // Required field for auth validation
+      },
       accessToken: token,
       refreshToken: "dev-refresh-token",
     };
-    if (safeSetItem("gymms_auth", JSON.stringify(authData))) {
-      console.log("✅ Dev token initialized with tenantId:", envTenantId);
-      console.log("🔑 Token (first 50 chars):", token.substring(0, 50) + "...");
-    }
+    safeSetItem("gymms_auth", JSON.stringify(authData));
     return;
   }
 
@@ -122,24 +150,28 @@ export function initDevToken(): void {
     const tenantId = prompt(
       "Enter a tenant ID for development (or cancel to skip):\n\n" +
         "You can find/create a tenant ID in your database.\n" +
-        "Or set VITE_DEV_TENANT_ID in your .env file."
+        "Or set VITE_DEV_TENANT_ID in your .env file.",
     );
 
     if (tenantId && tenantId.trim()) {
-      const token = generateDevToken(tenantId.trim());
+      const trimmedTenantId = tenantId.trim();
+      const token = generateDevToken(trimmedTenantId);
       // Store in gymms_auth format (single source of truth)
       const authData = {
-        user: { id: "dev-user-1", email: "dev@example.com", role: "ADMIN" },
+        user: {
+          id: "dev-user-1",
+          email: "dev@example.com",
+          role: "ADMIN",
+          tenantId: trimmedTenantId, // Required field for auth validation
+        },
         accessToken: token,
         refreshToken: "dev-refresh-token",
       };
-      if (safeSetItem("gymms_auth", JSON.stringify(authData))) {
-        console.log("✅ Dev token initialized with tenantId:", tenantId.trim());
-      }
+      safeSetItem("gymms_auth", JSON.stringify(authData));
     } else {
       console.warn(
         "⚠️ No dev token set. API requests will fail with 401 Unauthorized.\n" +
-          "Set VITE_DEV_TENANT_ID in your .env file or use proper login flow."
+          "Set VITE_DEV_TENANT_ID in your .env file or use proper login flow.",
       );
     }
   }

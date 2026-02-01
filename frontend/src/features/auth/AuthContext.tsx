@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import type { AuthUser, LoginResponse } from "./types";
 import type { BillingStatus } from "@/types/billing";
 import { login as loginApi, getCurrentUser } from "./api";
@@ -17,36 +17,75 @@ interface AuthStorage {
 }
 
 /**
- * Safe localStorage access helpers
+ * Safe storage access helpers with sessionStorage fallback
+ * In incognito/private mode, localStorage often fails but sessionStorage works
  */
 function getStorageItem(key: string): string | null {
+  // Try localStorage first
   try {
     if (typeof window !== "undefined" && window.localStorage) {
-      return localStorage.getItem(key);
+      const value = localStorage.getItem(key);
+      if (value) return value;
     }
   } catch {
     console.warn("⚠️ localStorage access denied");
   }
+
+  // Fallback to sessionStorage (works better in incognito mode)
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      return sessionStorage.getItem(key);
+    }
+  } catch {
+    console.warn("⚠️ sessionStorage also denied");
+  }
+
   return null;
 }
 
 function setStorageItem(key: string, value: string): void {
+  // Try localStorage first
+  let stored = false;
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.setItem(key, value);
+      stored = true;
     }
   } catch {
-    console.warn("⚠️ localStorage access denied");
+    console.warn("⚠️ localStorage access denied, trying sessionStorage");
+  }
+
+  // Fallback to sessionStorage (works better in incognito mode)
+  if (!stored) {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        sessionStorage.setItem(key, value);
+        if (import.meta.env.DEV) {
+          console.log("✅ Using sessionStorage as fallback (incognito mode)");
+        }
+      }
+    } catch {
+      console.warn("⚠️ Both localStorage and sessionStorage denied");
+    }
   }
 }
 
 function removeStorageItem(key: string): void {
+  // Clear from both localStorage and sessionStorage
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.removeItem(key);
     }
   } catch {
     console.warn("⚠️ localStorage access denied");
+  }
+
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    console.warn("⚠️ sessionStorage access denied");
   }
 }
 
@@ -55,13 +94,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(
-    null
+    null,
   );
   const [billingStatusUpdatedAt, setBillingStatusUpdatedAt] = useState<
     string | null
   >(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Fetch billing status from /auth/me endpoint
   const fetchBillingStatus = useCallback(async () => {
@@ -74,8 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setBillingStatus(response.tenant.billingStatus);
       setBillingStatusUpdatedAt(response.tenant.billingStatusUpdatedAt);
     } catch (error: unknown) {
-      console.error("Failed to fetch billing status:", error);
-      // If 401 (token invalid/expired), clear state
+      // If 401 (token invalid/expired), silently clear state
+      // This is expected after logout or token expiration
       // The axios interceptor will handle redirect, we just need to clear state
       if (
         error &&
@@ -83,12 +123,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "statusCode" in error &&
         (error as { statusCode: number }).statusCode === 401
       ) {
+        // Silently clear state - 401 is expected after logout
         setUser(null);
         setAccessToken(null);
         setRefreshToken(null);
         setBillingStatus(null);
         setBillingStatusUpdatedAt(null);
+        return;
       }
+
+      // Log other errors (403, 500, network errors) for debugging
+      console.error("Failed to fetch billing status:", error);
       // Other errors (403, 500) are handled by error handlers
     }
   }, [accessToken]);
@@ -100,9 +145,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const authData: AuthStorage = JSON.parse(stored);
 
-        // Basic shape validation: ensure required fields exist
-        if (!authData.user || !authData.accessToken || !authData.refreshToken) {
-          throw new Error("Invalid auth data shape");
+        // Comprehensive validation: ensure required fields exist and have correct types
+        if (!authData.user || typeof authData.user !== "object") {
+          throw new Error(
+            "Invalid auth data shape: user is missing or invalid",
+          );
+        }
+
+        if (!authData.user.id || typeof authData.user.id !== "string") {
+          throw new Error(
+            "Invalid auth data shape: user.id is missing or invalid",
+          );
+        }
+
+        if (!authData.user.email || typeof authData.user.email !== "string") {
+          throw new Error(
+            "Invalid auth data shape: user.email is missing or invalid",
+          );
+        }
+
+        if (
+          !authData.user.tenantId ||
+          typeof authData.user.tenantId !== "string"
+        ) {
+          throw new Error(
+            "Invalid auth data shape: user.tenantId is missing or invalid",
+          );
+        }
+
+        if (
+          !authData.accessToken ||
+          typeof authData.accessToken !== "string" ||
+          authData.accessToken.trim() === ""
+        ) {
+          throw new Error(
+            "Invalid auth data shape: accessToken is missing or invalid",
+          );
+        }
+
+        // refreshToken is optional - validate only if present
+        if (
+          authData.refreshToken !== undefined &&
+          (typeof authData.refreshToken !== "string" ||
+            authData.refreshToken.trim() === "")
+        ) {
+          throw new Error("Invalid auth data shape: refreshToken is invalid");
         }
 
         setUser(authData.user);
@@ -119,8 +206,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error(
           "Failed to restore auth session (corrupted data):",
-          error
+          error,
         );
+        console.error("Stored data that failed validation:", stored);
         // Clear corrupted data and reset to logged-out state
         removeStorageItem(AUTH_STORAGE_KEY);
         setUser(null);
@@ -152,11 +240,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Fetch billing status on app boot (after auth is restored)
+  // Skip if on login/signup pages to avoid unnecessary 401 errors
   useEffect(() => {
-    if (isInitialized && accessToken && !billingStatus) {
+    const isAuthPage =
+      location.pathname === "/login" ||
+      location.pathname === "/signup" ||
+      location.pathname.startsWith("/signup/");
+
+    if (isInitialized && accessToken && !billingStatus && !isAuthPage) {
       fetchBillingStatus();
     }
-  }, [isInitialized, accessToken, billingStatus, fetchBillingStatus]);
+  }, [
+    isInitialized,
+    accessToken,
+    billingStatus,
+    fetchBillingStatus,
+    location.pathname,
+  ]);
 
   // Refresh billing status (called on app boot, after login, optionally on focus/interval)
   const refreshBillingStatus = useCallback(async () => {
@@ -199,13 +299,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener(
       "auth:billing-status-changed",
-      handleBillingStatusChanged
+      handleBillingStatusChanged,
     );
 
     return () => {
       window.removeEventListener(
         "auth:billing-status-changed",
-        handleBillingStatusChanged
+        handleBillingStatusChanged,
       );
     };
   }, [accessToken, refreshBillingStatus]);
@@ -245,22 +345,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   */
 
   const login = useCallback(async (email: string, password: string) => {
-    const response: LoginResponse = await loginApi(email, password);
+    try {
+      const response: LoginResponse = await loginApi(email, password);
 
-    // Update state
-    setUser(response.user);
-    setAccessToken(response.accessToken);
-    setRefreshToken(response.refreshToken);
-    setBillingStatus(response.tenant.billingStatus);
+      // Log response for debugging (without sensitive data)
+      console.log("Login response received:", {
+        hasUser: !!response.user,
+        hasAccessToken: !!response.accessToken,
+        hasRefreshToken: !!response.refreshToken,
+        hasTenant: !!response.tenant,
+        userFields: response.user ? Object.keys(response.user) : [],
+      });
 
-    // Persist to localStorage
-    const authData: AuthStorage = {
-      user: response.user,
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-      billingStatus: response.tenant.billingStatus,
-    };
-    setStorageItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+      // Validate response before saving
+      // Note: refreshToken is optional as backend may not return it
+      if (!response.user || !response.accessToken) {
+        console.error("Invalid login response - missing required fields:", {
+          hasUser: !!response.user,
+          hasAccessToken: !!response.accessToken,
+          hasRefreshToken: !!response.refreshToken,
+        });
+        throw new Error("Invalid login response: missing required fields");
+      }
+
+      if (
+        !response.user.id ||
+        !response.user.email ||
+        !response.user.tenantId
+      ) {
+        console.error("Invalid login response - user object incomplete:", {
+          hasId: !!response.user.id,
+          hasEmail: !!response.user.email,
+          hasTenantId: !!response.user.tenantId,
+          user: response.user,
+        });
+        throw new Error("Invalid login response: user object is incomplete");
+      }
+
+      // Update state
+      setUser(response.user);
+      setAccessToken(response.accessToken);
+      // Use refreshToken if provided, otherwise use placeholder (backend doesn't currently return refresh tokens)
+      const refreshTokenValue = response.refreshToken || "no-refresh-token";
+      setRefreshToken(refreshTokenValue);
+      setBillingStatus(response.tenant.billingStatus);
+
+      // Persist to localStorage
+      const authData: AuthStorage = {
+        user: response.user,
+        accessToken: response.accessToken,
+        refreshToken: refreshTokenValue,
+        billingStatus: response.tenant.billingStatus,
+        // billingStatusUpdatedAt is not available in LoginResponse, will be fetched later
+      };
+      setStorageItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+    } catch (error) {
+      console.error("Login function error:", error);
+      // Re-throw to let LoginPage handle the error
+      throw error;
+    }
   }, []);
 
   const logout = useCallback(() => {
@@ -273,6 +416,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Clear localStorage
     removeStorageItem(AUTH_STORAGE_KEY);
+
+    // Set flag to prevent dev token auto-creation after explicit logout
+    // This flag is cleared after checking in main.tsx
+    if (import.meta.env.DEV) {
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          sessionStorage.setItem("explicit_logout", "true");
+        }
+      } catch {
+        // Ignore sessionStorage errors
+      }
+    }
 
     // Invalidate React Query cache (including billing status cache)
     queryClient.invalidateQueries();
