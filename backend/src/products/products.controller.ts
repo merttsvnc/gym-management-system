@@ -7,8 +7,18 @@ import {
   Body,
   Param,
   Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../auth/guards/tenant.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ProductsService } from './products.service';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductQueryDto } from './dto/product-query.dto';
 
 /**
  * ProductsController
@@ -16,74 +26,104 @@ import { ProductsService } from './products.service';
  * Handles HTTP endpoints for in-gym product catalog management.
  * Products are scoped by tenantId and branchId.
  *
- * Phase 1: Placeholder endpoints with TODO comments
+ * Phase 2: Full implementation with authentication and validation
  */
 @Controller('products')
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   /**
    * GET /products
-   * TODO: Implement listing products for a tenant/branch
-   * - Support filtering by category, isActive
-   * - Support pagination
-   * - Require authentication and extract tenantId/branchId from JWT
+   * Lists products for the tenant/branch with optional filters
    */
   @Get()
-  async findAll(@Query() query: any) {
-    // TODO: Implement product listing
-    return { message: 'TODO: List products', query };
+  async findAll(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query() query: ProductQueryDto,
+  ) {
+    // branchId is required
+    if (!query.branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
+
+    return this.productsService.findAll({
+      tenantId,
+      branchId: query.branchId,
+      category: query.category,
+      isActive: query.isActive,
+    });
   }
 
   /**
    * GET /products/:id
-   * TODO: Implement getting a single product by ID
-   * - Validate product belongs to user's tenant/branch
-   * - Return 404 if not found
+   * Gets a single product by ID
    */
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    // TODO: Implement get product by ID
-    return { message: 'TODO: Get product', id };
+  async findOne(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('branchId') branchId: string,
+    @Param('id') id: string,
+  ) {
+    if (!branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
+
+    return this.productsService.findOne(id, tenantId, branchId);
   }
 
   /**
    * POST /products
-   * TODO: Implement creating a new product
-   * - Extract tenantId/branchId from authenticated user
-   * - Validate required fields: name, defaultPrice
-   * - Validate defaultPrice is positive
-   * - Optional fields: category
+   * Creates a new product
    */
   @Post()
-  async create(@Body() createProductDto: any) {
-    // TODO: Implement product creation
-    return { message: 'TODO: Create product', data: createProductDto };
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('branchId') branchId: string,
+    @Body() dto: CreateProductDto,
+  ) {
+    if (!branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
+
+    return this.productsService.create(dto, tenantId, branchId);
   }
 
   /**
    * PATCH /products/:id
-   * TODO: Implement updating a product
-   * - Validate product belongs to user's tenant/branch
-   * - Allow updating: name, defaultPrice, category, isActive
-   * - Validate defaultPrice is positive if provided
+   * Updates an existing product
    */
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateProductDto: any) {
-    // TODO: Implement product update
-    return { message: 'TODO: Update product', id, data: updateProductDto };
+  async update(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('branchId') branchId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    if (!branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
+
+    return this.productsService.update(id, dto, tenantId, branchId);
   }
 
   /**
    * DELETE /products/:id
-   * TODO: Implement soft-delete or hard-delete
-   * - Option 1: Set isActive = false (soft delete)
-   * - Option 2: Check if product has associated sales, then prevent delete or cascade
-   * - Validate product belongs to user's tenant/branch
+   * Soft deletes (deactivates) a product
    */
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    // TODO: Implement product deletion
-    return { message: 'TODO: Delete product', id };
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('branchId') branchId: string,
+    @Param('id') id: string,
+  ) {
+    if (!branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
+
+    await this.productsService.remove(id, tenantId, branchId);
+    return { message: 'Product deactivated successfully' };
   }
 }

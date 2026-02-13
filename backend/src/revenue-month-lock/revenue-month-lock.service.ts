@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { isValidMonthKey } from '../common/utils/date-helpers';
 
 /**
  * RevenueMonthLockService
@@ -8,104 +13,112 @@ import { PrismaService } from '../prisma/prisma.service';
  * Prevents creating/editing/deleting sales in locked months.
  * All operations are scoped by tenantId + branchId for multi-tenancy.
  *
- * Phase 1: Placeholder methods with TODO comments
+ * Phase 2: Full implementation
  */
 @Injectable()
 export class RevenueMonthLockService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * TODO: Implement findAll
-   * - Query locks filtered by tenantId, branchId
-   * - Optional: filter by month or date range
-   * - Order by: month DESC
+   * Find all locks for a tenant/branch
    */
-  async findAll(params: {
-    tenantId: string;
-    branchId: string;
-    month?: string;
-  }) {
-    // TODO: Implement
-    return [];
+  async findAll(params: { tenantId: string; branchId: string }) {
+    return this.prisma.revenueMonthLock.findMany({
+      where: {
+        tenantId: params.tenantId,
+        branchId: params.branchId,
+      },
+      orderBy: { month: 'desc' },
+    });
   }
 
   /**
-   * TODO: Implement isMonthLocked
-   * - Check if a specific month is locked for a tenant/branch
-   * - month format: "YYYY-MM"
-   * - Return boolean
-   * - Used by other services (ProductSalesService) to validate operations
+   * Check if a specific month is locked
    */
-  async isMonthLocked(
+  async checkMonth(
     tenantId: string,
     branchId: string,
     month: string,
-  ): Promise<boolean> {
-    // TODO: Implement
-    // const lock = await this.prisma.revenueMonthLock.findUnique({
-    //   where: { tenantId_branchId_month: { tenantId, branchId, month } }
-    // });
-    // return !!lock;
-    return false;
+  ): Promise<{ locked: boolean }> {
+    const lock = await this.prisma.revenueMonthLock.findUnique({
+      where: {
+        tenantId_branchId_month: {
+          tenantId,
+          branchId,
+          month,
+        },
+      },
+    });
+
+    return { locked: !!lock };
   }
 
   /**
-   * TODO: Implement isDateLocked
-   * - Helper to check if a date falls in a locked month
-   * - Extract YYYY-MM from date and call isMonthLocked
-   * - Used by sales operations to validate soldAt date
+   * Create (lock) a month
+   * Uses upsert to handle duplicate attempts gracefully
    */
-  async isDateLocked(
+  async create(
+    month: string,
     tenantId: string,
     branchId: string,
-    date: Date,
-  ): Promise<boolean> {
-    // TODO: Implement
-    // const month = date.toISOString().slice(0, 7); // "YYYY-MM"
-    // return this.isMonthLocked(tenantId, branchId, month);
-    return false;
+    userId?: string,
+  ) {
+    // Validate month format
+    if (!isValidMonthKey(month)) {
+      throw new ConflictException(
+        'Invalid month format. Expected YYYY-MM (e.g., 2026-02)',
+      );
+    }
+
+    // Upsert: create if not exists, return existing if already locked
+    return this.prisma.revenueMonthLock.upsert({
+      where: {
+        tenantId_branchId_month: {
+          tenantId,
+          branchId,
+          month,
+        },
+      },
+      update: {}, // No updates if it already exists
+      create: {
+        tenantId,
+        branchId,
+        month,
+        lockedByUserId: userId,
+      },
+    });
   }
 
   /**
-   * TODO: Implement create
-   * - Create a lock for a specific month
-   * - Validate month format (YYYY-MM)
-   * - Optional: validate month is not in the future
-   * - Record lockedByUserId
-   * - Handle unique constraint violation (month already locked)
-   */
-  async create(data: {
-    tenantId: string;
-    branchId: string;
-    month: string;
-    lockedByUserId?: string;
-  }) {
-    // TODO: Implement
-    // Validation example:
-    // if (!/^\d{4}-\d{2}$/.test(data.month)) {
-    //   throw new BadRequestException('Invalid month format. Expected YYYY-MM');
-    // }
-    return null;
-  }
-
-  /**
-   * TODO: Implement remove
-   * - Delete a lock for a specific month
-   * - Validate lock exists and belongs to tenant/branch
-   * - Consider: require admin role check before unlocking
+   * Delete (unlock) a month
    */
   async remove(tenantId: string, branchId: string, month: string) {
-    // TODO: Implement
-    return null;
-  }
+    // Check if lock exists
+    const lock = await this.prisma.revenueMonthLock.findUnique({
+      where: {
+        tenantId_branchId_month: {
+          tenantId,
+          branchId,
+          month,
+        },
+      },
+    });
 
-  /**
-   * TODO: Implement findOne (optional)
-   * - Get details of a specific lock
-   * - Return lock info: month, lockedAt, lockedByUserId
-   */
-  async findOne(tenantId: string, branchId: string, month: string) {
-    // TODO: Implement
-    return null;
+    if (!lock) {
+      throw new NotFoundException(`Month lock for ${month} not found`);
+    }
+
+    // Delete lock
+    await this.prisma.revenueMonthLock.delete({
+      where: {
+        tenantId_branchId_month: {
+          tenantId,
+          branchId,
+          month,
+        },
+      },
+    });
+
+    return { success: true };
   }
 }

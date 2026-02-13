@@ -1,5 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 /**
  * ProductsService
@@ -7,88 +15,158 @@ import { PrismaService } from '../prisma/prisma.service';
  * Business logic for in-gym product catalog management.
  * All operations are scoped by tenantId + branchId for multi-tenancy.
  *
- * Phase 1: Placeholder methods with TODO comments
+ * Phase 2: Full implementation with validations and business rules
  */
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * TODO: Implement findAll
-   * - Query products filtered by tenantId, branchId
-   * - Optional filters: category, isActive
-   * - Support pagination (skip, take)
-   * - Order by: name ASC, createdAt DESC, etc.
+   * Find all products for a tenant/branch with optional filters
    */
   async findAll(params: {
     tenantId: string;
     branchId: string;
     category?: string;
     isActive?: boolean;
-    skip?: number;
-    take?: number;
   }) {
-    // TODO: Implement
-    return [];
+    const where: Prisma.ProductWhereInput = {
+      tenantId: params.tenantId,
+      branchId: params.branchId,
+    };
+
+    if (params.category !== undefined) {
+      where.category = params.category;
+    }
+
+    if (params.isActive !== undefined) {
+      where.isActive = params.isActive;
+    }
+
+    return this.prisma.product.findMany({
+      where,
+      orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+    });
   }
 
   /**
-   * TODO: Implement findOne
-   * - Find product by ID
-   * - Validate belongs to tenantId/branchId
-   * - Throw NotFoundException if not found
+   * Find a single product by ID
+   * Validates the product belongs to the specified tenant/branch
    */
   async findOne(id: string, tenantId: string, branchId: string) {
-    // TODO: Implement
-    return null;
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id,
+        tenantId,
+        branchId,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    return product;
   }
 
   /**
-   * TODO: Implement create
-   * - Create new product with tenantId/branchId
-   * - Validate defaultPrice > 0
-   * - Set isActive = true by default
-   * - Optional: check for duplicate name within tenant/branch (service-level)
+   * Create a new product
+   * Enforces name uniqueness per tenant/branch (case-insensitive)
    */
-  async create(data: {
-    tenantId: string;
-    branchId: string;
-    name: string;
-    defaultPrice: number;
-    category?: string;
-  }) {
-    // TODO: Implement
-    return null;
+  async create(dto: CreateProductDto, tenantId: string, branchId: string) {
+    // Check for duplicate name (case-insensitive)
+    const existing = await this.prisma.product.findFirst({
+      where: {
+        tenantId,
+        branchId,
+        name: {
+          equals: dto.name,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        `Product with name "${dto.name}" already exists`,
+      );
+    }
+
+    // Create product
+    return this.prisma.product.create({
+      data: {
+        tenantId,
+        branchId,
+        name: dto.name,
+        defaultPrice: new Prisma.Decimal(dto.defaultPrice.toString()),
+        category: dto.category,
+        isActive: true,
+      },
+    });
   }
 
   /**
-   * TODO: Implement update
-   * - Find product by ID and validate ownership (tenantId/branchId)
-   * - Update allowed fields: name, defaultPrice, category, isActive
-   * - Validate defaultPrice > 0 if provided
+   * Update an existing product
+   * Validates ownership and enforces name uniqueness if name changes
    */
   async update(
     id: string,
+    dto: UpdateProductDto,
     tenantId: string,
     branchId: string,
-    data: {
-      name?: string;
-      defaultPrice?: number;
-      category?: string;
-      isActive?: boolean;
-    },
   ) {
-    // TODO: Implement
-    return null;
+    // Verify product exists and belongs to tenant/branch
+    await this.findOne(id, tenantId, branchId);
+
+    // If name is changing, check for duplicates
+    if (dto.name) {
+      const existing = await this.prisma.product.findFirst({
+        where: {
+          tenantId,
+          branchId,
+          name: {
+            equals: dto.name,
+            mode: 'insensitive',
+          },
+          id: {
+            not: id,
+          },
+        },
+      });
+
+      if (existing) {
+        throw new ConflictException(
+          `Product with name "${dto.name}" already exists`,
+        );
+      }
+    }
+
+    // Build update data
+    const updateData: Prisma.ProductUpdateInput = {};
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.defaultPrice !== undefined) {
+      updateData.defaultPrice = new Prisma.Decimal(dto.defaultPrice.toString());
+    }
+    if (dto.category !== undefined) updateData.category = dto.category;
+    if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+
+    return this.prisma.product.update({
+      where: { id },
+      data: updateData,
+    });
   }
 
   /**
-   * TODO: Implement remove
-   * - Soft delete: set isActive = false
-   * - OR hard delete: check if product has sales history first
+   * Soft delete (deactivate) a product
+   * Sets isActive to false instead of hard deleting to preserve history
    */
   async remove(id: string, tenantId: string, branchId: string) {
-    // TODO: Implement
-    return null;
+    // Verify product exists and belongs to tenant/branch
+    await this.findOne(id, tenantId, branchId);
+
+    return this.prisma.product.update({
+      where: { id },
+      data: { isActive: false },
+    });
   }
 }

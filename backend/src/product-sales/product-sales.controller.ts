@@ -2,13 +2,21 @@ import {
   Controller,
   Get,
   Post,
-  Patch,
   Delete,
   Body,
   Param,
   Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../auth/guards/tenant.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ProductSalesService } from './product-sales.service';
+import { CreateProductSaleDto } from './dto/create-product-sale.dto';
+import { ProductSaleQueryDto } from './dto/product-sale-query.dto';
 
 /**
  * ProductSalesController
@@ -16,98 +24,96 @@ import { ProductSalesService } from './product-sales.service';
  * Handles HTTP endpoints for in-gym product sales transactions.
  * Sales are scoped by tenantId and branchId.
  *
- * Phase 1: Placeholder endpoints with TODO comments
+ * Phase 2: Full implementation with authentication and validation
  */
 @Controller('product-sales')
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductSalesController {
   constructor(private readonly productSalesService: ProductSalesService) {}
 
   /**
    * GET /product-sales
-   * TODO: Implement listing sales for a tenant/branch
-   * - Support date range filtering (soldAt)
-   * - Support pagination
-   * - Include sale items in response
-   * - Require authentication and extract tenantId/branchId from JWT
+   * Lists sales for the tenant/branch with optional filters
    */
   @Get()
-  async findAll(@Query() query: any) {
-    // TODO: Implement sales listing
-    return { message: 'TODO: List product sales', query };
+  async findAll(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query() query: ProductSaleQueryDto,
+  ) {
+    if (!query.branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
+
+    const params: any = {
+      tenantId,
+      branchId: query.branchId,
+      limit: query.limit,
+      offset: query.offset,
+    };
+
+    if (query.from) {
+      params.from = new Date(query.from);
+    }
+
+    if (query.to) {
+      params.to = new Date(query.to);
+    }
+
+    return this.productSalesService.findAll(params);
   }
 
   /**
    * GET /product-sales/:id
-   * TODO: Implement getting a single sale by ID
-   * - Include all sale items
-   * - Validate sale belongs to user's tenant/branch
-   * - Return 404 if not found
+   * Gets a single sale by ID with items
    */
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    // TODO: Implement get sale by ID
-    return { message: 'TODO: Get product sale', id };
+  async findOne(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('branchId') branchId: string,
+    @Param('id') id: string,
+  ) {
+    if (!branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
+
+    return this.productSalesService.findOne(id, tenantId, branchId);
   }
 
   /**
    * POST /product-sales
-   * TODO: Implement creating a new sale
-   * - Extract tenantId/branchId from authenticated user
-   * - Validate required fields: soldAt, paymentMethod, items[]
-   * - For each item:
-   *   - Validate exactly one of (productId, customName) is provided
-   *   - If productId: fetch product to get defaultPrice, or allow override
-   *   - Validate quantity > 0, unitPrice > 0
-   *   - Calculate lineTotal = quantity * unitPrice
-   * - Calculate totalAmount = sum of all lineTotal
-   * - Create sale with items in a transaction
-   * - Check month lock: if soldAt is in a locked month, reject the operation
+   * Creates a new product sale with items
    */
   @Post()
-  async create(@Body() createSaleDto: any) {
-    // TODO: Implement sale creation
-    return { message: 'TODO: Create product sale', data: createSaleDto };
-  }
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Query('branchId') branchId: string,
+    @Body() dto: CreateProductSaleDto,
+  ) {
+    if (!branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
 
-  /**
-   * PATCH /product-sales/:id
-   * TODO: Implement updating a sale
-   * - Validate sale belongs to user's tenant/branch
-   * - Allow updating: note, paymentMethod (limited fields)
-   * - Consider: should editing recalculate totals? Or only allow note updates?
-   * - Check month lock: if sale.soldAt is in a locked month, reject the operation
-   * - Decision: For simplicity, only allow updating note and paymentMethod (not items)
-   */
-  @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateSaleDto: any) {
-    // TODO: Implement sale update
-    return { message: 'TODO: Update product sale', id, data: updateSaleDto };
+    return this.productSalesService.create(dto, tenantId, branchId, userId);
   }
 
   /**
    * DELETE /product-sales/:id
-   * TODO: Implement deleting a sale
-   * - Validate sale belongs to user's tenant/branch
-   * - Check month lock: if sale.soldAt is in a locked month, reject the operation
-   * - Delete sale and cascade to sale items (Prisma cascade configured)
+   * Deletes a product sale (with month lock enforcement)
    */
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    // TODO: Implement sale deletion
-    return { message: 'TODO: Delete product sale', id };
-  }
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('branchId') branchId: string,
+    @Param('id') id: string,
+  ) {
+    if (!branchId) {
+      throw new BadRequestException('branchId query parameter is required');
+    }
 
-  /**
-   * GET /product-sales/reports/summary
-   * TODO: Implement sales summary report
-   * - Group by date, payment method, or category
-   * - Date range filtering
-   * - Aggregate: total sales, number of transactions, average transaction value
-   * - Separate from membership revenue
-   */
-  @Get('reports/summary')
-  async getSummaryReport(@Query() query: any) {
-    // TODO: Implement summary report
-    return { message: 'TODO: Product sales summary report', query };
+    await this.productSalesService.remove(id, tenantId, branchId);
+    return { message: 'Product sale deleted successfully' };
   }
 }
