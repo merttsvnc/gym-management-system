@@ -17,6 +17,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ProductSalesService } from './product-sales.service';
 import { CreateProductSaleDto } from './dto/create-product-sale.dto';
 import { ProductSaleQueryDto } from './dto/product-sale-query.dto';
+import { toMoneyString } from '../common/utils/money.util';
 
 /**
  * ProductSalesController
@@ -26,7 +27,7 @@ import { ProductSaleQueryDto } from './dto/product-sale-query.dto';
  *
  * Phase 2: Full implementation with authentication and validation
  */
-@Controller('product-sales')
+@Controller('api/v1/product-sales')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductSalesController {
   constructor(private readonly productSalesService: ProductSalesService) {}
@@ -59,7 +60,24 @@ export class ProductSalesController {
       params.to = new Date(query.to);
     }
 
-    return this.productSalesService.findAll(params);
+    const sales = await this.productSalesService.findAll(params);
+
+    // Serialize Decimal fields to strings with 2 decimal places
+    return sales.map((sale) => ({
+      ...sale,
+      totalAmount: toMoneyString(sale.totalAmount),
+      items: sale.items.map((item) => ({
+        ...item,
+        unitPrice: toMoneyString(item.unitPrice),
+        lineTotal: toMoneyString(item.lineTotal),
+        product: item.product
+          ? {
+              ...item.product,
+              defaultPrice: toMoneyString(item.product.defaultPrice),
+            }
+          : null,
+      })),
+    }));
   }
 
   /**
@@ -76,7 +94,24 @@ export class ProductSalesController {
       throw new BadRequestException('branchId query parameter is required');
     }
 
-    return this.productSalesService.findOne(id, tenantId, branchId);
+    const sale = await this.productSalesService.findOne(id, tenantId, branchId);
+
+    // Serialize Decimal fields to strings with 2 decimal places
+    return {
+      ...sale,
+      totalAmount: toMoneyString(sale.totalAmount),
+      items: sale.items.map((item) => ({
+        ...item,
+        unitPrice: toMoneyString(item.unitPrice),
+        lineTotal: toMoneyString(item.lineTotal),
+        product: item.product
+          ? {
+              ...item.product,
+              defaultPrice: toMoneyString(item.product.defaultPrice),
+            }
+          : null,
+      })),
+    };
   }
 
   /**
@@ -95,7 +130,29 @@ export class ProductSalesController {
       throw new BadRequestException('branchId query parameter is required');
     }
 
-    return this.productSalesService.create(dto, tenantId, branchId, userId);
+    const sale = await this.productSalesService.create(
+      dto,
+      tenantId,
+      branchId,
+      userId,
+    );
+
+    // Serialize Decimal fields to strings with 2 decimal places
+    return {
+      ...sale,
+      totalAmount: toMoneyString(sale.totalAmount),
+      items: sale.items.map((item) => ({
+        ...item,
+        unitPrice: toMoneyString(item.unitPrice),
+        lineTotal: toMoneyString(item.lineTotal),
+        product: item.product
+          ? {
+              ...item.product,
+              defaultPrice: toMoneyString(item.product.defaultPrice),
+            }
+          : null,
+      })),
+    };
   }
 
   /**

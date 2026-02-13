@@ -1,4 +1,9 @@
-import { IsOptional, IsBoolean, IsString } from 'class-validator';
+import {
+  IsOptional,
+  IsBoolean,
+  IsString,
+  IsNotEmpty,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 /**
@@ -18,7 +23,7 @@ export class ProductQueryDto {
   @IsString()
   category?: string;
 
-  @IsOptional()
   @IsString()
-  branchId?: string;
+  @IsNotEmpty({ message: 'branchId query parameter is required' })
+  branchId: string;
 }

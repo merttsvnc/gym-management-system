@@ -19,6 +19,7 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
+import { toMoneyString } from '../common/utils/money.util';
 
 /**
  * ProductsController
@@ -28,7 +29,7 @@ import { ProductQueryDto } from './dto/product-query.dto';
  *
  * Phase 2: Full implementation with authentication and validation
  */
-@Controller('products')
+@Controller('api/v1/products')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -47,12 +48,18 @@ export class ProductsController {
       throw new BadRequestException('branchId query parameter is required');
     }
 
-    return this.productsService.findAll({
+    const products = await this.productsService.findAll({
       tenantId,
       branchId: query.branchId,
       category: query.category,
       isActive: query.isActive,
     });
+
+    // Serialize Decimal fields to strings with 2 decimal places
+    return products.map((product) => ({
+      ...product,
+      defaultPrice: toMoneyString(product.defaultPrice),
+    }));
   }
 
   /**
@@ -69,7 +76,13 @@ export class ProductsController {
       throw new BadRequestException('branchId query parameter is required');
     }
 
-    return this.productsService.findOne(id, tenantId, branchId);
+    const product = await this.productsService.findOne(id, tenantId, branchId);
+
+    // Serialize Decimal fields to strings with 2 decimal places
+    return {
+      ...product,
+      defaultPrice: toMoneyString(product.defaultPrice),
+    };
   }
 
   /**
@@ -87,7 +100,13 @@ export class ProductsController {
       throw new BadRequestException('branchId query parameter is required');
     }
 
-    return this.productsService.create(dto, tenantId, branchId);
+    const product = await this.productsService.create(dto, tenantId, branchId);
+
+    // Serialize Decimal fields to strings with 2 decimal places
+    return {
+      ...product,
+      defaultPrice: toMoneyString(product.defaultPrice),
+    };
   }
 
   /**
@@ -105,7 +124,18 @@ export class ProductsController {
       throw new BadRequestException('branchId query parameter is required');
     }
 
-    return this.productsService.update(id, dto, tenantId, branchId);
+    const product = await this.productsService.update(
+      id,
+      dto,
+      tenantId,
+      branchId,
+    );
+
+    // Serialize Decimal fields to strings with 2 decimal places
+    return {
+      ...product,
+      defaultPrice: toMoneyString(product.defaultPrice),
+    };
   }
 
   /**

@@ -27,7 +27,7 @@ import { MonthLockQueryDto } from './dto/month-lock-query.dto';
  *
  * Phase 2: Full implementation with authentication and validation
  */
-@Controller('revenue-month-locks')
+@Controller('api/v1/revenue-month-locks')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class RevenueMonthLockController {
   constructor(

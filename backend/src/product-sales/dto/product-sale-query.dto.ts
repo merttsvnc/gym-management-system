@@ -1,4 +1,12 @@
-import { IsOptional, IsDateString, IsInt, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsDateString,
+  IsInt,
+  Min,
+  Max,
+  IsString,
+  IsNotEmpty,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
 /**
@@ -26,6 +34,7 @@ export class ProductSaleQueryDto {
   @Min(0, { message: 'offset must be 0 or greater' })
   offset?: number = 0;
 
-  @IsOptional()
-  branchId?: string;
+  @IsString()
+  @IsNotEmpty({ message: 'branchId query parameter is required' })
+  branchId: string;
 }
