@@ -10,6 +10,7 @@
 ## Problem Statement
 
 ### Observed Symptoms
+
 1. **Mobile error:** "İlişkili kayıt referansı geçersiz" (Invalid reference record)
 2. **Backend logs:** `user: undefined` and `branchId=branch-id-placeholder`
 3. **Prisma error:** Foreign key constraint failure at `tx.productSale.create()` in `product-sales.service.ts` (line ~131)
@@ -46,6 +47,7 @@ The createSale endpoint had multiple validation gaps that allowed invalid reques
 ### A. Controller Hardening (`product-sales.controller.ts`)
 
 #### 1. Fail-Fast Auth Validation
+
 ```typescript
 // Before: No validation
 @CurrentUser('tenantId') tenantId: string,
@@ -60,6 +62,7 @@ if (!tenantId || !userId) {
 ```
 
 #### 2. Placeholder BranchId Detection
+
 ```typescript
 // New helper method
 private isPlaceholderBranchId(branchId: string): boolean {
@@ -82,7 +85,9 @@ if (this.isPlaceholderBranchId(branchId)) {
 ```
 
 #### 3. Removed Risky Default Branch Logic
+
 Previously, the controller tried to substitute placeholder with tenant's default branch. **This was removed** because:
+
 - Mobile should send a valid branchId (user should select a branch)
 - Auto-selecting default branch masks the real problem (bad client state)
 - Clearer error messages help mobile developers fix the issue
@@ -92,6 +97,7 @@ Previously, the controller tried to substitute placeholder with tenant's default
 ### B. DTO Validation Enhancement (`create-product-sale.dto.ts`)
 
 #### 1. UUID Validation on productId
+
 ```typescript
 @IsUUID('4', { message: 'productId must be a valid UUID' })
 @ValidateIf((o) => !o.customName)
@@ -99,6 +105,7 @@ productId?: string;
 ```
 
 #### 2. Minimum Length for customName
+
 ```typescript
 @MinLength(2, { message: 'Custom name must be at least 2 characters' })
 @MaxLength(200, { message: 'Custom name must not exceed 200 characters' })
@@ -111,6 +118,7 @@ customName?: string;
 ### C. Service Validation & Error Handling (`product-sales.service.ts`)
 
 #### 1. New Helper: assertRequestContext
+
 ```typescript
 private assertRequestContext(
   tenantId: string | undefined,
@@ -127,20 +135,23 @@ private assertRequestContext(
   }
 }
 ```
+
 Called at the start of `create()` method.
 
 #### 2. Enhanced validateAndProcessItems
+
 - **Quantity validation:** Explicit check for `quantity >= 1`
 - **Custom name validation:** Trim and check `minLength >= 2`
 - **Negative price check:** Validate `unitPrice >= 0` for custom items
 - **Missing defaultPrice handling:** Clear error when product has no default price and unitPrice not provided
-- **Better error messages:** 
+- **Better error messages:**
   - "Product with ID {id} not found or inactive in this branch"
   - "Custom name must be at least 2 characters"
   - "unitPrice is required for custom items"
   - "unitPrice must be 0 or greater"
 
 #### 3. Prisma Error Wrapping
+
 ```typescript
 try {
   return await this.prisma.$transaction(async (tx) => {
@@ -148,13 +159,13 @@ try {
   });
 } catch (error) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2003') {
+    if (error.code === "P2003") {
       throw new BadRequestException(
-        'Invalid reference in request (check branchId/productId)',
+        "Invalid reference in request (check branchId/productId)",
       );
     }
-    if (error.code === 'P2002') {
-      throw new BadRequestException('Duplicate record detected');
+    if (error.code === "P2002") {
+      throw new BadRequestException("Duplicate record detected");
     }
   }
   throw error;
@@ -166,6 +177,7 @@ try {
 ### D. Multi-Tenant Safety Verification
 
 All database operations enforce scope:
+
 - ✅ `productSale.create` includes `tenantId`, `branchId`, `soldAt`
 - ✅ `productSaleItem` rows include `tenantId`, `branchId`, `saleId`
 - ✅ Product lookups filter by `(id, tenantId, branchId, isActive=true)`
@@ -194,11 +206,13 @@ Added 11 new test cases covering:
 ## How to Test
 
 ### Prerequisites
+
 - Valid JWT token with `sub` (userId) and `tenantId` claims
 - Active branch in database
 - Active products in the branch (optional, for catalog item tests)
 
 ### Test Case 1: Missing Token (401)
+
 ```bash
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uuid" \
   -H "Content-Type: application/json" \
@@ -213,6 +227,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uu
 ```
 
 ### Test Case 2: Placeholder BranchId (400)
+
 ```bash
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=branch-id-placeholder" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -228,6 +243,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=branch-id-plac
 ```
 
 ### Test Case 3: Invalid ProductId UUID (400)
+
 ```bash
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uuid" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -243,6 +259,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uu
 ```
 
 ### Test Case 4: Custom Item Without UnitPrice (400)
+
 ```bash
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uuid" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -258,6 +275,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uu
 ```
 
 ### Test Case 5: XOR Violation (400)
+
 ```bash
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uuid" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -273,6 +291,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=real-branch-uu
 ```
 
 ### Test Case 6: Valid Custom Sale (201 CREATED)
+
 ```bash
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=a8f3...real-uuid" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -288,6 +307,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=a8f3...real-uu
 ```
 
 ### Test Case 7: Valid Catalog Sale (201 CREATED)
+
 ```bash
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=a8f3...real-uuid" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -309,11 +329,13 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=a8f3...real-uu
 ### Mobile Issue: "İlişkili kayıt referansı geçersiz"
 
 **Cause:** Mobile was sending `branchId=branch-id-placeholder` when:
+
 - User hadn't selected a branch
 - Default branch selection logic had a bug
 - Network issues prevented branch list from loading
 
 **Fix:**
+
 1. Backend now rejects placeholder values with clear error: "Invalid branchId. Please select a real branch"
 2. Mobile team should implement:
    - Force user to select branch before allowing sale creation
@@ -322,6 +344,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=a8f3...real-uu
    - Handle 400 error gracefully with Turkish message: "Lütfen geçerli bir şube seçin"
 
 **Backend Response:**
+
 ```json
 {
   "statusCode": 400,
@@ -335,6 +358,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=a8f3...real-uu
 ## Files Changed
 
 ### Modified
+
 1. **backend/src/product-sales/product-sales.controller.ts**
    - Added fail-fast auth validation (`!tenantId || !userId` check)
    - Added `isPlaceholderBranchId()` helper method
@@ -360,6 +384,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=a8f3...real-uu
    - Lines changed: ~200
 
 ### Created
+
 5. **docs/IN_GYM_PRODUCT_SALES_BACKEND_CREATE_SALE_FIX.md** (this file)
 
 ---
@@ -398,22 +423,26 @@ npm test -- product-sales.service.spec.ts
 ## Security Considerations
 
 ### ✅ Auth Enforced
+
 - `JwtAuthGuard` + `TenantGuard` active on controller
 - Explicit validation that `tenantId` and `userId` are present
 - Reject requests with missing/invalid tokens **before** Prisma operations
 
 ### ✅ Multi-Tenant Isolation
+
 - All queries scoped by `tenantId` + `branchId`
 - No cross-tenant data leakage possible
 - Product lookups validate ownership before use
 
 ### ✅ Input Validation
+
 - UUID format enforced on foreign keys
 - String lengths validated (min/max)
 - Numeric ranges checked (quantity >= 1, price >= 0)
 - XOR rule prevents data inconsistency
 
 ### ✅ Error Information Leakage Prevention
+
 - Prisma errors wrapped in generic BadRequestException
 - No database schema details exposed to client
 - Clear, user-friendly error messages
@@ -455,6 +484,7 @@ npm test -- product-sales.service.spec.ts
 ## Rollback Plan
 
 If issues arise, revert commits affecting these files:
+
 ```bash
 git log --oneline --all -- \
   backend/src/product-sales/product-sales.controller.ts \
@@ -479,12 +509,14 @@ No database migrations required for this fix.
 ## Conclusion
 
 The createSale endpoint is now **hardened** against the most common client errors:
+
 - Missing authentication → Clear 400/401 error
 - Placeholder branchId → Rejected with helpful message
 - Invalid data → Validated before Prisma operations
 - Prisma errors → Wrapped in user-friendly exceptions
 
 **Next Steps:**
+
 1. Deploy to staging environment
 2. Mobile team tests with new error messages
 3. Monitor production logs for any remaining edge cases
@@ -492,4 +524,4 @@ The createSale endpoint is now **hardened** against the most common client error
 ---
 
 **Backend createSale hardening complete.**  
-*Report generated: February 14, 2026*
+_Report generated: February 14, 2026_
