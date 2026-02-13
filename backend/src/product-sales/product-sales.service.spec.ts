@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductSalesService } from './product-sales.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, PaymentMethod } from '@prisma/client';
 
 describe('ProductSalesService', () => {
@@ -111,6 +115,7 @@ describe('ProductSalesService', () => {
         dtoWithoutPrice as any,
         tenantId,
         branchId,
+        'user-1',
       );
 
       expect(result).toBeDefined();
@@ -161,6 +166,7 @@ describe('ProductSalesService', () => {
         multiItemDto as any,
         tenantId,
         branchId,
+        'user-1',
       );
 
       expect(result).toBeDefined();
@@ -173,12 +179,245 @@ describe('ProductSalesService', () => {
       });
 
       await expect(
-        service.create(mockDto as any, tenantId, branchId),
+        service.create(mockDto as any, tenantId, branchId, 'user-1'),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException when tenantId is missing', async () => {
+      await expect(
+        service.create(mockDto as any, undefined as any, branchId, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when userId is missing', async () => {
+      await expect(
+        service.create(mockDto as any, tenantId, branchId, undefined),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when branchId is missing', async () => {
+      await expect(
+        service.create(mockDto as any, tenantId, undefined as any, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when productId not found', async () => {
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.create(mockDto as any, tenantId, branchId, 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException for custom item without unitPrice', async () => {
+      const customItemDto = {
+        ...mockDto,
+        items: [
+          {
+            customName: 'Custom Item',
+            quantity: 1,
+            // unitPrice missing
+          },
+        ],
+      };
+
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.create(customItemDto as any, tenantId, branchId, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException for custom item with short name', async () => {
+      const customItemDto = {
+        ...mockDto,
+        items: [
+          {
+            customName: 'A', // Too short
+            quantity: 1,
+            unitPrice: 100,
+          },
+        ],
+      };
+
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.create(customItemDto as any, tenantId, branchId, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException for custom item with negative price', async () => {
+      const customItemDto = {
+        ...mockDto,
+        items: [
+          {
+            customName: 'Custom Item',
+            quantity: 1,
+            unitPrice: -50, // Negative price
+          },
+        ],
+      };
+
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.create(customItemDto as any, tenantId, branchId, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException for quantity less than 1', async () => {
+      const invalidDto = {
+        ...mockDto,
+        items: [
+          {
+            productId: 'product-1',
+            quantity: 0, // Invalid quantity
+          },
+        ],
+      };
+
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.create(invalidDto as any, tenantId, branchId, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should create sale with custom item correctly', async () => {
+      const customItemDto = {
+        soldAt: '2026-02-13T10:00:00Z',
+        paymentMethod: PaymentMethod.CASH,
+        items: [
+          {
+            customName: 'Custom Protein Bar',
+            quantity: 2,
+            unitPrice: 75,
+          },
+        ],
+      };
+
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+
+      const expectedTotal = new Prisma.Decimal(150); // 2 * 75
+
+      mockPrismaService.$transaction.mockImplementation(async (callback) =>
+        callback({
+          productSale: {
+            create: jest.fn().mockResolvedValue({
+              id: 'sale-1',
+              totalAmount: expectedTotal,
+              items: [
+                {
+                  customName: 'Custom Protein Bar',
+                  quantity: 2,
+                  unitPrice: new Prisma.Decimal(75),
+                  lineTotal: expectedTotal,
+                },
+              ],
+            }),
+          },
+        }),
+      );
+
+      const result = await service.create(
+        customItemDto as any,
+        tenantId,
+        branchId,
+        'user-1',
+      );
+
+      expect(result).toBeDefined();
+      expect(result.totalAmount.toString()).toBe('150');
+    });
+
+    it('should use product defaultPrice when unitPrice is omitted', async () => {
+      const dtoWithoutPrice = {
+        ...mockDto,
+        items: [
+          {
+            productId: 'product-1',
+            quantity: 3,
+            // unitPrice omitted
+          },
+        ],
+      };
+
+      const mockProduct = {
+        id: 'product-1',
+        defaultPrice: new Prisma.Decimal(100),
+        isActive: true,
+      };
+
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+      mockPrismaService.product.findFirst.mockResolvedValue(mockProduct);
+
+      const expectedTotal = new Prisma.Decimal(300); // 3 * 100
+
+      mockPrismaService.$transaction.mockImplementation(async (callback) =>
+        callback({
+          productSale: {
+            create: jest.fn().mockResolvedValue({
+              id: 'sale-1',
+              totalAmount: expectedTotal,
+              items: [],
+            }),
+          },
+        }),
+      );
+
+      const result = await service.create(
+        dtoWithoutPrice as any,
+        tenantId,
+        branchId,
+        'user-1',
+      );
+
+      expect(result).toBeDefined();
+      expect(mockPrismaService.product.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'product-1',
+          tenantId,
+          branchId,
+          isActive: true,
+        },
+      });
+    });
+
+    it('should throw BadRequestException when product has no default price and unitPrice not provided', async () => {
+      const dtoWithoutPrice = {
+        ...mockDto,
+        items: [
+          {
+            productId: 'product-1',
+            quantity: 2,
+            // unitPrice omitted
+          },
+        ],
+      };
+
+      const mockProduct = {
+        id: 'product-1',
+        defaultPrice: null, // No default price
+        isActive: true,
+      };
+
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+      mockPrismaService.product.findFirst.mockResolvedValue(mockProduct);
+
+      await expect(
+        service.create(dtoWithoutPrice as any, tenantId, branchId, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('remove', () => {
+    beforeEach(() => {
+      // Reset the mock properly for each test
+      mockPrismaService.productSale.findFirst = jest.fn();
+    });
+
     it('should forbid deletion if month is locked', async () => {
       const mockSale = {
         id: 'sale-1',

@@ -18,6 +18,7 @@ import { ProductSalesService } from './product-sales.service';
 import { CreateProductSaleDto } from './dto/create-product-sale.dto';
 import { ProductSaleQueryDto } from './dto/product-sale-query.dto';
 import { toMoneyString } from '../common/utils/money.util';
+import { BranchesService } from '../branches/branches.service';
 
 /**
  * ProductSalesController
@@ -30,7 +31,10 @@ import { toMoneyString } from '../common/utils/money.util';
 @Controller('product-sales')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductSalesController {
-  constructor(private readonly productSalesService: ProductSalesService) {}
+  constructor(
+    private readonly productSalesService: ProductSalesService,
+    private readonly branchesService: BranchesService,
+  ) {}
 
   /**
    * GET /product-sales
@@ -117,6 +121,7 @@ export class ProductSalesController {
   /**
    * POST /product-sales
    * Creates a new product sale with items
+   * Enforces auth and branchId validation
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -126,8 +131,23 @@ export class ProductSalesController {
     @Query('branchId') branchId: string,
     @Body() dto: CreateProductSaleDto,
   ) {
+    // Fail fast: Ensure user context is present
+    if (!tenantId || !userId) {
+      throw new BadRequestException(
+        'Unauthorized: missing user context (token required)',
+      );
+    }
+
+    // Fail fast: branchId is required
     if (!branchId) {
       throw new BadRequestException('branchId query parameter is required');
+    }
+
+    // Fail fast: reject placeholder or invalid branchId values
+    if (this.isPlaceholderBranchId(branchId)) {
+      throw new BadRequestException(
+        'Invalid branchId. Please select a real branch',
+      );
     }
 
     const sale = await this.productSalesService.create(
@@ -172,5 +192,19 @@ export class ProductSalesController {
 
     await this.productSalesService.remove(id, tenantId, branchId);
     return { message: 'Product sale deleted successfully' };
+  }
+
+  /**
+   * Helper: Check if branchId is a known placeholder value
+   */
+  private isPlaceholderBranchId(branchId: string): boolean {
+    const placeholders = [
+      'branch-id-placeholder',
+      'placeholder',
+      'default',
+      'undefined',
+      'null',
+    ];
+    return placeholders.includes(branchId.toLowerCase());
   }
 }

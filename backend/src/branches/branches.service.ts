@@ -240,6 +240,26 @@ export class BranchesService {
   }
 
   /**
+   * Get the default branch for a tenant
+   * Throws NotFoundException if no default branch exists
+   */
+  async getDefaultBranch(tenantId: string) {
+    const branch = await this.prisma.branch.findFirst({
+      where: {
+        tenantId,
+        isDefault: true,
+        isActive: true,
+      },
+    });
+
+    if (!branch) {
+      throw new NotFoundException('No default branch found for this tenant');
+    }
+
+    return branch;
+  }
+
+  /**
    * Set a branch as the default branch for a tenant
    * Business rules:
    * - Exactly one branch per tenant must be default

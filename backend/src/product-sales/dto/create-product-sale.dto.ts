@@ -10,7 +10,9 @@ import {
   ArrayMinSize,
   Min,
   MaxLength,
+  MinLength,
   ValidateIf,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentMethod, Prisma } from '@prisma/client';
@@ -21,12 +23,13 @@ import { PaymentMethod, Prisma } from '@prisma/client';
  */
 export class SaleItemDto {
   @IsOptional()
-  @IsString()
+  @IsUUID('4', { message: 'productId must be a valid UUID' })
   @ValidateIf((o) => !o.customName)
   productId?: string;
 
   @IsOptional()
   @IsString()
+  @MinLength(2, { message: 'Custom name must be at least 2 characters' })
   @MaxLength(200, { message: 'Custom name must not exceed 200 characters' })
   @ValidateIf((o) => !o.productId)
   customName?: string;

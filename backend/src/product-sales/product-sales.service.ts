@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -101,6 +102,9 @@ export class ProductSalesService {
     branchId: string,
     userId?: string,
   ) {
+    // Fail-fast: validate request context
+    this.assertRequestContext(tenantId, branchId, userId);
+
     // Parse soldAt or default to now
     const soldAt = dto.soldAt ? new Date(dto.soldAt) : new Date();
 
@@ -126,40 +130,58 @@ export class ProductSalesService {
       new Prisma.Decimal(0),
     );
 
-    // Create sale with items in transaction
-    return this.prisma.$transaction(async (tx) => {
-      const sale = await tx.productSale.create({
-        data: {
-          tenantId,
-          branchId,
-          soldAt,
-          paymentMethod: dto.paymentMethod,
-          note: dto.note,
-          totalAmount,
-          createdByUserId: userId,
-          items: {
-            create: processedItems.map((item) => ({
-              tenantId,
-              branchId,
-              productId: item.productId,
-              customName: item.customName,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              lineTotal: item.lineTotal,
-            })),
-          },
-        },
-        include: {
-          items: {
-            include: {
-              product: true,
+    // Create sale with items in transaction (with Prisma error handling)
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const sale = await tx.productSale.create({
+          data: {
+            tenantId,
+            branchId,
+            soldAt,
+            paymentMethod: dto.paymentMethod,
+            note: dto.note,
+            totalAmount,
+            createdByUserId: userId,
+            items: {
+              create: processedItems.map((item) => ({
+                tenantId,
+                branchId,
+                productId: item.productId,
+                customName: item.customName,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                lineTotal: item.lineTotal,
+              })),
             },
           },
-        },
-      });
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
 
-      return sale;
-    });
+        return sale;
+      });
+    } catch (error) {
+      // Handle Prisma errors and convert to user-friendly messages
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Foreign key constraint error
+        if (error.code === 'P2003') {
+          throw new BadRequestException(
+            'Invalid reference in request (check branchId/productId)',
+          );
+        }
+        // Unique constraint error
+        if (error.code === 'P2002') {
+          throw new BadRequestException('Duplicate record detected');
+        }
+      }
+      // Re-throw if not a handled Prisma error
+      throw error;
+    }
   }
 
   /**
@@ -215,6 +237,11 @@ export class ProductSalesService {
         );
       }
 
+      // Validate quantity
+      if (!item.quantity || item.quantity < 1) {
+        throw new BadRequestException('Quantity must be at least 1');
+      }
+
       let unitPrice: Prisma.Decimal;
 
       // Handle catalog item
@@ -230,22 +257,41 @@ export class ProductSalesService {
 
         if (!product) {
           throw new NotFoundException(
-            `Product with ID ${item.productId} not found or inactive`,
+            `Product with ID ${item.productId} not found or inactive in this branch`,
           );
         }
 
         // Use provided unitPrice or default to product's defaultPrice
-        unitPrice = item.unitPrice
-          ? new Prisma.Decimal(item.unitPrice.toString())
-          : product.defaultPrice;
+        if (item.unitPrice !== undefined && item.unitPrice !== null) {
+          unitPrice = new Prisma.Decimal(item.unitPrice.toString());
+        } else {
+          if (!product.defaultPrice) {
+            throw new BadRequestException(
+              `Product ${item.productId} has no default price. Please provide unitPrice`,
+            );
+          }
+          unitPrice = product.defaultPrice;
+        }
       } else {
         // Handle custom item
-        if (!item.unitPrice) {
+        if (!item.customName || item.customName.trim().length < 2) {
+          throw new BadRequestException(
+            'Custom name must be at least 2 characters',
+          );
+        }
+
+        if (item.unitPrice === undefined || item.unitPrice === null) {
           throw new BadRequestException(
             'unitPrice is required for custom items',
           );
         }
-        unitPrice = new Prisma.Decimal(item.unitPrice.toString());
+
+        const priceValue = new Prisma.Decimal(item.unitPrice.toString());
+        if (priceValue.lessThan(0)) {
+          throw new BadRequestException('unitPrice must be 0 or greater');
+        }
+
+        unitPrice = priceValue;
       }
 
       // Calculate line total
@@ -253,7 +299,7 @@ export class ProductSalesService {
 
       processed.push({
         productId: item.productId,
-        customName: item.customName,
+        customName: item.customName?.trim(),
         quantity: item.quantity,
         unitPrice,
         lineTotal,
@@ -284,5 +330,24 @@ export class ProductSalesService {
     });
 
     return !!lock;
+  }
+
+  /**
+   * Assert that request context is valid (fail-fast validation)
+   */
+  private assertRequestContext(
+    tenantId: string | undefined,
+    branchId: string | undefined,
+    userId?: string | undefined,
+  ): void {
+    if (!tenantId || !userId) {
+      throw new BadRequestException(
+        'Unauthorized: missing user context (token required)',
+      );
+    }
+
+    if (!branchId) {
+      throw new BadRequestException('branchId is required');
+    }
   }
 }
