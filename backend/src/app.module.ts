@@ -16,6 +16,9 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { ProductsModule } from './products/products.module';
+import { ProductSalesModule } from './product-sales/product-sales.module';
+import { RevenueReportModule } from './reports/revenue-report.module';
 import { BillingStatusGuard } from './auth/guards/billing-status.guard';
 import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
 @Module({
@@ -42,6 +45,9 @@ import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
     DashboardModule,
     PaymentsModule,
     UploadsModule,
+    ProductsModule,
+    ProductSalesModule,
+    RevenueReportModule,
   ],
   controllers: [AppController],
   providers: [
