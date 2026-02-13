@@ -35,12 +35,13 @@ Phase 2.5 implements a revenue aggregation endpoint that combines membership pay
 
 #### Query Parameters
 
-| Parameter | Type   | Required | Format      | Description                       |
-| --------- | ------ | -------- | ----------- | --------------------------------- |
-| month     | string | Yes      | `YYYY-MM`   | Month to query (e.g., "2026-02")  |
-| branchId  | string | Yes      | CUID        | Branch ID for filtering           |
+| Parameter | Type   | Required | Format    | Description                      |
+| --------- | ------ | -------- | --------- | -------------------------------- |
+| month     | string | Yes      | `YYYY-MM` | Month to query (e.g., "2026-02") |
+| branchId  | string | Yes      | CUID      | Branch ID for filtering          |
 
 **Validation Rules**:
+
 - `month`: Must match regex `^\d{4}-(0[1-9]|1[0-2])$` (valid YYYY-MM format)
 - `branchId`: Required, must be non-empty string
 
@@ -59,23 +60,23 @@ Phase 2.5 implements a revenue aggregation endpoint that combines membership pay
 
 **Response Fields**:
 
-| Field              | Type    | Description                                      |
-| ------------------ | ------- | ------------------------------------------------ |
-| month              | string  | Month key in YYYY-MM format                      |
-| membershipRevenue  | string  | Total membership payment revenue (Decimal 2dp)   |
-| productRevenue     | string  | Total product sales revenue (Decimal 2dp)        |
-| totalRevenue       | string  | Sum of membership + product revenue (Decimal 2dp)|
-| currency           | string  | Currency code (always "TRY")                     |
-| locked             | boolean | Whether month is locked for financial reporting  |
+| Field             | Type    | Description                                       |
+| ----------------- | ------- | ------------------------------------------------- |
+| month             | string  | Month key in YYYY-MM format                       |
+| membershipRevenue | string  | Total membership payment revenue (Decimal 2dp)    |
+| productRevenue    | string  | Total product sales revenue (Decimal 2dp)         |
+| totalRevenue      | string  | Sum of membership + product revenue (Decimal 2dp) |
+| currency          | string  | Currency code (always "TRY")                      |
+| locked            | boolean | Whether month is locked for financial reporting   |
 
 #### Error Responses
 
-| Status | Condition                                | Message                                          |
-| ------ | ---------------------------------------- | ------------------------------------------------ |
-| 400    | Invalid month format                     | "Month must be in YYYY-MM format (e.g., 2026-02)"|
-| 400    | Missing branchId                         | "Branch ID is required"                          |
-| 401    | No JWT token                             | "Unauthorized"                                   |
-| 403    | User not ADMIN role                      | "Forbidden"                                      |
+| Status | Condition            | Message                                           |
+| ------ | -------------------- | ------------------------------------------------- |
+| 400    | Invalid month format | "Month must be in YYYY-MM format (e.g., 2026-02)" |
+| 400    | Missing branchId     | "Branch ID is required"                           |
+| 401    | No JWT token         | "Unauthorized"                                    |
+| 403    | User not ADMIN role  | "Forbidden"                                       |
 
 ---
 
@@ -97,6 +98,7 @@ const endDate = new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0));
 **Query Logic**: Use `>= startDate AND < endDate` to include all transactions in the month.
 
 **Edge Case Handling**:
+
 - December 2026 → start: 2026-12-01, end: 2027-01-01
 - Leap years are handled automatically by JavaScript Date
 
@@ -109,6 +111,7 @@ const endDate = new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0));
 **Source**: `Payment` model (existing membership payment records)
 
 **Query Logic**:
+
 ```typescript
 await prisma.payment.aggregate({
   where: {
@@ -127,6 +130,7 @@ await prisma.payment.aggregate({
 ```
 
 **Key Points**:
+
 - Uses `Payment.amount` field (Decimal 10,2)
 - Filters by `paidOn` field (business date, stored as UTC DateTime)
 - Excludes corrected payments (`isCorrected=false`) to avoid double-counting
@@ -134,6 +138,7 @@ await prisma.payment.aggregate({
 - Reuses existing Payment model infrastructure from `PaymentsModule`
 
 **Source Discovery**:
+
 - Found via `backend/src/payments/payments.service.ts`
 - Method: `getRevenueReport()` already aggregates payment revenue
 - Membership fees are stored as Payment records when members pay
@@ -145,6 +150,7 @@ await prisma.payment.aggregate({
 **Source**: `ProductSale` model (in-gym product sales from Phase 1 & 2)
 
 **Query Logic**:
+
 ```typescript
 await prisma.productSale.aggregate({
   where: {
@@ -162,6 +168,7 @@ await prisma.productSale.aggregate({
 ```
 
 **Key Points**:
+
 - Uses `ProductSale.totalAmount` field (Decimal 12,2)
 - Filters by `soldAt` field (business date/time, stored as UTC DateTime)
 - Pre-calculated total from ProductSaleItem line items (Phase 2 logic)
@@ -174,6 +181,7 @@ await prisma.productSale.aggregate({
 **Source**: `RevenueMonthLock` model (financial control from Phase 2)
 
 **Query Logic**:
+
 ```typescript
 await prisma.revenueMonthLock.findUnique({
   where: {
@@ -187,6 +195,7 @@ await prisma.revenueMonthLock.findUnique({
 ```
 
 **Key Points**:
+
 - Unique constraint on `(tenantId, branchId, month)`
 - Returns `locked: true` if lock exists, `false` otherwise
 - Does not block reads (only affects create/delete operations in ProductSalesService)
@@ -197,21 +206,25 @@ await prisma.revenueMonthLock.findUnique({
 ## Total Revenue Calculation
 
 **Formula**:
+
 ```typescript
-totalRevenue = membershipRevenue + productRevenue
+totalRevenue = membershipRevenue + productRevenue;
 ```
 
 **Implementation**:
+
 ```typescript
 const totalRevenue = membershipRevenue.add(productRevenue);
 ```
 
 **Precision**:
+
 - Uses Prisma `Decimal` type for financial accuracy
 - No floating-point arithmetic errors
 - Formatted to 2 decimal places in response: `.toFixed(2)`
 
 **Null Handling**:
+
 - If no payments: `membershipRevenue = new Decimal(0)`
 - If no sales: `productRevenue = new Decimal(0)`
 - Result: `totalRevenue = 0.00` (not null)
@@ -280,12 +293,14 @@ const totalRevenue = membershipRevenue.add(productRevenue);
 11. ✅ Large amounts with Decimal precision
 
 **Run Tests**:
+
 ```bash
 cd backend
 npm test -- revenue-report.service.spec.ts
 ```
 
 **Expected Output**:
+
 ```
 PASS  src/reports/revenue-report.service.spec.ts
   RevenueReportService
@@ -318,6 +333,7 @@ curl -X GET 'http://localhost:3001/api/v1/reports/revenue?month=2026-02&branchId
 ```
 
 **Response**:
+
 ```json
 {
   "month": "2026-02",
@@ -339,6 +355,7 @@ curl -X GET 'http://localhost:3001/api/v1/reports/revenue?month=2025-01&branchId
 ```
 
 **Response**:
+
 ```json
 {
   "month": "2025-01",
@@ -360,6 +377,7 @@ curl -X GET 'http://localhost:3001/api/v1/reports/revenue?month=2025-12&branchId
 ```
 
 **Response**:
+
 ```json
 {
   "month": "2025-12",
@@ -381,12 +399,11 @@ curl -X GET 'http://localhost:3001/api/v1/reports/revenue?month=2026-13&branchId
 ```
 
 **Response** (400 Bad Request):
+
 ```json
 {
   "statusCode": 400,
-  "message": [
-    "Month must be in YYYY-MM format (e.g., 2026-02)"
-  ],
+  "message": ["Month must be in YYYY-MM format (e.g., 2026-02)"],
   "error": "Bad Request"
 }
 ```
@@ -401,12 +418,11 @@ curl -X GET 'http://localhost:3001/api/v1/reports/revenue?month=2026-02' \
 ```
 
 **Response** (400 Bad Request):
+
 ```json
 {
   "statusCode": 400,
-  "message": [
-    "Branch ID is required"
-  ],
+  "message": ["Branch ID is required"],
   "error": "Bad Request"
 }
 ```

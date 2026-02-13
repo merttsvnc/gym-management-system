@@ -59,8 +59,8 @@ describe('RevenueReportService', () => {
 
       // Verify date range for membership revenue query
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      const paymentWhere = mockPrismaService.payment.aggregate.mock.calls[0][0]
-        .where;
+      const paymentWhere =
+        mockPrismaService.payment.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const startDate = paymentWhere.paidOn.gte;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access

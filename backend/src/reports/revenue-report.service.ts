@@ -100,8 +100,10 @@ export class RevenueReportService {
     });
 
     // Convert aggregate results to Decimal (handle null case)
-    const membershipRevenue = membershipRevenueResult._sum.amount || new Prisma.Decimal(0);
-    const productRevenue = productRevenueResult._sum.totalAmount || new Prisma.Decimal(0);
+    const membershipRevenue =
+      membershipRevenueResult._sum.amount || new Prisma.Decimal(0);
+    const productRevenue =
+      productRevenueResult._sum.totalAmount || new Prisma.Decimal(0);
     const totalRevenue = membershipRevenue.add(productRevenue);
 
     return {
