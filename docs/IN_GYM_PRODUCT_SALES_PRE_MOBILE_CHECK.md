@@ -15,6 +15,7 @@ Completed comprehensive verification and minimal fixes for 3 critical backend in
 ## 1. Endpoint Prefix Consistency ✅ FIXED
 
 ### Issue Found
+
 - **Problem**: Inconsistent controller route prefixes across the codebase
   - Some controllers used `api/v1` in `@Controller` decorator (reports, auth, members)
   - Others used NO prefix (products, product-sales, revenue-month-locks)
@@ -22,9 +23,11 @@ Completed comprehensive verification and minimal fixes for 3 critical backend in
   - Documentation expected `/api/v1` paths
 
 ### Fix Applied
+
 Standardized all product/sales-related controllers to use `api/v1` prefix:
 
 **Changed Controllers:**
+
 1. `products.controller.ts`: `'products'` → `'api/v1/products'`
 2. `product-sales.controller.ts`: `'product-sales'` → `'api/v1/product-sales'`
 3. `revenue-month-lock.controller.ts`: `'revenue-month-locks'` → `'api/v1/revenue-month-locks'`
@@ -34,6 +37,7 @@ Standardized all product/sales-related controllers to use `api/v1` prefix:
 **Base URL**: `http://localhost:3000` (no global prefix in main.ts)
 
 **Full Endpoint Paths:**
+
 - ✅ `GET /api/v1/reports/revenue?month=YYYY-MM&branchId={id}`
 - ✅ `GET /api/v1/reports/revenue/trend?branchId={id}&months=6`
 - ✅ `POST /api/v1/product-sales?branchId={id}`
@@ -42,6 +46,7 @@ Standardized all product/sales-related controllers to use `api/v1` prefix:
 - ✅ `GET /api/v1/reports/products/top?branchId={id}&month=YYYY-MM`
 
 ### Files Changed
+
 - [backend/src/products/products.controller.ts](backend/src/products/products.controller.ts)
 - [backend/src/product-sales/product-sales.controller.ts](backend/src/product-sales/product-sales.controller.ts)
 - [backend/src/revenue-month-lock/revenue-month-lock.controller.ts](backend/src/revenue-month-lock/revenue-month-lock.controller.ts)
@@ -51,6 +56,7 @@ Standardized all product/sales-related controllers to use `api/v1` prefix:
 ## 2. Decimal Serialization Safety ✅ FIXED
 
 ### Issue Found
+
 - **Problem**: Products and Product Sales endpoints returned raw Prisma data containing Decimal objects
   - Decimal objects may not serialize properly to JSON in all clients
   - Risk of precision loss or serialization errors in mobile clients
@@ -59,6 +65,7 @@ Standardized all product/sales-related controllers to use `api/v1` prefix:
 ### Fix Applied
 
 #### Created Money Utility Helper
+
 **File**: `backend/src/common/utils/money.util.ts`
 
 ```typescript
@@ -66,7 +73,7 @@ export function toMoneyString(
   value: Prisma.Decimal | string | number | null | undefined,
 ): string {
   if (value === null || value === undefined) {
-    return '0.00';
+    return "0.00";
   }
   if (value instanceof Prisma.Decimal) {
     return value.toFixed(2);
@@ -77,6 +84,7 @@ export function toMoneyString(
 ```
 
 **Test Coverage**: 12 unit tests covering all edge cases ✅
+
 - Prisma.Decimal conversion
 - Number/string conversion
 - Null/undefined handling
@@ -88,23 +96,27 @@ export function toMoneyString(
 #### Updated Controllers
 
 **Products Controller** (`products.controller.ts`):
+
 - ✅ `GET /api/v1/products` - serializes `defaultPrice` for all products
 - ✅ `GET /api/v1/products/:id` - serializes `defaultPrice`
 - ✅ `POST /api/v1/products` - serializes `defaultPrice` in response
 - ✅ `PATCH /api/v1/products/:id` - serializes `defaultPrice` in response
 
 **Product Sales Controller** (`product-sales.controller.ts`):
+
 - ✅ `GET /api/v1/product-sales` - serializes `totalAmount`, `unitPrice`, `lineTotal`, and nested `product.defaultPrice`
 - ✅ `GET /api/v1/product-sales/:id` - serializes all money fields including nested items
 - ✅ `POST /api/v1/product-sales` - serializes all money fields in response
 
 **Already Correct** (No changes needed):
+
 - ✅ Revenue Report endpoints - already using `.toFixed(2)`
 - ✅ Product Report endpoints - already using `.toFixed(2)`
 
 ### Before/After Comparison
 
 **BEFORE (❌ Incorrect)**:
+
 ```json
 {
   "id": "abc123",
@@ -118,6 +130,7 @@ export function toMoneyString(
 ```
 
 **AFTER (✅ Correct)**:
+
 ```json
 {
   "id": "abc123",
@@ -127,8 +140,9 @@ export function toMoneyString(
 ```
 
 ### Files Changed
-- [backend/src/common/utils/money.util.ts](backend/src/common/utils/money.util.ts) *(NEW)*
-- [backend/src/common/utils/money.util.spec.ts](backend/src/common/utils/money.util.spec.ts) *(NEW)*
+
+- [backend/src/common/utils/money.util.ts](backend/src/common/utils/money.util.ts) _(NEW)_
+- [backend/src/common/utils/money.util.spec.ts](backend/src/common/utils/money.util.spec.ts) _(NEW)_
 - [backend/src/products/products.controller.ts](backend/src/products/products.controller.ts)
 - [backend/src/product-sales/product-sales.controller.ts](backend/src/product-sales/product-sales.controller.ts)
 
@@ -137,6 +151,7 @@ export function toMoneyString(
 ## 3. branchId Requirement & Consistency ✅ FIXED
 
 ### Issue Found
+
 - **Problem**: Inconsistent branchId validation across endpoints
   - Some DTOs had `branchId` as optional (`IsOptional()`)
   - Controllers manually checked `if (!branchId)` and threw exceptions
@@ -146,14 +161,17 @@ export function toMoneyString(
 ### Fix Applied
 
 #### Made branchId Required in All DTOs
+
 Updated query DTOs to enforce branchId at the validation layer:
 
 **Changed DTOs:**
+
 1. `ProductQueryDto` - Made branchId required with `@IsNotEmpty()`
 2. `ProductSaleQueryDto` - Made branchId required with `@IsNotEmpty()`
 3. `MonthLockQueryDto` - Made branchId required with `@IsNotEmpty()`
 
 **Already Correct:**
+
 - `RevenueReportQueryDto` - Already had required branchId ✅
 - `RevenueTrendQueryDto` - Already had required branchId ✅
 - `DailyBreakdownQueryDto` - Already had required branchId ✅
@@ -162,30 +180,31 @@ Updated query DTOs to enforce branchId at the validation layer:
 
 ### Endpoints Requiring branchId
 
-| Endpoint                                           | Method | branchId Location | Validation         |
-| -------------------------------------------------- | ------ | ----------------- | ------------------ |
-| `/api/v1/products`                                 | GET    | Query param       | DTO + Manual check |
-| `/api/v1/products/:id`                             | GET    | Query param       | Manual check       |
-| `/api/v1/products`                                 | POST   | Query param       | Manual check       |
-| `/api/v1/products/:id`                             | PATCH  | Query param       | Manual check       |
-| `/api/v1/products/:id`                             | DELETE | Query param       | Manual check       |
-| `/api/v1/product-sales`                            | GET    | Query param       | DTO + Manual check |
-| `/api/v1/product-sales/:id`                        | GET    | Query param       | Manual check       |
-| `/api/v1/product-sales`                            | POST   | Query param       | Manual check       |
-| `/api/v1/product-sales/:id`                        | DELETE | Query param       | Manual check       |
-| `/api/v1/revenue-month-locks`                      | GET    | Query param       | DTO + Manual check |
-| `/api/v1/revenue-month-locks`                      | POST   | Query param       | Manual check       |
-| `/api/v1/revenue-month-locks/:month`               | DELETE | Query param       | Manual check       |
-| `/api/v1/revenue-month-locks/check/:month`         | GET    | Query param       | Manual check       |
-| `/api/v1/reports/revenue`                          | GET    | Query param       | DTO validation     |
-| `/api/v1/reports/revenue/trend`                    | GET    | Query param       | DTO validation     |
-| `/api/v1/reports/revenue/daily`                    | GET    | Query param       | DTO validation     |
-| `/api/v1/reports/revenue/payment-methods`          | GET    | Query param       | DTO validation     |
-| `/api/v1/reports/products/top`                     | GET    | Query param       | DTO validation     |
+| Endpoint                                   | Method | branchId Location | Validation         |
+| ------------------------------------------ | ------ | ----------------- | ------------------ |
+| `/api/v1/products`                         | GET    | Query param       | DTO + Manual check |
+| `/api/v1/products/:id`                     | GET    | Query param       | Manual check       |
+| `/api/v1/products`                         | POST   | Query param       | Manual check       |
+| `/api/v1/products/:id`                     | PATCH  | Query param       | Manual check       |
+| `/api/v1/products/:id`                     | DELETE | Query param       | Manual check       |
+| `/api/v1/product-sales`                    | GET    | Query param       | DTO + Manual check |
+| `/api/v1/product-sales/:id`                | GET    | Query param       | Manual check       |
+| `/api/v1/product-sales`                    | POST   | Query param       | Manual check       |
+| `/api/v1/product-sales/:id`                | DELETE | Query param       | Manual check       |
+| `/api/v1/revenue-month-locks`              | GET    | Query param       | DTO + Manual check |
+| `/api/v1/revenue-month-locks`              | POST   | Query param       | Manual check       |
+| `/api/v1/revenue-month-locks/:month`       | DELETE | Query param       | Manual check       |
+| `/api/v1/revenue-month-locks/check/:month` | GET    | Query param       | Manual check       |
+| `/api/v1/reports/revenue`                  | GET    | Query param       | DTO validation     |
+| `/api/v1/reports/revenue/trend`            | GET    | Query param       | DTO validation     |
+| `/api/v1/reports/revenue/daily`            | GET    | Query param       | DTO validation     |
+| `/api/v1/reports/revenue/payment-methods`  | GET    | Query param       | DTO validation     |
+| `/api/v1/reports/products/top`             | GET    | Query param       | DTO validation     |
 
 ### Behavior When branchId Missing
 
 **With DTO Validation (e.g., GET /api/v1/products):**
+
 ```bash
 HTTP 400 Bad Request
 {
@@ -196,6 +215,7 @@ HTTP 400 Bad Request
 ```
 
 **With Manual Check (e.g., GET /api/v1/products/:id):**
+
 ```bash
 HTTP 400 Bad Request
 {
@@ -206,6 +226,7 @@ HTTP 400 Bad Request
 ```
 
 ### Service Layer Enforcement
+
 All services consistently use `tenantId + branchId` in WHERE clauses:
 
 ```typescript
@@ -217,11 +238,13 @@ where: {
 ```
 
 This ensures:
+
 - No accidental cross-branch data leaks
 - Multi-tenancy isolation maintained
 - Consistent data scoping across all operations
 
 ### Files Changed
+
 - [backend/src/products/dto/product-query.dto.ts](backend/src/products/dto/product-query.dto.ts)
 - [backend/src/product-sales/dto/product-sale-query.dto.ts](backend/src/product-sales/dto/product-sale-query.dto.ts)
 - [backend/src/revenue-month-lock/dto/month-lock-query.dto.ts](backend/src/revenue-month-lock/dto/month-lock-query.dto.ts)
@@ -231,6 +254,7 @@ This ensures:
 ## Quick Validation curl Examples
 
 ### Prerequisites
+
 ```bash
 # Get JWT token (replace with your credentials)
 export TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -238,6 +262,7 @@ export BRANCH_ID="clx1234567890"
 ```
 
 ### 1. Test Endpoint Prefix
+
 ```bash
 # ✅ Products List (should return 200 with /api/v1 prefix)
 curl -X GET "http://localhost:3000/api/v1/products?branchId=${BRANCH_ID}" \
@@ -249,6 +274,7 @@ curl -X GET "http://localhost:3000/products?branchId=${BRANCH_ID}" \
 ```
 
 ### 2. Test Decimal Serialization
+
 ```bash
 # Create a product and verify defaultPrice is a string
 curl -X POST "http://localhost:3000/api/v1/products?branchId=${BRANCH_ID}" \
@@ -271,6 +297,7 @@ curl -X POST "http://localhost:3000/api/v1/products?branchId=${BRANCH_ID}" \
 ```
 
 ### 3. Test branchId Validation
+
 ```bash
 # Missing branchId (should return 400)
 curl -X GET "http://localhost:3000/api/v1/products" \
@@ -285,6 +312,7 @@ curl -X GET "http://localhost:3000/api/v1/products" \
 ```
 
 ### 4. Test Revenue Aggregation
+
 ```bash
 # Monthly revenue (already had correct prefix and serialization)
 curl -X GET "http://localhost:3000/api/v1/reports/revenue?month=2026-02&branchId=${BRANCH_ID}" \
@@ -302,6 +330,7 @@ curl -X GET "http://localhost:3000/api/v1/reports/revenue?month=2026-02&branchId
 ```
 
 ### 5. Test Product Sales with Nested Decimals
+
 ```bash
 # Create a sale to test nested serialization
 curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=${BRANCH_ID}" \
@@ -338,10 +367,12 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=${BRANCH_ID}" 
 ## Summary of Changes
 
 ### Files Created (2)
+
 1. `backend/src/common/utils/money.util.ts` - Money formatting helper
 2. `backend/src/common/utils/money.util.spec.ts` - Comprehensive tests (12 tests, all passing)
 
 ### Files Modified (8)
+
 1. `backend/src/products/products.controller.ts` - Prefix + serialization + imports
 2. `backend/src/product-sales/product-sales.controller.ts` - Prefix + serialization + imports
 3. `backend/src/revenue-month-lock/revenue-month-lock.controller.ts` - Prefix
@@ -350,6 +381,7 @@ curl -X POST "http://localhost:3000/api/v1/product-sales?branchId=${BRANCH_ID}" 
 6. `backend/src/revenue-month-lock/dto/month-lock-query.dto.ts` - branchId validation
 
 ### Test Results
+
 ```
 ✅ Money Utility Tests: 12/12 passed
 - Prisma.Decimal formatting
@@ -371,12 +403,15 @@ All 3 critical integration points are now verified and fixed:
 3. ✅ **Enforced branchId**: All endpoints requiring branch scoping validate branchId consistently
 
 ### Breaking Changes
+
 ⚠️ **Path Changes** - Frontend/mobile clients must update:
+
 - ❌ OLD: `/products` → ✅ NEW: `/api/v1/products`
 - ❌ OLD: `/product-sales` → ✅ NEW: `/api/v1/product-sales`
 - ❌ OLD: `/revenue-month-locks` → ✅ NEW: `/api/v1/revenue-month-locks`
 
 ### Non-Breaking Changes
+
 - ✅ Money serialization: Already expected strings in documentation
 - ✅ branchId validation: Already documented as required
 
@@ -385,16 +420,19 @@ All 3 critical integration points are now verified and fixed:
 ## Next Steps for Mobile Team
 
 1. **Update API Base URL**:
+
    ```typescript
-   const API_BASE_URL = 'http://localhost:3000/api/v1';
+   const API_BASE_URL = "http://localhost:3000/api/v1";
    ```
 
 2. **Money Fields**: Expect strings, parse as needed:
+
    ```typescript
    const price = parseFloat(product.defaultPrice); // "123.45" → 123.45
    ```
 
 3. **Always Include branchId**: All endpoints require it:
+
    ```typescript
    const params = new URLSearchParams({
      branchId: currentBranchId, // Required!
