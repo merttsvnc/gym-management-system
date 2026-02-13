@@ -116,6 +116,8 @@ model Tenant {
   membershipPlans   MembershipPlan[]
   payments          Payment[]
   planChangeHistory MemberPlanChangeHistory[]
+  products          Product[]
+  productSales      ProductSale[]
 
   @@index([slug])
   @@index([billingStatus])
@@ -138,6 +140,8 @@ model Branch {
   members         Member[]
   membershipPlans MembershipPlan[]
   payments        Payment[]
+  products        Product[]
+  productSales    ProductSale[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -418,4 +422,88 @@ model PasswordResetOtp {
   @@index([userId])
   @@index([userId, expiresAt])
   @@index([userId, createdAt])
+}
+
+// Product model (for in-gym product catalog: tea, coffee, gloves, etc.)
+model Product {
+  id           String   @id @default(cuid())
+  tenantId     String
+  branchId     String
+  name         String
+  defaultPrice Decimal  @db.Decimal(12, 2)
+  category     String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  saleItems ProductSaleItem[]
+
+  @@index([tenantId, branchId])
+  @@index([tenantId, branchId, isActive])
+}
+
+// ProductSale model (represents a complete sale transaction)
+model ProductSale {
+  id              String        @id @default(cuid())
+  tenantId        String
+  branchId        String
+  soldAt          DateTime // Business date/time when sale occurred
+  paymentMethod   PaymentMethod
+  note            String?       @db.VarChar(500)
+  totalAmount     Decimal       @db.Decimal(12, 2)
+  createdByUserId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  items  ProductSaleItem[]
+
+  @@index([tenantId, branchId, soldAt])
+  @@index([tenantId, branchId, createdAt])
+  @@index([tenantId, soldAt])
+}
+
+// ProductSaleItem model (line items for each sale)
+// Business rule: Exactly one of (productId, customName) must be provided
+model ProductSaleItem {
+  id         String   @id @default(cuid())
+  saleId     String
+  tenantId   String
+  branchId   String
+  productId  String? // FK to Product (nullable for custom items)
+  customName String? // Free-text name for non-catalog items (nullable for catalog items)
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(12, 2) // Snapshot at time of sale
+  lineTotal  Decimal  @db.Decimal(12, 2) // quantity * unitPrice
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  sale    ProductSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product?    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, branchId])
+  @@index([saleId])
+  @@index([productId])
+  @@index([tenantId, saleId])
+}
+
+// RevenueMonthLock model (prevents editing sales in locked months)
+model RevenueMonthLock {
+  id            String   @id @default(cuid())
+  tenantId      String
+  branchId      String
+  month         String // Format: "YYYY-MM" (e.g., "2026-02")
+  lockedAt      DateTime @default(now())
+  lockedByUserId String?
+  createdAt     DateTime @default(now())
+
+  @@unique([tenantId, branchId, month])
+  @@index([tenantId, branchId])
+  @@index([tenantId, month])
 }
