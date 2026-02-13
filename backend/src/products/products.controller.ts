@@ -12,10 +12,10 @@ import { ProductsService } from './products.service';
 
 /**
  * ProductsController
- * 
+ *
  * Handles HTTP endpoints for in-gym product catalog management.
  * Products are scoped by tenantId and branchId.
- * 
+ *
  * Phase 1: Placeholder endpoints with TODO comments
  */
 @Controller('products')

@@ -11,11 +11,11 @@ import { RevenueMonthLockService } from './revenue-month-lock.service';
 
 /**
  * RevenueMonthLockController
- * 
+ *
  * Handles HTTP endpoints for revenue month locking.
  * Locks prevent creating/editing/deleting sales in specific months.
  * Scoped by tenantId and branchId.
- * 
+ *
  * Phase 1: Placeholder endpoints with TODO comments
  */
 @Controller('revenue-month-locks')

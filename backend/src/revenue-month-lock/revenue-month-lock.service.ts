@@ -3,11 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * RevenueMonthLockService
- * 
+ *
  * Business logic for revenue month locking mechanism.
  * Prevents creating/editing/deleting sales in locked months.
  * All operations are scoped by tenantId + branchId for multi-tenancy.
- * 
+ *
  * Phase 1: Placeholder methods with TODO comments
  */
 @Injectable()

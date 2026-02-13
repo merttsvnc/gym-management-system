@@ -12,10 +12,10 @@ import { ProductSalesService } from './product-sales.service';
 
 /**
  * ProductSalesController
- * 
+ *
  * Handles HTTP endpoints for in-gym product sales transactions.
  * Sales are scoped by tenantId and branchId.
- * 
+ *
  * Phase 1: Placeholder endpoints with TODO comments
  */
 @Controller('product-sales')

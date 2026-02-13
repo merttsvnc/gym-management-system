@@ -13,6 +13,7 @@ This document details the Phase 1 implementation of the **In-Gym Product Sales**
 ## Feature Scope
 
 ### In Scope (Phase 1)
+
 - ✅ Database schema for products, sales, and month locking
 - ✅ Multi-tenant data model (scoped by `tenantId` + `branchId`)
 - ✅ Support for both catalog products and custom sale items
@@ -20,6 +21,7 @@ This document details the Phase 1 implementation of the **In-Gym Product Sales**
 - ✅ NestJS module skeletons with placeholder endpoints
 
 ### Out of Scope (Future Phases)
+
 - ❌ Business logic implementation
 - ❌ Stock/inventory tracking
 - ❌ Invoice generation or tax handling
@@ -58,11 +60,13 @@ model Product {
 ```
 
 **Key Fields:**
+
 - `defaultPrice`: Stored as `Decimal(12,2)` in TRY currency
 - `category`: Optional categorization (e.g., "Beverages", "Equipment")
 - `isActive`: Soft-delete mechanism (inactive products hidden from catalog)
 
 **Design Decisions:**
+
 - No unique constraint on `(tenantId, branchId, name)` at DB level → enforced in service layer if needed
 - `defaultPrice` is required (must have a price to be sellable)
 - Each branch maintains its own product catalog
@@ -98,12 +102,14 @@ model ProductSale {
 ```
 
 **Key Fields:**
+
 - `soldAt`: **Business date/time** when the sale occurred (critical for revenue reporting)
 - `createdAt`: System timestamp (audit trail)
 - `totalAmount`: Sum of all line items (calculated and stored for performance)
 - `paymentMethod`: Reuses existing `PaymentMethod` enum (`CASH`, `CREDIT_CARD`, etc.)
 
 **Design Decisions:**
+
 - `soldAt` vs `createdAt`: Separates business time from system time (allows backdating if needed)
 - `createdByUserId`: Optional tracking of which staff member recorded the sale
 - `totalAmount`: Denormalized for query performance (validated against sum of items)
@@ -140,6 +146,7 @@ model ProductSaleItem {
 ```
 
 **Critical Business Rules:**
+
 1. **Exactly one of (`productId`, `customName`) must be provided**
    - `productId` → Sale from catalog
    - `customName` → One-off/custom item (e.g., "Special protein shake")
@@ -150,6 +157,7 @@ model ProductSaleItem {
    - Even if catalog `Product.defaultPrice` changes later, historical sales remain accurate
 
 **Design Decisions:**
+
 - Denormalized `tenantId`/`branchId` for efficient querying
 - `lineTotal` stored for performance (avoids calculation in aggregations)
 - Optional `productId` allows flexibility for non-catalog items
@@ -177,19 +185,22 @@ model RevenueMonthLock {
 ```
 
 **Key Fields:**
+
 - `month`: String format `"YYYY-MM"` for simplicity and compatibility
 - Unique constraint ensures a month can only be locked once per tenant/branch
 
 **Design Decisions:**
+
 - Month format chosen over date range for simplicity
 - No cascade delete → locks remain even if sales are deleted (audit trail)
 - `lockedByUserId`: Optional tracking of who locked the month
 
 **Locking Logic (Future Implementation):**
+
 ```typescript
 // Pseudocode for Phase 2
 if (isMonthLocked(tenantId, branchId, soldAt)) {
-  throw new ForbiddenException('Cannot modify sales in locked month');
+  throw new ForbiddenException("Cannot modify sales in locked month");
 }
 ```
 
@@ -216,6 +227,7 @@ ProductSale (1) ─► (N) ProductSaleItem
 ```
 
 **Cascade Behaviors:**
+
 - `Tenant` deleted → All products, sales, locks CASCADE deleted
 - `Branch` deleted → Products, sales, locks RESTRICT (must reassign or cleanup first)
 - `ProductSale` deleted → All `ProductSaleItem` CASCADE deleted
@@ -228,12 +240,14 @@ ProductSale (1) ─► (N) ProductSaleItem
 Every model includes both `tenantId` AND `branchId` for robust multi-tenancy:
 
 **Benefits:**
+
 1. **Row-Level Security:** All queries automatically filtered by tenant/branch
 2. **Data Isolation:** Prevents cross-tenant data leaks
 3. **Performance:** Composite indexes enable efficient queries
 4. **Flexibility:** Supports both tenant-wide and branch-specific operations
 
 **Index Strategy:**
+
 ```sql
 -- Example: Find all sales for a branch in a date range
 WHERE tenantId = ? AND branchId = ? AND soldAt BETWEEN ? AND ?
@@ -252,10 +266,11 @@ WHERE tenantId = ? AND branchId = ? AND soldAt BETWEEN ? AND ?
 - **Display:** Format with locale `tr-TR` in frontend
 
 **Example:**
-```typescript
-import { Decimal } from '@prisma/client/runtime/library';
 
-const unitPrice = new Decimal('15.50');
+```typescript
+import { Decimal } from "@prisma/client/runtime/library";
+
+const unitPrice = new Decimal("15.50");
 const quantity = 3;
 const lineTotal = unitPrice.mul(quantity); // 46.50
 ```
@@ -267,6 +282,7 @@ const lineTotal = unitPrice.mul(quantity); // 46.50
 **Migration Name:** `20260213132924_add_in_gym_product_sales`
 
 **Generated SQL Highlights:**
+
 ```sql
 -- Product catalog table
 CREATE TABLE "Product" (
@@ -302,6 +318,7 @@ CREATE TABLE "RevenueMonthLock" (
 ```
 
 **Index Summary:**
+
 - 11 indexes created for optimal query performance
 - Focus on tenant/branch filtering and date range queries
 - Composite indexes for common access patterns
@@ -313,14 +330,17 @@ CREATE TABLE "RevenueMonthLock" (
 Three new modules created with placeholder implementations:
 
 ### 1. Products Module
+
 **Location:** `src/products/`
 
 **Files Created:**
+
 - `products.module.ts` - Module definition
 - `products.controller.ts` - HTTP endpoints (GET, POST, PATCH, DELETE)
 - `products.service.ts` - Business logic placeholder
 
 **Endpoints (Planned):**
+
 - `GET /products` - List products (with filters)
 - `GET /products/:id` - Get single product
 - `POST /products` - Create product
@@ -330,14 +350,17 @@ Three new modules created with placeholder implementations:
 ---
 
 ### 2. Product Sales Module
+
 **Location:** `src/product-sales/`
 
 **Files Created:**
+
 - `product-sales.module.ts` - Module definition
 - `product-sales.controller.ts` - HTTP endpoints
 - `product-sales.service.ts` - Business logic placeholder
 
 **Endpoints (Planned):**
+
 - `GET /product-sales` - List sales (with date filters)
 - `GET /product-sales/:id` - Get single sale with items
 - `POST /product-sales` - Create sale transaction
@@ -346,6 +369,7 @@ Three new modules created with placeholder implementations:
 - `GET /product-sales/reports/summary` - Sales summary report
 
 **Key Logic (Phase 2):**
+
 - Validate `productId` XOR `customName` for each item
 - Calculate `lineTotal` and `totalAmount`
 - Check month lock before create/update/delete
@@ -354,20 +378,24 @@ Three new modules created with placeholder implementations:
 ---
 
 ### 3. Revenue Month Lock Module
+
 **Location:** `src/revenue-month-lock/`
 
 **Files Created:**
+
 - `revenue-month-lock.module.ts` - Module definition
 - `revenue-month-lock.controller.ts` - HTTP endpoints
 - `revenue-month-lock.service.ts` - Business logic placeholder
 
 **Endpoints (Planned):**
+
 - `GET /revenue-month-locks` - List locked months
 - `POST /revenue-month-locks` - Lock a month
 - `DELETE /revenue-month-locks/:month` - Unlock a month
 - `GET /revenue-month-locks/check/:month` - Check lock status
 
 **Integration (Phase 2):**
+
 - `ProductSalesService` will call `isDateLocked()` before operations
 - Frontend will show lock status on revenue reports
 
@@ -376,9 +404,11 @@ Three new modules created with placeholder implementations:
 ## Design Decisions & Rationale
 
 ### 1. Why Two Types of Sale Items?
+
 **Problem:** Some gyms sell one-off items not in their regular catalog.
 
 **Solution:** Allow both:
+
 - `productId` → Catalog item (price from `Product.defaultPrice`)
 - `customName` → Ad-hoc item (price entered manually)
 
@@ -387,6 +417,7 @@ Three new modules created with placeholder implementations:
 ---
 
 ### 2. Why Store `unitPrice` in Sale Items?
+
 **Problem:** If `Product.defaultPrice` changes, historical sales would show wrong prices.
 
 **Solution:** Snapshot the price at time of sale.
@@ -396,9 +427,11 @@ Three new modules created with placeholder implementations:
 ---
 
 ### 3. Why Separate `soldAt` and `createdAt`?
+
 **Problem:** Staff may record a sale after it occurred (e.g., end-of-day entry).
 
 **Solution:**
+
 - `soldAt` → When the sale actually happened (business time)
 - `createdAt` → When the record was entered (system time)
 
@@ -407,6 +440,7 @@ Three new modules created with placeholder implementations:
 ---
 
 ### 4. Why Month Lock Instead of Full Close?
+
 **Problem:** Accounting periods need to be finalized for reporting.
 
 **Solution:** Simple month-level lock prevents modifications.
@@ -416,9 +450,11 @@ Three new modules created with placeholder implementations:
 ---
 
 ### 5. Why No Stock Tracking?
+
 **Scope Decision:** Phase 1 focuses on revenue tracking only.
 
 **Future:** Stock tracking would require:
+
 - `Product.currentStock` field
 - `StockMovement` transaction log
 - Inventory reconciliation flows
@@ -428,6 +464,7 @@ Three new modules created with placeholder implementations:
 ---
 
 ### 6. Why Allow Deleting Sales?
+
 **Business Requirement:** Mistakes happen (wrong item entered, duplicate entry).
 
 **Safeguard:** Month lock prevents deleting finalized periods.
@@ -451,11 +488,13 @@ enum PaymentMethod {
 ```
 
 **Benefits:**
+
 - Consistent payment tracking across memberships and products
 - Unified reporting (total cash revenue = membership + products)
 - No additional enum maintenance
 
 **Usage:**
+
 ```typescript
 // Example sale
 {
@@ -469,6 +508,7 @@ enum PaymentMethod {
 ## Future Implementation Phases
 
 ### Phase 2: Business Logic (Priority)
+
 - [ ] Implement service methods in all three modules
 - [ ] Add DTO validation with `class-validator`
 - [ ] Implement authentication & authorization guards
@@ -477,6 +517,7 @@ enum PaymentMethod {
 - [ ] Validate business rules (productId XOR customName)
 
 ### Phase 3: Reporting & Analytics
+
 - [ ] Revenue summary reports (daily/monthly/yearly)
 - [ ] Top-selling products analytics
 - [ ] Payment method breakdown
@@ -484,6 +525,7 @@ enum PaymentMethod {
 - [ ] Export to CSV/Excel
 
 ### Phase 4: Advanced Features (Optional)
+
 - [ ] Stock tracking and low-stock alerts
 - [ ] Product categories with filtering
 - [ ] Bulk product import/export
@@ -496,17 +538,20 @@ enum PaymentMethod {
 ## Files Modified/Created
 
 ### Prisma Schema
+
 - **Modified:** `backend/prisma/schema.prisma`
   - Added 4 models: `Product`, `ProductSale`, `ProductSaleItem`, `RevenueMonthLock`
   - Updated `Tenant` and `Branch` relations
 
 ### Migration
+
 - **Created:** `backend/prisma/migrations/20260213132924_add_in_gym_product_sales/migration.sql`
   - 4 tables created
   - 11 indexes created
   - Foreign key constraints added
 
 ### NestJS Modules
+
 - **Created:** `backend/src/products/`
   - `products.module.ts`
   - `products.controller.ts`
@@ -523,6 +568,7 @@ enum PaymentMethod {
   - `revenue-month-lock.service.ts`
 
 ### Documentation
+
 - **Created:** `docs/IN_GYM_PRODUCT_SALES_PHASE_1.md` (this file)
 
 ---
@@ -545,6 +591,7 @@ Before moving to Phase 2, ensure:
 ## Example Usage (Phase 2 Preview)
 
 ### Creating a Sale (Future API Call)
+
 ```typescript
 POST /product-sales
 Authorization: Bearer <jwt>
@@ -577,6 +624,7 @@ Response:
 ```
 
 ### Locking a Month
+
 ```typescript
 POST /revenue-month-locks
 Authorization: Bearer <jwt>
@@ -600,16 +648,20 @@ Response:
 ## Security Considerations
 
 ### Row-Level Security
+
 All queries MUST filter by:
+
 - `tenantId` from authenticated user's JWT
 - `branchId` from user's assigned branch
 
 ### Authorization
+
 - **Products:** Branch managers can CRUD products for their branch
 - **Sales:** Staff can create sales, managers can edit/delete
 - **Month Lock:** Admin/accountant only
 
 ### Audit Trail
+
 - `createdByUserId` tracks who created sales
 - `lockedByUserId` tracks who locked months
 - `createdAt` / `updatedAt` for all modifications
@@ -619,27 +671,31 @@ All queries MUST filter by:
 ## Performance Considerations
 
 ### Indexes
+
 Optimized for common queries:
+
 ```sql
 -- Fast: Get products for a branch
-SELECT * FROM "Product" 
+SELECT * FROM "Product"
 WHERE "tenantId" = ? AND "branchId" = ? AND "isActive" = true;
 -- Uses: Product_tenantId_branchId_isActive_idx
 
 -- Fast: Get sales for a date range
 SELECT * FROM "ProductSale"
-WHERE "tenantId" = ? AND "branchId" = ? 
+WHERE "tenantId" = ? AND "branchId" = ?
   AND "soldAt" BETWEEN ? AND ?
 ORDER BY "soldAt" DESC;
 -- Uses: ProductSale_tenantId_branchId_soldAt_idx
 ```
 
 ### Denormalization
+
 - `totalAmount` stored in `ProductSale` (avoids SUM on items)
 - `lineTotal` stored in `ProductSaleItem` (avoids multiplication in queries)
 - `tenantId`/`branchId` duplicated in items (avoids JOIN for filtering)
 
 ### Query Optimization Tips
+
 - Always include `tenantId` in WHERE clause (uses indexes)
 - Use `select` to limit fields (don't fetch `note` if not needed)
 - Use pagination (`skip`/`take`) for large result sets
@@ -650,18 +706,21 @@ ORDER BY "soldAt" DESC;
 ## Testing Strategy (Phase 2)
 
 ### Unit Tests
+
 - Service methods with mocked `PrismaService`
 - Validation logic (productId XOR customName)
 - Calculation logic (lineTotal, totalAmount)
 - Month lock checks
 
 ### Integration Tests
+
 - API endpoints with test database
 - Transaction rollback scenarios
 - Concurrent sale creation
 - Month lock enforcement
 
 ### E2E Tests
+
 - Complete sale flow (create product → record sale → generate report)
 - Month lock workflow (lock → attempt edit → unlock)
 

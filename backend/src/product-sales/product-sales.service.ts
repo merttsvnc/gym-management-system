@@ -3,10 +3,10 @@ import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * ProductSalesService
- * 
+ *
  * Business logic for in-gym product sales transactions.
  * All operations are scoped by tenantId + branchId for multi-tenancy.
- * 
+ *
  * Phase 1: Placeholder methods with TODO comments
  */
 @Injectable()
