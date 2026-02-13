@@ -8,6 +8,8 @@ export class PasswordResetVerifyOtpDto {
 
   @IsString()
   @Length(6, 6, { message: 'Doğrulama kodu 6 haneli olmalıdır' })
-  @Matches(/^\d{6}$/, { message: 'Doğrulama kodu sadece rakamlardan oluşmalıdır' })
+  @Matches(/^\d{6}$/, {
+    message: 'Doğrulama kodu sadece rakamlardan oluşmalıdır',
+  })
   code: string;
 }

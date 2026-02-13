@@ -30,7 +30,7 @@ import { RevenueReportQueryDto } from './dto/revenue-report-query.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { PaymentThrottlerExceptionFilter } from '../common/filters/payment-throttler-exception.filter';
 
-@Controller('api/v1/payments')
+@Controller('payments')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('ADMIN')
 export class PaymentsController {

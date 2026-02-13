@@ -10,7 +10,7 @@ import {
   MonthlyMembersItemDto,
 } from './dto/monthly-members.dto';
 
-@Controller('api/v1/dashboard')
+@Controller('dashboard')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}

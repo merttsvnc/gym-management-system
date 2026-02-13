@@ -40,7 +40,7 @@ import { RequestWithIp } from '../common/middleware/client-ip.middleware';
  * to allow authentication and billing status checks
  */
 @SkipBillingStatusCheck()
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 

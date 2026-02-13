@@ -5,7 +5,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 
 describe('RevenueMonthLockService', () => {
   let service: RevenueMonthLockService;
-  let prismaService: PrismaService;
+  let _prismaService: PrismaService;
 
   const mockPrismaService = {
     revenueMonthLock: {

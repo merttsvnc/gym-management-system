@@ -19,7 +19,6 @@ import { calculateMembershipEndDate } from '../membership-plans/utils/duration-c
 import {
   calculateMembershipStatus,
   DerivedMembershipStatus,
-  getExpiredMembershipWhere,
   getTodayStart,
 } from '../common/utils/membership-status.util';
 

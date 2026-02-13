@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -44,6 +44,11 @@ describe('Scheduled Membership Plan Change E2E Tests', () => {
         transform: true,
       }),
     );
+
+    // Apply same global prefix as main.ts
+    app.setGlobalPrefix('api/v1', {
+      exclude: ['', 'api/mobile/*'],
+    });
 
     await app.init();
 

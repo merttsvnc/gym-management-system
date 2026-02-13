@@ -600,7 +600,7 @@ export class PaymentsService {
    */
   private validateAndTruncatePaidOn(
     paidOn: Date | string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     _tenantId: string,
   ): Date {
     const date = typeof paidOn === 'string' ? new Date(paidOn) : paidOn;
@@ -640,7 +640,7 @@ export class PaymentsService {
    * Get today's date in specified timezone
    * Currently simplified - can be enhanced with timezone library when Tenant timezone is added
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   private getTodayInTimezone(_timezone: string): Date {
     // For now, return today in UTC
     // TODO: Use timezone library (e.g., date-fns-tz) when Tenant timezone is added
@@ -652,7 +652,7 @@ export class PaymentsService {
    * Get date in specified timezone
    * Currently simplified - can be enhanced with timezone library when Tenant timezone is added
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   private getDateInTimezone(date: Date, _timezone: string): Date {
     // For now, return date truncated to start of day
     // TODO: Use timezone library (e.g., date-fns-tz) when Tenant timezone is added

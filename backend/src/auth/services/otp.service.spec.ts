@@ -9,9 +9,9 @@ jest.mock('bcrypt');
 
 describe('OtpService', () => {
   let service: OtpService;
-  let prismaService: PrismaService;
-  let emailService: EmailService;
-  let configService: ConfigService;
+  let _prismaService: PrismaService;
+  let _emailService: EmailService;
+  let _configService: ConfigService;
 
   const mockPrismaService = {
     emailOtp: {

@@ -19,12 +19,12 @@ export function IsForbidden(
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           // Fail only if field is present (not undefined)
           // If undefined, validation passes (field not sent)
           return value === undefined;
         },
-        defaultMessage(args: ValidationArguments) {
+        defaultMessage(_args: ValidationArguments) {
           return message;
         },
       },

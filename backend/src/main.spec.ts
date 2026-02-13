@@ -25,7 +25,7 @@ describe('main.ts production safety check', () => {
     // Import main.ts which runs bootstrap() immediately
     await expect(async () => {
       // We need to dynamically import to catch the error
-      const mainModule = await import('./main');
+      const _mainModule = await import('./main');
       // If bootstrap was called during import, it would throw
       // But since we're testing the check, we'll verify the logic directly
     }).rejects.toThrow();

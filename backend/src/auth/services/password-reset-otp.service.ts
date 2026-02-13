@@ -222,7 +222,9 @@ export class PasswordResetOtpService {
         where: { id: otpRecord.id },
       });
 
-      this.logger.log(`Password reset OTP verified successfully for userId ${userId}`);
+      this.logger.log(
+        `Password reset OTP verified successfully for userId ${userId}`,
+      );
       return true;
     } else {
       // Increment attempt count

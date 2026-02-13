@@ -1,11 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductSalesService } from './product-sales.service';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Prisma, PaymentMethod } from '@prisma/client';
 
 describe('ProductSalesService', () => {

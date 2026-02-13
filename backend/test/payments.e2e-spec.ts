@@ -59,6 +59,11 @@ describe('Payments E2E Tests', () => {
       }),
     );
 
+    // Apply same global prefix as main.ts
+    app.setGlobalPrefix('api/v1', {
+      exclude: ['', 'api/mobile/*'],
+    });
+
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);

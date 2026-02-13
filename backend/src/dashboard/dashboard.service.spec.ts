@@ -156,13 +156,13 @@ describe('DashboardService', () => {
     });
 
     it('should throw BadRequestException for invalid expiringDays', async () => {
-      await expect(
-        service.getSummary(tenantId, undefined, 0),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.getSummary(tenantId, undefined, 0)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.getSummary(tenantId, undefined, 61),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.getSummary(tenantId, undefined, 61)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

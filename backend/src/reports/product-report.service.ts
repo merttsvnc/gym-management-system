@@ -68,7 +68,6 @@ export class ProductReportService {
       product: { name: string } | null;
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     const lineItems = (await this.prisma.productSaleItem.findMany({
       where: {
         sale: {

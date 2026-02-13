@@ -22,7 +22,7 @@ import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlanListQueryDto } from './dto/plan-list-query.dto';
 
-@Controller('api/v1/membership-plans')
+@Controller('membership-plans')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class MembershipPlansController {
   constructor(

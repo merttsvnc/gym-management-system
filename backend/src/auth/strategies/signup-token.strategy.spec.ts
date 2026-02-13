@@ -4,7 +4,7 @@ import { SignupTokenStrategy } from './signup-token.strategy';
 
 describe('SignupTokenStrategy', () => {
   let strategy: SignupTokenStrategy;
-  let configService: ConfigService;
+  let _configService: ConfigService;
 
   const mockConfigService = {
     get: jest.fn(),
@@ -102,7 +102,9 @@ describe('SignupTokenStrategy', () => {
       } as any;
 
       // Act & Assert
-      expect(() => strategy.validate(payload)).toThrow('Invalid signup token payload');
+      expect(() => strategy.validate(payload)).toThrow(
+        'Invalid signup token payload',
+      );
     });
 
     it('should throw UnauthorizedException when email is missing', () => {
@@ -112,7 +114,9 @@ describe('SignupTokenStrategy', () => {
       } as any;
 
       // Act & Assert
-      expect(() => strategy.validate(payload)).toThrow('Invalid signup token payload');
+      expect(() => strategy.validate(payload)).toThrow(
+        'Invalid signup token payload',
+      );
     });
   });
 });

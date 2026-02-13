@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { LocalDiskStorageService } from './local-disk-storage.service';
 import { promises as fs } from 'fs';
-import * as path from 'path';
 
 // Mock fs module
 jest.mock('fs', () => ({
@@ -14,7 +13,7 @@ jest.mock('fs', () => ({
 
 describe('LocalDiskStorageService', () => {
   let service: LocalDiskStorageService;
-  let configService: ConfigService;
+  let _configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

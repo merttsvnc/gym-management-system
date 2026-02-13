@@ -60,9 +60,7 @@ export class DashboardService {
   ): Promise<DashboardSummaryDto> {
     // Validate expiringDays
     if (expiringDays < 1 || expiringDays > 60) {
-      throw new BadRequestException(
-        'expiringDays must be between 1 and 60',
-      );
+      throw new BadRequestException('expiringDays must be between 1 and 60');
     }
 
     // Log dashboard summary request (debug level, no PII)
@@ -103,7 +101,8 @@ export class DashboardService {
       ...where,
       status: 'ACTIVE',
       membershipEndDate: {
-        ...getExpiringSoonMembershipWhere(today, expiringDays).membershipEndDate,
+        ...getExpiringSoonMembershipWhere(today, expiringDays)
+          .membershipEndDate,
       },
     };
 

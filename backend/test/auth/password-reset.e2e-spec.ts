@@ -173,10 +173,10 @@ describe('Auth: Password Reset (e2e)', () => {
       }
 
       // Assert: ALL responses should be 201 (never 429)
-      responses.existing.forEach((status, idx) => {
+      responses.existing.forEach((status, _idx) => {
         expect(status).toBe(201);
       });
-      responses.nonExisting.forEach((status, idx) => {
+      responses.nonExisting.forEach((status, _idx) => {
         expect(status).toBe(201);
       });
 

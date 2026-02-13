@@ -15,7 +15,7 @@ import { SkipBillingStatusCheck } from '../auth/decorators/skip-billing-status-c
 import { TenantsService } from './tenants.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
-@Controller('api/v1/tenants')
+@Controller('tenants')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

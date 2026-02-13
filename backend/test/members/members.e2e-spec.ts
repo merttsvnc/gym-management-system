@@ -49,6 +49,11 @@ describe('Members E2E Tests', () => {
       }),
     );
 
+    // Apply same global prefix as main.ts
+    app.setGlobalPrefix('api/v1', {
+      exclude: ['', 'api/mobile/*'],
+    });
+
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);
@@ -1185,7 +1190,7 @@ describe('Members E2E Tests', () => {
       const member1 = await createTestMember(prisma, tenant1.id, branch1.id, {
         phone: phone1,
       });
-      const member2 = await createTestMember(prisma, tenant1.id, branch1.id, {
+      const _member2 = await createTestMember(prisma, tenant1.id, branch1.id, {
         phone: phone2,
       });
 

@@ -39,6 +39,12 @@ describe('Members Extended Fields Validation (e2e)', () => {
         transform: true,
       }),
     );
+
+    // Apply same global prefix as main.ts
+    app.setGlobalPrefix('api/v1', {
+      exclude: ['', 'api/mobile/*'],
+    });
+
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);

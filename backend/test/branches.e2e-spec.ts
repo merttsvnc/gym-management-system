@@ -39,6 +39,11 @@ describe('BranchesController (e2e)', () => {
     );
     app.useGlobalFilters(new HttpExceptionFilter());
 
+    // Apply same global prefix as main.ts
+    app.setGlobalPrefix('api/v1', {
+      exclude: ['', 'api/mobile/*'],
+    });
+
     await app.init();
 
     // Create test tenant and user

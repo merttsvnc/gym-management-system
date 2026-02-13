@@ -41,6 +41,12 @@ describe('Upload Member Photo (e2e)', () => {
         transform: true,
       }),
     );
+
+    // Apply same global prefix as main.ts
+    app.setGlobalPrefix('api/v1', {
+      exclude: ['', 'api/mobile/*'],
+    });
+
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);
@@ -130,7 +136,7 @@ describe('Upload Member Photo (e2e)', () => {
 
       expect(response.body).toHaveProperty('url');
       expect(mockStorageService.upload).toHaveBeenCalledTimes(1);
-      
+
       // Verify upload was called with correct key format
       const uploadCall = mockStorageService.upload.mock.calls[0];
       expect(uploadCall[1]).toMatch(/^tenants\/.+\/members\/.+\/.+\.jpg$/);

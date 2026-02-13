@@ -15,7 +15,7 @@ import { TopProductsResponseDto } from './dto/top-products-response.dto';
  *
  * Phase 3: Top selling products endpoint
  */
-@Controller('api/v1/reports/products')
+@Controller('reports/products')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('ADMIN')
 export class ProductReportController {

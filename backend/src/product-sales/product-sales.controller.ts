@@ -27,7 +27,7 @@ import { toMoneyString } from '../common/utils/money.util';
  *
  * Phase 2: Full implementation with authentication and validation
  */
-@Controller('api/v1/product-sales')
+@Controller('product-sales')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductSalesController {
   constructor(private readonly productSalesService: ProductSalesService) {}

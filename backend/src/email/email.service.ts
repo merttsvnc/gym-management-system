@@ -52,7 +52,8 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: this.configService.get<string>('RESEND_FROM_EMAIL') ||
+        from:
+          this.configService.get<string>('RESEND_FROM_EMAIL') ||
           'noreply@example.com',
         to: email,
         subject: 'Doğrulama Kodu - Gym Management',
@@ -74,13 +75,16 @@ export class EmailService {
   async sendPasswordResetOtpEmail(email: string, otp: string): Promise<void> {
     if (!this.isEmailEnabled || !this.resend) {
       // In dev mode, skip sending email
-      this.logger.debug(`Skipping password reset email send for ${email} (email disabled)`);
+      this.logger.debug(
+        `Skipping password reset email send for ${email} (email disabled)`,
+      );
       return;
     }
 
     try {
       await this.resend.emails.send({
-        from: this.configService.get<string>('RESEND_FROM_EMAIL') ||
+        from:
+          this.configService.get<string>('RESEND_FROM_EMAIL') ||
           'noreply@example.com',
         to: email,
         subject: 'Şifre Sıfırlama Doğrulama Kodu - Gym Management',
@@ -89,7 +93,10 @@ export class EmailService {
 
       this.logger.log(`Password reset OTP email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send password reset OTP email to ${email}`, error);
+      this.logger.error(
+        `Failed to send password reset OTP email to ${email}`,
+        error,
+      );
       // Don't throw - we want to avoid leaking email existence
       // Logging is sufficient for monitoring
     }

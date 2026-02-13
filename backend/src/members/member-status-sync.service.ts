@@ -1,20 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { getTodayStart } from '../common/utils/membership-status.util';
 
 /**
  * Daily status sync service
- * 
+ *
  * BUSINESS RULE:
  * Syncs member status field with derived membership state.
  * Finds members where:
  * - status = ACTIVE
  * - membershipEndDate < today
  * - tenant-scoped (all tenants processed)
- * 
+ *
  * Updates status to INACTIVE to align manual status with derived membership state.
- * 
+ *
  * Runs daily at 03:00 AM to catch expired memberships.
  */
 @Injectable()
@@ -39,7 +39,7 @@ export class MemberStatusSyncService {
   /**
    * Sync expired member statuses
    * Can be called directly for testing or manual execution
-   * 
+   *
    * @returns Object with counts of updated members per tenant
    */
   async syncExpiredMemberStatuses(): Promise<{

@@ -7,7 +7,7 @@ import {
   IsString,
   IsNotEmpty,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 /**
  * DTO for querying product sales

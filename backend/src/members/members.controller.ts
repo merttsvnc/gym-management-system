@@ -21,7 +21,7 @@ import { MemberListQueryDto } from './dto/member-list-query.dto';
 import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
 import { SchedulePlanChangeDto } from './dto/schedule-plan-change.dto';
 
-@Controller('api/v1/members')
+@Controller('members')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}

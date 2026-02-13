@@ -1,5 +1,5 @@
 import { IsOptional, IsBoolean, IsString, IsNotEmpty } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 
 /**
  * DTO for querying products

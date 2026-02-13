@@ -11,7 +11,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
 
 describe('R2StorageService', () => {
   let service: R2StorageService;
-  let configService: ConfigService;
+  let _configService: ConfigService;
   let mockS3Client: jest.Mocked<S3Client>;
 
   const mockConfig = {
@@ -29,7 +29,9 @@ describe('R2StorageService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string) => mockConfig[key as keyof typeof mockConfig]),
+            get: jest.fn(
+              (key: string) => mockConfig[key as keyof typeof mockConfig],
+            ),
           },
         },
       ],

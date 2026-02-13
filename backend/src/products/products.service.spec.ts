@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 
 describe('ProductsService', () => {
   let service: ProductsService;
-  let prismaService: PrismaService;
+  let _prismaService: PrismaService;
 
   const mockPrismaService = {
     product: {

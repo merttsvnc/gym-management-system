@@ -21,7 +21,7 @@ import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import { BranchListQueryDto } from './dto/branch-list-query.dto';
 
-@Controller('api/v1/branches')
+@Controller('branches')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}

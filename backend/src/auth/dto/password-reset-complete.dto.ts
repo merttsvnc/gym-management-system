@@ -1,9 +1,4 @@
-import {
-  IsString,
-  MinLength,
-  Matches,
-  Validate,
-} from 'class-validator';
+import { IsString, MinLength, Matches, Validate } from 'class-validator';
 import { MatchConstraint } from '../validators/match-constraint.validator';
 
 export class PasswordResetCompleteDto {

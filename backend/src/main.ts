@@ -36,6 +36,13 @@ async function bootstrap() {
   // Enable global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  // Set global API prefix for all routes except:
+  // - Root health check endpoint
+  // - Mobile endpoints (already prefixed with 'api/mobile')
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['', 'api/mobile/*'],
+  });
+
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

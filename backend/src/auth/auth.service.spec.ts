@@ -92,7 +92,9 @@ describe('AuthService', () => {
 
     mockJwtService.sign.mockImplementation(() => 'mock-jwt-token');
     mockOtpService.createAndSendOtp.mockResolvedValue(undefined);
-    mockPrismaService.$transaction.mockImplementation((callback) => callback(mockPrismaService));
+    mockPrismaService.$transaction.mockImplementation((callback) =>
+      callback(mockPrismaService),
+    );
   });
 
   afterEach(() => {
@@ -536,7 +538,9 @@ describe('AuthService', () => {
         ok: true,
         message: 'Eğer bu e-posta adresi uygunsa doğrulama kodu gönderildi.',
       });
-      expect(mockOtpService.createAndSendOtp).toHaveBeenCalledWith('existing@example.com');
+      expect(mockOtpService.createAndSendOtp).toHaveBeenCalledWith(
+        'existing@example.com',
+      );
       // Verify passwordHash was NOT updated
       expect(mockPrismaService.user.update).not.toHaveBeenCalled();
     });
@@ -569,7 +573,9 @@ describe('AuthService', () => {
         ok: true,
         message: 'Eğer bu e-posta adresi uygunsa doğrulama kodu gönderildi.',
       });
-      expect(mockOtpService.createAndSendOtp).toHaveBeenCalledWith('new@example.com');
+      expect(mockOtpService.createAndSendOtp).toHaveBeenCalledWith(
+        'new@example.com',
+      );
       expect(mockPrismaService.user.create).toHaveBeenCalled();
     });
   });

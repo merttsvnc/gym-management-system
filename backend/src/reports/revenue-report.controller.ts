@@ -23,7 +23,7 @@ import { PaymentMethodBreakdownResponseDto } from './dto/payment-method-breakdow
  * Phase 2.5: Revenue aggregation endpoint
  * Phase 3: Advanced analytics endpoints (trend, daily, payment methods)
  */
-@Controller('api/v1/reports')
+@Controller('reports')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('ADMIN')
 export class RevenueReportController {

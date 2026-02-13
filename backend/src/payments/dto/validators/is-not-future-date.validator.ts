@@ -16,7 +16,6 @@ export function IsNotFutureDate(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         validate(value: any, _args: ValidationArguments) {
           if (!value) {
             return true; // Let @IsDateString handle empty values
@@ -39,7 +38,7 @@ export function IsNotFutureDate(validationOptions?: ValidationOptions) {
           // Date should not be in the future
           return inputDate <= today;
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         defaultMessage(_args: ValidationArguments) {
           return 'Ödeme tarihi gelecekte olamaz';
         },

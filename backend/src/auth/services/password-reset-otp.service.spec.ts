@@ -9,9 +9,9 @@ jest.mock('bcrypt');
 
 describe('PasswordResetOtpService', () => {
   let service: PasswordResetOtpService;
-  let prismaService: PrismaService;
-  let emailService: EmailService;
-  let configService: ConfigService;
+  let _prismaService: PrismaService;
+  let _emailService: EmailService;
+  let _configService: ConfigService;
 
   const mockPrismaService = {
     passwordResetOtp: {
@@ -76,7 +76,9 @@ describe('PasswordResetOtpService', () => {
       jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
       (bcrypt.hash as jest.Mock).mockResolvedValue(mockOtpHash);
       mockPrismaService.passwordResetOtp.findFirst.mockResolvedValue(null);
-      mockPrismaService.passwordResetOtp.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.passwordResetOtp.deleteMany.mockResolvedValue({
+        count: 0,
+      });
       mockPrismaService.passwordResetOtp.create.mockResolvedValue({
         id: '1',
         userId,
@@ -260,7 +262,9 @@ describe('PasswordResetOtpService', () => {
           ],
         }).compile();
 
-        devService = module.get<PasswordResetOtpService>(PasswordResetOtpService);
+        devService = module.get<PasswordResetOtpService>(
+          PasswordResetOtpService,
+        );
         jest.clearAllMocks();
       });
 
@@ -272,8 +276,12 @@ describe('PasswordResetOtpService', () => {
 
         expect(result).toBe(true);
         // Should not query database in dev mode
-        expect(mockPrismaService.passwordResetOtp.findFirst).not.toHaveBeenCalled();
-        expect(mockPrismaService.passwordResetOtp.delete).not.toHaveBeenCalled();
+        expect(
+          mockPrismaService.passwordResetOtp.findFirst,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockPrismaService.passwordResetOtp.delete,
+        ).not.toHaveBeenCalled();
       });
 
       it('should reject incorrect code in dev mode', async () => {
@@ -283,7 +291,9 @@ describe('PasswordResetOtpService', () => {
         const result = await devService.verifyOtpCode(userId, code);
 
         expect(result).toBe(false);
-        expect(mockPrismaService.passwordResetOtp.findFirst).not.toHaveBeenCalled();
+        expect(
+          mockPrismaService.passwordResetOtp.findFirst,
+        ).not.toHaveBeenCalled();
       });
 
       it('should use default 000000 if AUTH_OTP_DEV_FIXED_CODE not set', async () => {
@@ -314,9 +324,14 @@ describe('PasswordResetOtpService', () => {
           ],
         }).compile();
 
-        const defaultDevService = module.get<PasswordResetOtpService>(PasswordResetOtpService);
+        const defaultDevService = module.get<PasswordResetOtpService>(
+          PasswordResetOtpService,
+        );
 
-        const result = await defaultDevService.verifyOtpCode('user-123', '000000');
+        const result = await defaultDevService.verifyOtpCode(
+          'user-123',
+          '000000',
+        );
 
         expect(result).toBe(true);
       });
@@ -327,11 +342,15 @@ describe('PasswordResetOtpService', () => {
     it('should delete all OTPs for a user', async () => {
       const userId = 'user-123';
 
-      mockPrismaService.passwordResetOtp.deleteMany.mockResolvedValue({ count: 3 });
+      mockPrismaService.passwordResetOtp.deleteMany.mockResolvedValue({
+        count: 3,
+      });
 
       await service.clearOtpsForUser(userId);
 
-      expect(mockPrismaService.passwordResetOtp.deleteMany).toHaveBeenCalledWith({
+      expect(
+        mockPrismaService.passwordResetOtp.deleteMany,
+      ).toHaveBeenCalledWith({
         where: { userId },
       });
     });

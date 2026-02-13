@@ -32,6 +32,11 @@ export async function createTestApp(): Promise<INestApplication> {
   // Apply global exception filter (same as main.ts)
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  // Apply same global prefix as main.ts
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['', 'api/mobile/*'],
+  });
+
   await app.init();
   return app;
 }

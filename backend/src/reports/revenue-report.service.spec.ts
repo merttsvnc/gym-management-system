@@ -58,7 +58,7 @@ describe('RevenueReportService', () => {
       await service.getMonthlyRevenue(tenantId, branchId, month);
 
       // Verify date range for membership revenue query
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const paymentWhere =
         mockPrismaService.payment.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -74,7 +74,7 @@ describe('RevenueReportService', () => {
       expect(endDate.toISOString()).toBe('2026-03-01T00:00:00.000Z');
 
       // Verify date range for product sales query
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const productSaleWhere =
         mockPrismaService.productSale.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
@@ -104,7 +104,7 @@ describe('RevenueReportService', () => {
       expect(result.totalRevenue.toFixed(2)).toBe('125000.00');
 
       // Verify query includes correct filters
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const paymentWhere =
         mockPrismaService.payment.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -132,7 +132,7 @@ describe('RevenueReportService', () => {
       expect(result.totalRevenue.toFixed(2)).toBe('18250.50');
 
       // Verify query includes correct filters
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const productSaleWhere =
         mockPrismaService.productSale.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -182,7 +182,7 @@ describe('RevenueReportService', () => {
       expect(result.locked).toBe(true);
 
       // Verify lock query
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const lockWhere =
         mockPrismaService.revenueMonthLock.findUnique.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -238,7 +238,7 @@ describe('RevenueReportService', () => {
 
       await service.getMonthlyRevenue(tenantId, branchId, decemberMonth);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const paymentWhere =
         mockPrismaService.payment.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -266,7 +266,7 @@ describe('RevenueReportService', () => {
       await service.getMonthlyRevenue(tenantId, branchId, month);
 
       // Verify Payment query scope
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const paymentWhere =
         mockPrismaService.payment.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -275,7 +275,7 @@ describe('RevenueReportService', () => {
       expect(paymentWhere.branchId).toBe(branchId);
 
       // Verify ProductSale query scope
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const productSaleWhere =
         mockPrismaService.productSale.aggregate.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -284,7 +284,7 @@ describe('RevenueReportService', () => {
       expect(productSaleWhere.branchId).toBe(branchId);
 
       // Verify RevenueMonthLock query scope
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const lockWhere =
         mockPrismaService.revenueMonthLock.findUnique.mock.calls[0][0].where;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

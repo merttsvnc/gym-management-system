@@ -198,13 +198,19 @@ describe('Auth: /auth/signup/complete (e2e)', () => {
         const email = 'test5@example.com';
         const password = 'SecurePass123!';
         const { user } = await createTempUser(email, password);
-        
+
         // Create a regular access token (signed with JWT_ACCESS_SECRET, not JWT_SIGNUP_SECRET)
-        const accessSecret = process.env.JWT_ACCESS_SECRET || 'test_access_secret';
+        const accessSecret =
+          process.env.JWT_ACCESS_SECRET || 'test_access_secret';
         const accessToken = jwt.sign(
-          { sub: user.id, email: user.email, tenantId: user.tenantId, role: 'ADMIN' },
+          {
+            sub: user.id,
+            email: user.email,
+            tenantId: user.tenantId,
+            role: 'ADMIN',
+          },
           accessSecret,
-          { expiresIn: '15m' }
+          { expiresIn: '15m' },
         );
 
         // Act
@@ -284,7 +290,7 @@ describe('Auth: /auth/signup/complete (e2e)', () => {
         // Assert
         expect(response.status).toBe(201);
         expect(response.body.tenant.name).toBe('Real Gym Name');
-        
+
         // Verify in database
         const updatedTenant = await prisma.tenant.findUnique({
           where: { id: devTenant.id },

@@ -29,7 +29,7 @@ import { toMoneyString } from '../common/utils/money.util';
  *
  * Phase 2: Full implementation with authentication and validation
  */
-@Controller('api/v1/products')
+@Controller('products')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}

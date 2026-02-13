@@ -36,7 +36,7 @@ export class LocalDiskStorageService implements StorageService {
   async upload(
     buffer: Buffer,
     key: string,
-    contentType: string,
+    _contentType: string,
   ): Promise<string> {
     this.logger.log(
       `🟡 LocalDiskStorageService.upload() called for key: ${key}`,
