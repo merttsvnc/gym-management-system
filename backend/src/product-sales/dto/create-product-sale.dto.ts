@@ -13,8 +13,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PaymentMethod } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { PaymentMethod, Prisma } from '@prisma/client';
 
 /**
  * DTO for a single sale item
@@ -40,7 +39,7 @@ export class SaleItemDto {
   @Type(() => Number)
   @IsNumber({}, { message: 'Unit price must be a valid number' })
   @Min(0, { message: 'Unit price must be 0 or greater' })
-  unitPrice?: number | string | Decimal;
+  unitPrice?: number | string | Prisma.Decimal;
 }
 
 /**

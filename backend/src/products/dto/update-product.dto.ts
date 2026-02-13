@@ -8,7 +8,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 /**
  * DTO for updating an existing product
@@ -25,7 +25,7 @@ export class UpdateProductDto {
   @Type(() => Number)
   @IsNumber({}, { message: 'Default price must be a valid number' })
   @Min(0, { message: 'Default price must be 0 or greater' })
-  defaultPrice?: number | string | Decimal;
+  defaultPrice?: number | string | Prisma.Decimal;
 
   @IsOptional()
   @IsString()
