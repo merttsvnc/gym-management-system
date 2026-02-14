@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   // Production safety check: fail startup if email verification is disabled in production
@@ -34,13 +34,14 @@ async function bootstrap() {
   );
 
   // Enable global exception filter
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Set global API prefix for all routes except:
   // - Root health check endpoint
+  // - Health endpoint (GET /health)
   // - Mobile endpoints (already prefixed with 'api/mobile')
   app.setGlobalPrefix('api/v1', {
-    exclude: ['', 'api/mobile/*'],
+    exclude: ['', 'health', 'api/mobile/*'],
   });
 
   await app.listen(process.env.PORT ?? 3000);

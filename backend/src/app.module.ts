@@ -1,5 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
+import { HealthModule } from './health/health.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { BranchesModule } from './branches/branches.module';
 import { AuthModule } from './auth/auth.module';
@@ -22,6 +23,8 @@ import { ProductSalesModule } from './product-sales/product-sales.module';
 import { RevenueReportModule } from './reports/revenue-report.module';
 import { BillingStatusGuard } from './auth/guards/billing-status.guard';
 import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -37,6 +40,7 @@ import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
     ]),
     PrismaModule,
     CommonModule,
+    HealthModule,
     TenantsModule,
     BranchesModule,
     UsersModule,
@@ -64,11 +68,17 @@ import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
       provide: APP_GUARD,
       useClass: BillingStatusGuard,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpLoggingInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Apply ClientIpMiddleware globally to extract client IP for rate limiting
-    consumer.apply(ClientIpMiddleware).forRoutes('*');
+    // RequestId first (for correlation), then ClientIp (for rate limiting)
+    consumer
+      .apply(RequestIdMiddleware, ClientIpMiddleware)
+      .forRoutes('*');
   }
 }

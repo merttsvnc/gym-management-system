@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AppModule } from '../../src/app.module';
-import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
+import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.filter';
 
 /**
  * Create a fully initialized NestJS application for testing
@@ -30,11 +30,11 @@ export async function createTestApp(): Promise<INestApplication> {
   );
 
   // Apply global exception filter (same as main.ts)
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Apply same global prefix as main.ts
   app.setGlobalPrefix('api/v1', {
-    exclude: ['', 'api/mobile/*'],
+    exclude: ['', 'health', 'api/mobile/*'],
   });
 
   await app.init();

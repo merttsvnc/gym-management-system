@@ -6,7 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
   createTestTenantAndUser,
@@ -37,11 +37,11 @@ describe('BranchesController (e2e)', () => {
         transform: true,
       }),
     );
-    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     // Apply same global prefix as main.ts
     app.setGlobalPrefix('api/v1', {
-      exclude: ['', 'api/mobile/*'],
+      exclude: ['', 'health', 'api/mobile/*'],
     });
 
     await app.init();
