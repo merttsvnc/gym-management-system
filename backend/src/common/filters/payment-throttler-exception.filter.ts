@@ -17,10 +17,13 @@ export class PaymentThrottlerExceptionFilter implements ExceptionFilter {
   catch(exception: ThrottlerException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<{ requestId?: string }>();
 
     response.status(HttpStatus.TOO_MANY_REQUESTS).json({
       statusCode: HttpStatus.TOO_MANY_REQUESTS,
       message: BILLING_ERROR_MESSAGES.RATE_LIMIT_EXCEEDED_GENERIC,
+      requestId: request.requestId ?? 'unknown',
+      timestamp: new Date().toISOString(),
     });
   }
 }

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { validateEnv } from './config/env';
@@ -10,7 +11,12 @@ async function bootstrap() {
   // Fail-fast: validate required env vars before any NestJS bootstrap
   validateEnv();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Required for correct rate limiting behind reverse proxy
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
 
   // Security headers (before CORS so headers are set correctly)
   app.use(
@@ -25,9 +31,12 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for frontend development
+  // CORS: CORS_ORIGINS (comma-separated) takes precedence; else FRONTEND_URL; else localhost
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : process.env.FRONTEND_URL || 'http://localhost:5173';
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: corsOrigins,
     credentials: true,
   });
 

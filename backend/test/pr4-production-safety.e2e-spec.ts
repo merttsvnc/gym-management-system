@@ -89,18 +89,23 @@ describe('PR-4 Production Safety (e2e)', () => {
       };
 
       // Make 11 requests - 10 should succeed (or return 401), 11th should be 429
-      let lastStatus = 0;
+      let lastRes: request.Response | undefined;
       for (let i = 0; i < 12; i++) {
-        const res = await request(app.getHttpServer())
+        lastRes = await request(app.getHttpServer())
           .post('/api/v1/auth/login')
+          .set('X-Request-Id', 'test-request-id-429')
           .send(loginPayload);
-        lastStatus = res.status;
-        if (res.status === 429) {
+        if (lastRes.status === 429) {
           break;
         }
       }
 
-      expect(lastStatus).toBe(429);
+      expect(lastRes?.status).toBe(429);
+      expect(lastRes?.body).toMatchObject({
+        statusCode: 429,
+        requestId: 'test-request-id-429',
+      });
+      expect(lastRes?.body.timestamp).toBeDefined();
     });
 
     it('GET /health should NOT be rate limited', async () => {
