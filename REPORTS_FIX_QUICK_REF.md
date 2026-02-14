@@ -135,7 +135,14 @@ npm test -- revenue-report-sql.integration.spec.ts
 
 **Why:** Prisma schema uses camelCase without `@map`. Postgres requires quoted identifiers for camelCase.
 
-### Issue 2: Auth Guard Order (DOCUMENTATION)
+### Issue 2: GROUP BY Clause (CRITICAL)
+
+- ❌ **Before:** `GROUP BY ("soldAt" AT TIME ZONE 'timezone')::date`
+- ✅ **After:** `GROUP BY 1` (ordinal position)
+
+**Why:** PostgreSQL error 42803 - expression mismatch. Using ordinal position avoids this.
+
+### Issue 3: Auth Guard Order (DOCUMENTATION)
 
 - Clarified that `BillingStatusGuard` is global and runs BEFORE `JwtAuthGuard`
 - Guard gracefully skips when `req.user` is undefined

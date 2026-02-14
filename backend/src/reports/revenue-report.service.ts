@@ -336,8 +336,8 @@ export class RevenueReportService {
         AND "branchId" = ${branchId}
         AND "soldAt" >= ${startUtc}
         AND "soldAt" < ${endUtc}
-      GROUP BY ("soldAt" AT TIME ZONE ${timezone})::date
-      ORDER BY day ASC
+      GROUP BY 1
+      ORDER BY 1
     `;
 
     // Query membership payments daily sums
@@ -353,8 +353,8 @@ export class RevenueReportService {
         AND "paidOn" >= ${startUtc}
         AND "paidOn" < ${endUtc}
         AND "isCorrected" = false
-      GROUP BY ("paidOn" AT TIME ZONE ${timezone})::date
-      ORDER BY day ASC
+      GROUP BY 1
+      ORDER BY 1
     `;
 
     // Build map of daily revenue

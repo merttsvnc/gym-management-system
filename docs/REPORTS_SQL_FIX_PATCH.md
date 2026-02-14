@@ -1,8 +1,12 @@
 # Reports SQL Column Names Fix - Patch Documentation
 
 **Date:** 2026-02-14  
-**Issue:** Prisma `$queryRaw` error 42703 - column "sold_at" does not exist  
-**Root Cause:** Raw SQL queries used snake_case column names, but Prisma schema uses camelCase without `@map`
+**Issue:** Prisma `$queryRaw` errors:
+
+- Error 42703: column "sold_at" does not exist
+- Error 42803: column must appear in GROUP BY clause or be used in aggregate function
+
+**Root Cause:** Raw SQL queries used snake_case column names AND had GROUP BY expression mismatch
 
 ---
 
@@ -22,7 +26,16 @@ The `getDailyBreakdown()` method in `revenue-report.service.ts` used raw SQL wit
 **Why it failed:**  
 Prisma schema fields (`soldAt`, `totalAmount`, etc.) do NOT use `@map` directives. PostgreSQL stores columns with the same names as Prisma fields. When Prisma uses ORM, it knows the field names. But `$queryRaw` passes SQL directly to Postgres, which requires **quoted identifiers** for camelCase names.
 
-### Issue 2: Auth Guard Confusion
+### Issue 2: GROUP BY Clause Mismatch
+
+**Error:** Prisma error 42803 - `column "ProductSale.soldAt" must appear in the GROUP BY clause or be used in an aggregate function`
+
+**Why it failed:**  
+PostgreSQL requires that when using aggregate functions (like `SUM`), any non-aggregated columns in SELECT must match the GROUP BY clause. The initial fix used `GROUP BY ("soldAt" AT TIME ZONE $1)::date` but PostgreSQL was strict about expression matching.
+
+**Solution:** Use ordinal position `GROUP BY 1` which references the first column in SELECT. This is cleaner and avoids expression mismatch issues.
+
+### Issue 3: Auth Guard Confusion
 
 Logs showed: `BillingStatusGuard: Skipping check - no user or tenantId` for reports endpoints, creating confusion about authentication.
 
@@ -62,7 +75,8 @@ WHERE "tenantId" = $2
   AND "branchId" = $3
   AND "soldAt" >= $4
   AND "soldAt" < $5
-GROUP BY ("soldAt" AT TIME ZONE $1)::date;
+GROUP BY 1
+ORDER BY 1;
 ```
 
 **Key rules for Postgres camelCase identifiers:**
@@ -71,6 +85,7 @@ GROUP BY ("soldAt" AT TIME ZONE $1)::date;
 2. Table names are already quoted: `"ProductSale"`, `"Payment"`
 3. Without quotes, Postgres lowercases all identifiers
 4. `$queryRaw` passes SQL verbatim - no ORM field name translation
+5. **GROUP BY 1**: Uses ordinal position (first SELECT column) - cleaner and avoids PostgreSQL error 42803
 
 ### B) Clarified Guard Order Documentation
 
