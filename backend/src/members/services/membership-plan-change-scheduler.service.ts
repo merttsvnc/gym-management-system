@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
 import { PgAdvisoryLockService } from '../../common/services/pg-advisory-lock.service';
+import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class MembershipPlanChangeSchedulerService {
@@ -60,18 +61,21 @@ export class MembershipPlanChangeSchedulerService {
 
     for (const member of membersWithPendingChanges) {
       const lockName = `cron:plan-change:${member.id}`;
-      const acquired = await this.lockService.tryAcquire(lockName, correlationId);
-
-      if (!acquired) {
-        skippedLockCount++;
-        this.logger.debug(
-          `[${correlationId}] Skipped member ${member.id} (lock held by another instance)`,
-        );
-        continue;
-      }
-
       try {
-        await this.applyPendingChange(member.id, member.tenantId);
+        const { acquired } = await this.lockService.executeWithLock(
+          lockName,
+          correlationId,
+          (tx) => this.applyPendingChangeWithTx(member.id, member.tenantId, tx),
+        );
+
+        if (!acquired) {
+          skippedLockCount++;
+          this.logger.debug(
+            `[${correlationId}] Skipped member ${member.id} (lock held by another instance)`,
+          );
+          continue;
+        }
+
         appliedCount++;
       } catch (error) {
         this.logger.error(
@@ -79,8 +83,6 @@ export class MembershipPlanChangeSchedulerService {
           error.stack,
         );
         errorCount++;
-      } finally {
-        await this.lockService.release(lockName, correlationId);
       }
     }
 
@@ -94,7 +96,21 @@ export class MembershipPlanChangeSchedulerService {
    * Called by the cron job and can be called directly for testing
    */
   async applyPendingChange(memberId: string, tenantId: string) {
-    const member = await this.prisma.member.findUnique({
+    await this.prisma.$transaction((tx) =>
+      this.applyPendingChangeWithTx(memberId, tenantId, tx),
+    );
+  }
+
+  /**
+   * Apply a pending plan change using the provided transaction client.
+   * Used by executeWithLock to keep lock acquire/work/release on same session.
+   */
+  async applyPendingChangeWithTx(
+    memberId: string,
+    tenantId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    const member = await tx.member.findUnique({
       where: { id: memberId },
       include: {
         membershipPlan: true,
@@ -117,54 +133,60 @@ export class MembershipPlanChangeSchedulerService {
       );
     }
 
-    // Apply the change in a transaction
-    await this.prisma.$transaction(async (tx) => {
-      // Update active membership fields
-      await tx.member.update({
-        where: { id: memberId },
-        data: {
-          membershipPlanId: member.pendingMembershipPlanId!,
-          membershipPriceAtPurchase: member.pendingMembershipPriceAtPurchase,
-          membershipStartDate: member.pendingMembershipStartDate!,
-          membershipEndDate: member.pendingMembershipEndDate!,
-          // Clear pending fields
-          pendingMembershipPlanId: null,
-          pendingMembershipStartDate: null,
-          pendingMembershipEndDate: null,
-          pendingMembershipPriceAtPurchase: null,
-          pendingMembershipScheduledAt: null,
-          pendingMembershipScheduledByUserId: null,
-        },
-      });
+    // Update active membership fields
+    await tx.member.update({
+      where: { id: memberId },
+      data: {
+        membershipPlanId: member.pendingMembershipPlanId!,
+        membershipPriceAtPurchase: member.pendingMembershipPriceAtPurchase,
+        membershipStartDate: member.pendingMembershipStartDate!,
+        membershipEndDate: member.pendingMembershipEndDate!,
+        // Clear pending fields
+        pendingMembershipPlanId: null,
+        pendingMembershipStartDate: null,
+        pendingMembershipEndDate: null,
+        pendingMembershipPriceAtPurchase: null,
+        pendingMembershipScheduledAt: null,
+        pendingMembershipScheduledByUserId: null,
+      },
+    });
 
-      // Create history record with changeType="APPLIED"
-      // effectiveDateDay: defense-in-depth for unique constraint (prevents duplicate APPLIED per member per day)
-      const newStartDate = member.pendingMembershipStartDate!;
-      const effectiveDateDay = new Date(newStartDate);
-      effectiveDateDay.setUTCHours(0, 0, 0, 0);
+    // Create history record with changeType="APPLIED"
+    // effectiveDateDay: defense-in-depth for unique constraint (prevents duplicate APPLIED per member per day)
+    const newStartDate = member.pendingMembershipStartDate!;
+    const effectiveDateDay = normalizeToUtcDateOnly(newStartDate);
 
-      await tx.memberPlanChangeHistory.create({
-        data: {
-          tenantId: member.tenantId,
-          memberId: member.id,
-          oldPlanId: member.membershipPlanId,
-          newPlanId: member.pendingMembershipPlanId!,
-          oldStartDate: member.membershipStartDate,
-          oldEndDate: member.membershipEndDate,
-          newStartDate,
-          newEndDate: member.pendingMembershipEndDate!,
-          oldPriceAtPurchase: member.membershipPriceAtPurchase
-            ? member.membershipPriceAtPurchase.toNumber()
-            : null,
-          newPriceAtPurchase: member.pendingMembershipPriceAtPurchase
-            ? member.pendingMembershipPriceAtPurchase.toNumber()
-            : null,
-          changeType: 'APPLIED',
-          appliedAt: new Date(),
-          changedByUserId: member.pendingMembershipScheduledByUserId,
-          effectiveDateDay,
-        },
-      });
+    await tx.memberPlanChangeHistory.create({
+      data: {
+        tenantId: member.tenantId,
+        memberId: member.id,
+        oldPlanId: member.membershipPlanId,
+        newPlanId: member.pendingMembershipPlanId!,
+        oldStartDate: member.membershipStartDate,
+        oldEndDate: member.membershipEndDate,
+        newStartDate,
+        newEndDate: member.pendingMembershipEndDate!,
+        oldPriceAtPurchase: member.membershipPriceAtPurchase
+          ? member.membershipPriceAtPurchase.toNumber()
+          : null,
+        newPriceAtPurchase: member.pendingMembershipPriceAtPurchase
+          ? member.pendingMembershipPriceAtPurchase.toNumber()
+          : null,
+        changeType: 'APPLIED',
+        appliedAt: new Date(),
+        changedByUserId: member.pendingMembershipScheduledByUserId,
+        effectiveDateDay,
+      },
     });
   }
+}
+
+/**
+ * Normalize a date to UTC midnight (date-only). Use for effectiveDateDay to ensure
+ * timezone-safe uniqueness matching the partial unique index.
+ */
+function normalizeToUtcDateOnly(date: Date): Date {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
 }

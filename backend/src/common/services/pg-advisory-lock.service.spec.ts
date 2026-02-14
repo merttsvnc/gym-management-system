@@ -7,9 +7,11 @@ describe('PgAdvisoryLockService', () => {
   let prisma: PrismaService;
 
   const mockQueryRaw = jest.fn();
+  const mockTransaction = jest.fn();
 
   const mockPrismaService = {
     $queryRaw: mockQueryRaw,
+    $transaction: mockTransaction,
   };
 
   beforeEach(async () => {
@@ -101,6 +103,69 @@ describe('PgAdvisoryLockService', () => {
       await expect(
         service.release('cron:plan-change:member-123', 'corr-1'),
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe('executeWithLock', () => {
+    it('should run work on same session and return result when lock acquired', async () => {
+      mockTransaction.mockImplementation(async (fn) => {
+        const mockTx = {
+          $queryRaw: jest
+            .fn()
+            .mockResolvedValueOnce([{ acquired: true }])
+            .mockResolvedValueOnce([{ pg_advisory_unlock: true }]),
+        };
+        return fn(mockTx);
+      });
+
+      const result = await service.executeWithLock(
+        'cron:test:lock',
+        'corr-1',
+        async (tx) => {
+          expect(tx).toBeDefined();
+          return 'work-result';
+        },
+      );
+
+      expect(result).toEqual({ acquired: true, result: 'work-result' });
+      expect(mockTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return acquired: false when lock not acquired', async () => {
+      mockTransaction.mockImplementation(async (fn) => {
+        const mockTx = {
+          $queryRaw: jest.fn().mockResolvedValueOnce([{ acquired: false }]),
+        };
+        return fn(mockTx);
+      });
+
+      const workFn = jest.fn();
+      const result = await service.executeWithLock(
+        'cron:test:lock',
+        'corr-1',
+        workFn,
+      );
+
+      expect(result).toEqual({ acquired: false });
+      expect(workFn).not.toHaveBeenCalled();
+    });
+
+    it('should rethrow when work throws', async () => {
+      mockTransaction.mockImplementation(async (fn) => {
+        const mockTx = {
+          $queryRaw: jest
+            .fn()
+            .mockResolvedValueOnce([{ acquired: true }])
+            .mockResolvedValueOnce([{ pg_advisory_unlock: true }]),
+        };
+        return fn(mockTx);
+      });
+
+      await expect(
+        service.executeWithLock('cron:test:lock', 'corr-1', async () => {
+          throw new Error('Work failed');
+        }),
+      ).rejects.toThrow('Work failed');
     });
   });
 });

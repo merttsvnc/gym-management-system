@@ -6,17 +6,16 @@ import { MemberStatusSyncService } from './member-status-sync.service';
 describe('MemberStatusSyncService', () => {
   let service: MemberStatusSyncService;
 
-  const mockTryAcquire = jest.fn();
-  const mockRelease = jest.fn();
+  const mockExecuteWithLock = jest.fn();
 
   const mockPrismaService = {
     tenant: { findMany: jest.fn() },
     member: { findMany: jest.fn(), updateMany: jest.fn() },
+    $transaction: jest.fn(),
   };
 
   const mockLockService = {
-    tryAcquire: mockTryAcquire,
-    release: mockRelease,
+    executeWithLock: mockExecuteWithLock,
     generateCorrelationId: jest.fn().mockReturnValue('corr-456'),
   };
 
@@ -38,8 +37,7 @@ describe('MemberStatusSyncService', () => {
     service = module.get<MemberStatusSyncService>(MemberStatusSyncService);
 
     jest.clearAllMocks();
-    mockTryAcquire.mockResolvedValue(true);
-    mockRelease.mockResolvedValue(undefined);
+    mockExecuteWithLock.mockResolvedValue({ acquired: true });
     mockPrismaService.tenant.findMany.mockResolvedValue([{ id: 'tenant-1' }]);
     mockPrismaService.member.findMany.mockResolvedValue([]);
     mockPrismaService.member.updateMany.mockResolvedValue({ count: 0 });
@@ -47,48 +45,53 @@ describe('MemberStatusSyncService', () => {
 
   describe('handleCron (via syncExpiredMemberStatuses)', () => {
     it('should return early when lock is not acquired', async () => {
-      mockTryAcquire.mockResolvedValue(false);
+      mockExecuteWithLock.mockResolvedValue({ acquired: false });
 
       await service.handleCron();
 
-      expect(mockTryAcquire).toHaveBeenCalledWith(
+      expect(mockExecuteWithLock).toHaveBeenCalledWith(
         'cron:status-sync:global',
         'corr-456',
+        expect.any(Function),
       );
-      expect(mockRelease).not.toHaveBeenCalled();
       expect(mockPrismaService.tenant.findMany).not.toHaveBeenCalled();
     });
 
-    it('should run sync and release lock when lock is acquired', async () => {
+    it('should run sync when lock is acquired', async () => {
       mockPrismaService.member.findMany.mockResolvedValue([
         { id: 'member-1' },
       ]);
       mockPrismaService.member.updateMany.mockResolvedValue({ count: 5 });
+      mockExecuteWithLock.mockImplementation(async (_lockName, _corrId, work) => {
+        const tx = {
+          tenant: mockPrismaService.tenant,
+          member: mockPrismaService.member,
+        };
+        const result = await work(tx);
+        return { acquired: true, result };
+      });
 
       await service.handleCron();
 
-      expect(mockTryAcquire).toHaveBeenCalledWith(
+      expect(mockExecuteWithLock).toHaveBeenCalledWith(
         'cron:status-sync:global',
         'corr-456',
-      );
-      expect(mockRelease).toHaveBeenCalledWith(
-        'cron:status-sync:global',
-        'corr-456',
+        expect.any(Function),
       );
       expect(mockPrismaService.tenant.findMany).toHaveBeenCalled();
     });
 
-    it('should release lock in finally when sync throws', async () => {
-      mockPrismaService.tenant.findMany.mockRejectedValue(
-        new Error('DB error'),
-      );
+    it('should rethrow when sync throws', async () => {
+      mockExecuteWithLock.mockImplementation(async (_lockName, _corrId, work) => {
+        const tx = {
+          tenant: { findMany: jest.fn().mockRejectedValue(new Error('DB error')) },
+          member: mockPrismaService.member,
+        };
+        await work(tx);
+        return { acquired: true };
+      });
 
       await expect(service.handleCron()).rejects.toThrow('DB error');
-
-      expect(mockRelease).toHaveBeenCalledWith(
-        'cron:status-sync:global',
-        'corr-456',
-      );
     });
   });
 });
