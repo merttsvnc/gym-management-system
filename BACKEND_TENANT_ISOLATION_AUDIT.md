@@ -13,11 +13,11 @@ This audit identified **18 high-priority findings** across 6 service modules whe
 
 ### Severity Distribution
 
-| Severity | Count | Description |
-|----------|-------|-------------|
-| **P0** | 18 | Critical: Direct tenant isolation violations |
-| **P1** | 0 | High: Potential issues requiring confirmation |
-| **P2** | 0 | Medium: Best practice improvements |
+| Severity | Count | Description                                   |
+| -------- | ----- | --------------------------------------------- |
+| **P0**   | 18    | Critical: Direct tenant isolation violations  |
+| **P1**   | 0     | High: Potential issues requiring confirmation |
+| **P2**   | 0     | Medium: Best practice improvements            |
 
 **Overall Risk Level:** 🔴 **HIGH** - Immediate remediation required before production deployment
 
@@ -35,15 +35,15 @@ async findOne(tenantId: string, id: string) {
   const record = await this.prisma.model.findUnique({
     where: { id }  // ← No tenant filter!
   });
-  
+
   if (!record) {
     throw new NotFoundException('Not found');
   }
-  
+
   if (record.tenantId !== tenantId) {  // ← Check happens AFTER query
     throw new NotFoundException('Not found');
   }
-  
+
   return record;
 }
 ```
@@ -61,16 +61,16 @@ async findOne(tenantId: string, id: string) {
 // ✅ SAFE PATTERN
 async findOne(tenantId: string, id: string) {
   const record = await this.prisma.model.findFirst({
-    where: { 
+    where: {
       id,
       tenantId  // ← Tenant filter in the query itself
     }
   });
-  
+
   if (!record) {
     throw new NotFoundException('Not found');
   }
-  
+
   return record;
 }
 
@@ -78,10 +78,10 @@ async findOne(tenantId: string, id: string) {
 async update(tenantId: string, id: string, data: any) {
   // Validate first with findFirst
   await this.findOne(tenantId, id);
-  
+
   // Then update with BOTH id AND tenantId
   return this.prisma.model.updateMany({
-    where: { 
+    where: {
       id,
       tenantId  // ← Include tenant in the actual operation
     },
@@ -97,6 +97,7 @@ async update(tenantId: string, id: string, data: any) {
 ### 1. Members Service (`members.service.ts`)
 
 #### P0-001: Member Lookup Without Tenant Filter
+
 - **Location:** `findOne()` method, line ~410
 - **Vulnerability:**
   ```typescript
@@ -116,6 +117,7 @@ async update(tenantId: string, id: string, data: any) {
   ```
 
 #### P0-002: Branch Validation in Member Creation
+
 - **Location:** `create()` method, line ~88
 - **Vulnerability:**
   ```typescript
@@ -128,21 +130,23 @@ async update(tenantId: string, id: string, data: any) {
 - **Fix:**
   ```typescript
   const branch = await this.prisma.branch.findFirst({
-    where: { id: dto.branchId, tenantId }
+    where: { id: dto.branchId, tenantId },
   });
   ```
 
 #### P0-003: Branch Validation in Member Update
+
 - **Location:** `update()` method, line ~444
 - **Vulnerability:** Same pattern as P0-002
 - **Fix:** Apply same fix as P0-002
 
 #### P0-004: Member Update Operation
+
 - **Location:** `update()` method, line ~570
 - **Vulnerability:**
   ```typescript
   const updatedMember = await this.prisma.member.update({
-    where: { id },  // ← Missing tenantId
+    where: { id }, // ← Missing tenantId
     data: updateData,
   });
   ```
@@ -154,17 +158,19 @@ async update(tenantId: string, id: string, data: any) {
     data: updateData,
   });
   if (updatedMember.count === 0) {
-    throw new NotFoundException('Member not found');
+    throw new NotFoundException("Member not found");
   }
   ```
 
 #### P0-005: Member Status Change
+
 - **Location:** `changeStatus()` method, line ~694
 - **Vulnerability:** Same as P0-004 - uses `update({ where: { id } })`
 - **Risk:** Race condition could allow status change of wrong tenant's member
 - **Fix:** Use `updateMany` with tenant filter (same as P0-004)
 
 #### P0-006: Member Archive
+
 - **Location:** `archive()` method, line ~715
 - **Vulnerability:** Same as P0-004 - uses `update({ where: { id } })`
 - **Risk:** Race condition could allow archiving wrong tenant's member
@@ -175,6 +181,7 @@ async update(tenantId: string, id: string, data: any) {
 ### 2. Payments Service (`payments.service.ts`)
 
 #### P0-007: Payment Lookup Without Tenant Filter
+
 - **Location:** `getPaymentById()` method, line ~310
 - **Vulnerability:**
   ```typescript
@@ -193,6 +200,7 @@ async update(tenantId: string, id: string, data: any) {
   ```
 
 #### P0-008: Member Validation in Payment Creation
+
 - **Location:** `createPayment()` method, line ~88
 - **Vulnerability:**
   ```typescript
@@ -206,7 +214,7 @@ async update(tenantId: string, id: string, data: any) {
   ```typescript
   const member = await this.prisma.member.findFirst({
     where: { id: input.memberId, tenantId },
-    include: { branch: true }
+    include: { branch: true },
   });
   ```
 
@@ -215,6 +223,7 @@ async update(tenantId: string, id: string, data: any) {
 ### 3. Branches Service (`branches.service.ts`)
 
 #### P0-009: Branch Lookup Without Tenant Filter
+
 - **Location:** `getBranchById()` method, line ~59
 - **Vulnerability:**
   ```typescript
@@ -227,16 +236,17 @@ async update(tenantId: string, id: string, data: any) {
 - **Fix:**
   ```typescript
   const branch = await this.prisma.branch.findFirst({
-    where: { id: branchId, tenantId }
+    where: { id: branchId, tenantId },
   });
   ```
 
 #### P0-010: Branch Update Operation
+
 - **Location:** `updateBranch()` method, line ~163
 - **Vulnerability:**
   ```typescript
   return this.prisma.branch.update({
-    where: { id: branchId },  // ← Missing tenantId
+    where: { id: branchId }, // ← Missing tenantId
     data: dto,
   });
   ```
@@ -248,11 +258,12 @@ async update(tenantId: string, id: string, data: any) {
     data: dto,
   });
   if (result.count === 0) {
-    throw new NotFoundException('Branch not found');
+    throw new NotFoundException("Branch not found");
   }
   ```
 
 #### P0-011: Branch Archive Operation
+
 - **Location:** `archiveBranch()` method, line ~197
 - **Vulnerability:** Same as P0-010 - uses `update({ where: { id } })`
 - **Fix:** Same as P0-010 - use `updateMany` with tenant filter
@@ -262,6 +273,7 @@ async update(tenantId: string, id: string, data: any) {
 ### 4. Membership Plans Service (`membership-plans.service.ts`)
 
 #### P0-012: Plan Lookup Without Tenant Filter
+
 - **Location:** `getPlanByIdForTenant()` method, line ~305
 - **Vulnerability:**
   ```typescript
@@ -274,16 +286,17 @@ async update(tenantId: string, id: string, data: any) {
 - **Fix:**
   ```typescript
   const plan = await this.prisma.membershipPlan.findFirst({
-    where: { id: planId, tenantId }
+    where: { id: planId, tenantId },
   });
   ```
 
 #### P0-013: Plan Update Operation
+
 - **Location:** `updatePlanForTenant()` method, line ~426
 - **Vulnerability:**
   ```typescript
   return this.prisma.membershipPlan.update({
-    where: { id: planId },  // ← Missing tenantId
+    where: { id: planId }, // ← Missing tenantId
     data: updateData,
   });
   ```
@@ -295,36 +308,39 @@ async update(tenantId: string, id: string, data: any) {
     data: updateData,
   });
   if (result.count === 0) {
-    throw new NotFoundException('Plan not found');
+    throw new NotFoundException("Plan not found");
   }
   ```
 
 #### P0-014: Plan Archive Operation
+
 - **Location:** `archivePlanForTenant()` method, line ~455
 - **Vulnerability:** Same as P0-013
 - **Fix:** Same as P0-013 - use `updateMany` with tenant filter
 
 #### P0-015: Plan Restore Operation
+
 - **Location:** `restorePlanForTenant()` method, line ~498
 - **Vulnerability:** Same as P0-013
 - **Fix:** Same as P0-013 - use `updateMany` with tenant filter
 
 #### P0-016: Plan Delete Operation
+
 - **Location:** `deletePlanForTenant()` method, line ~531
 - **Vulnerability:**
   ```typescript
   await this.prisma.membershipPlan.delete({
-    where: { id: planId },  // ← Missing tenantId
+    where: { id: planId }, // ← Missing tenantId
   });
   ```
 - **Risk:** Race condition could allow deleting wrong tenant's plan
 - **Fix:**
   ```typescript
   const result = await this.prisma.membershipPlan.deleteMany({
-    where: { id: planId, tenantId }
+    where: { id: planId, tenantId },
   });
   if (result.count === 0) {
-    throw new NotFoundException('Plan not found');
+    throw new NotFoundException("Plan not found");
   }
   ```
 
@@ -333,11 +349,12 @@ async update(tenantId: string, id: string, data: any) {
 ### 5. Products Service (`products.service.ts`)
 
 #### P0-017: Product Update Operation
+
 - **Location:** `update()` method, line ~153
 - **Vulnerability:**
   ```typescript
   return this.prisma.product.update({
-    where: { id },  // ← Missing tenantId
+    where: { id }, // ← Missing tenantId
     data: updateData,
   });
   ```
@@ -349,11 +366,12 @@ async update(tenantId: string, id: string, data: any) {
     data: updateData,
   });
   if (result.count === 0) {
-    throw new NotFoundException('Product not found');
+    throw new NotFoundException("Product not found");
   }
   ```
 
 #### P0-018: Product Soft Delete
+
 - **Location:** `remove()` method, line ~163
 - **Vulnerability:** Same as P0-017
 - **Fix:** Same as P0-017 - use `updateMany` with full tenant+branch filter
@@ -365,21 +383,24 @@ async update(tenantId: string, id: string, data: any) {
 **Status:** ✅ **SAFE** - Uses `findFirst` with full tenant+branch filters
 
 The `findOne()` method correctly implements tenant isolation:
+
 ```typescript
 const sale = await this.prisma.productSale.findFirst({
-  where: { id, tenantId, branchId }  // ✅ Correct!
+  where: { id, tenantId, branchId }, // ✅ Correct!
 });
 ```
 
 The `remove()` method calls `findOne()` first and then uses:
+
 ```typescript
 await this.prisma.productSale.delete({ where: { id } });
 ```
 
 **Recommendation:** While currently safe due to prior validation, consider using `deleteMany` for defense-in-depth:
+
 ```typescript
 const result = await this.prisma.productSale.deleteMany({
-  where: { id, tenantId, branchId }
+  where: { id, tenantId, branchId },
 });
 ```
 
@@ -460,13 +481,13 @@ The following composite unique constraints are properly defined:
 Controllers consistently use the correct pattern:
 
 ```typescript
-@Controller('members')
+@Controller("members")
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class MembersController {
-  @Get(':id')
+  @Get(":id")
   findOne(
-    @CurrentUser('tenantId') tenantId: string,  // ✅ Extracted from JWT
-    @Param('id') id: string,
+    @CurrentUser("tenantId") tenantId: string, // ✅ Extracted from JWT
+    @Param("id") id: string,
   ) {
     return this.membersService.findOne(tenantId, id);
   }
@@ -484,36 +505,42 @@ export class MembersController {
 Replace all ID-only `findUnique` calls with tenant-filtered `findFirst`:
 
 1. **`members.service.ts:~410`** - `findOne()`:
+
    ```typescript
    - const member = await this.prisma.member.findUnique({ where: { id } });
    + const member = await this.prisma.member.findFirst({ where: { id, tenantId } });
    ```
 
 2. **`members.service.ts:~88`** - `create()` branch validation:
+
    ```typescript
    - const branch = await this.prisma.branch.findUnique({ where: { id: dto.branchId } });
    + const branch = await this.prisma.branch.findFirst({ where: { id: dto.branchId, tenantId } });
    ```
 
 3. **`members.service.ts:~444`** - `update()` branch validation:
+
    ```typescript
    - const branch = await this.prisma.branch.findUnique({ where: { id: dto.branchId } });
    + const branch = await this.prisma.branch.findFirst({ where: { id: dto.branchId, tenantId } });
    ```
 
 4. **`payments.service.ts:~310`** - `getPaymentById()`:
+
    ```typescript
    - const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
    + const payment = await this.prisma.payment.findFirst({ where: { id: paymentId, tenantId } });
    ```
 
 5. **`payments.service.ts:~88`** - `createPayment()` member validation:
+
    ```typescript
    - const member = await this.prisma.member.findUnique({ where: { id: input.memberId } });
    + const member = await this.prisma.member.findFirst({ where: { id: input.memberId, tenantId } });
    ```
 
 6. **`branches.service.ts:~59`** - `getBranchById()`:
+
    ```typescript
    - const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
    + const branch = await this.prisma.branch.findFirst({ where: { id: branchId, tenantId } });
@@ -530,6 +557,7 @@ Replace all ID-only `findUnique` calls with tenant-filtered `findFirst`:
 Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteMany`:
 
 8. **`members.service.ts:~570`** - `update()`:
+
    ```typescript
    - const updatedMember = await this.prisma.member.update({
    -   where: { id },
@@ -544,6 +572,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
    ```
 
 9. **`members.service.ts:~694`** - `changeStatus()`:
+
    ```typescript
    - const updatedMember = await this.prisma.member.update({
    -   where: { id },
@@ -558,6 +587,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
    ```
 
 10. **`members.service.ts:~715`** - `archive()`:
+
     ```typescript
     - const archivedMember = await this.prisma.member.update({
     -   where: { id },
@@ -572,6 +602,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
     ```
 
 11. **`branches.service.ts:~163`** - `updateBranch()`:
+
     ```typescript
     - return this.prisma.branch.update({
     -   where: { id: branchId },
@@ -586,6 +617,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
     ```
 
 12. **`branches.service.ts:~197`** - `archiveBranch()`:
+
     ```typescript
     - return this.prisma.branch.update({
     -   where: { id: branchId },
@@ -600,6 +632,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
     ```
 
 13. **`membership-plans.service.ts:~426`** - `updatePlanForTenant()`:
+
     ```typescript
     - return this.prisma.membershipPlan.update({
     -   where: { id: planId },
@@ -614,6 +647,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
     ```
 
 14. **`membership-plans.service.ts:~455`** - `archivePlanForTenant()`:
+
     ```typescript
     - const archivedPlan = await this.prisma.membershipPlan.update({
     -   where: { id: planId },
@@ -628,6 +662,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
     ```
 
 15. **`membership-plans.service.ts:~498`** - `restorePlanForTenant()`:
+
     ```typescript
     - return this.prisma.membershipPlan.update({
     -   where: { id: planId },
@@ -642,6 +677,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
     ```
 
 16. **`membership-plans.service.ts:~531`** - `deletePlanForTenant()`:
+
     ```typescript
     - await this.prisma.membershipPlan.delete({
     -   where: { id: planId },
@@ -653,6 +689,7 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
     ```
 
 17. **`products.service.ts:~153`** - `update()`:
+
     ```typescript
     - return this.prisma.product.update({
     -   where: { id },
@@ -713,22 +750,22 @@ Replace all ID-only `update`/`delete` with tenant-filtered `updateMany`/`deleteM
 ### Unit Test Template
 
 ```typescript
-describe('MembersService - Tenant Isolation', () => {
-  it('should not allow cross-tenant member access', async () => {
+describe("MembersService - Tenant Isolation", () => {
+  it("should not allow cross-tenant member access", async () => {
     // Create member in tenant1
     const member = await createMember(tenant1Id);
-    
+
     // Attempt to access as tenant2
-    await expect(
-      service.findOne(tenant2Id, member.id)
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.findOne(tenant2Id, member.id)).rejects.toThrow(
+      NotFoundException,
+    );
   });
-  
-  it('should not allow cross-tenant member updates', async () => {
+
+  it("should not allow cross-tenant member updates", async () => {
     const member = await createMember(tenant1Id);
-    
+
     await expect(
-      service.update(tenant2Id, member.id, { firstName: 'Hacked' })
+      service.update(tenant2Id, member.id, { firstName: "Hacked" }),
     ).rejects.toThrow(NotFoundException);
   });
 });
@@ -739,16 +776,19 @@ describe('MembersService - Tenant Isolation', () => {
 ## Implementation Priority
 
 ### 🔴 Phase 1: Critical Fixes (Deploy ASAP)
+
 **Timeline:** 1-2 days  
 **Items:** Fixes #1-7 (all `findUnique` → `findFirst` conversions)  
 **Impact:** Eliminates timing attack vectors and information disclosure
 
 ### 🟠 Phase 2: Write Operation Safety (Pre-Production)
+
 **Timeline:** 2-3 days  
 **Items:** Fixes #8-18 (all `update`/`delete` → `updateMany`/`deleteMany`)  
 **Impact:** Prevents race condition exploits and ensures database-level enforcement
 
 ### 🟡 Phase 3: Testing & Validation (Pre-Production)
+
 **Timeline:** 2-3 days  
 **Items:** Comprehensive penetration testing and unit test coverage  
 **Impact:** Validates fixes and prevents regression
@@ -758,6 +798,7 @@ describe('MembersService - Tenant Isolation', () => {
 ## Conclusion
 
 The codebase exhibits a **systematic pattern** of tenant isolation issues stemming from:
+
 1. Reliance on post-query application-level checks
 2. Use of single-ID `findUnique`/`update`/`delete` operations
 3. TOCTOU (Time-of-Check-Time-of-Use) vulnerabilities
@@ -765,6 +806,7 @@ The codebase exhibits a **systematic pattern** of tenant isolation issues stemmi
 **Recommendation:** Apply all 18 fixes before production deployment. While no active exploitation was detected, the attack surface is significant and easily exploitable by a motivated attacker with basic API knowledge.
 
 **Post-Remediation:** Establish coding standards requiring:
+
 - All Prisma queries include tenant filters in the `where` clause
 - Use `findFirst` for reads, `updateMany`/`deleteMany` for writes
 - Mandatory peer review for any tenant-scoped data access patterns
