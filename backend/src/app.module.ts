@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
+import { CommonModule } from './common/common.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { BranchesModule } from './branches/branches.module';
 import { AuthModule } from './auth/auth.module';
@@ -35,6 +36,7 @@ import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
       },
     ]),
     PrismaModule,
+    CommonModule,
     TenantsModule,
     BranchesModule,
     UsersModule,

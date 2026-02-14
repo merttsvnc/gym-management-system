@@ -393,6 +393,9 @@ model MemberPlanChangeHistory {
   appliedAt       DateTime?
   changedByUserId String?
 
+  // Defense-in-depth: date-only field for APPLIED uniqueness (prevents duplicate history per member per effective date)
+  effectiveDateDay DateTime? @db.Date
+
   // Timestamps
   createdAt DateTime @default(now())
 

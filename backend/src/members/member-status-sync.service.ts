@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { getTodayStart } from '../common/utils/membership-status.util';
+import { PgAdvisoryLockService } from '../common/services/pg-advisory-lock.service';
+
+const GLOBAL_LOCK_NAME = 'cron:status-sync:global';
 
 /**
  * Daily status sync service
@@ -16,12 +19,16 @@ import { getTodayStart } from '../common/utils/membership-status.util';
  * Updates status to INACTIVE to align manual status with derived membership state.
  *
  * Runs daily at 03:00 AM to catch expired memberships.
+ * Uses global advisory lock so only one instance runs per execution window.
  */
 @Injectable()
 export class MemberStatusSyncService {
   private readonly logger = new Logger(MemberStatusSyncService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly lockService: PgAdvisoryLockService,
+  ) {}
 
   /**
    * Daily cron job to sync member statuses
@@ -32,17 +39,41 @@ export class MemberStatusSyncService {
     timeZone: 'UTC',
   })
   async handleCron() {
-    this.logger.log('Starting daily member status sync job');
-    await this.syncExpiredMemberStatuses();
+    const correlationId =
+      this.lockService.generateCorrelationId('status-sync');
+    this.logger.log(
+      `[${correlationId}] Starting daily member status sync job`,
+    );
+
+    const acquired = await this.lockService.tryAcquire(
+      GLOBAL_LOCK_NAME,
+      correlationId,
+    );
+
+    if (!acquired) {
+      this.logger.log(
+        `[${correlationId}] Job skipped: Another instance is running status sync`,
+      );
+      return;
+    }
+
+    try {
+      await this.syncExpiredMemberStatuses(correlationId);
+    } finally {
+      await this.lockService.release(GLOBAL_LOCK_NAME, correlationId);
+    }
   }
 
   /**
    * Sync expired member statuses
    * Can be called directly for testing or manual execution
    *
+   * @param correlationId Optional correlation ID for logging (defaults to "manual")
    * @returns Object with counts of updated members per tenant
    */
-  async syncExpiredMemberStatuses(): Promise<{
+  async syncExpiredMemberStatuses(
+    correlationId: string = 'manual',
+  ): Promise<{
     totalUpdated: number;
     updatesByTenant: Record<string, number>;
   }> {
@@ -58,7 +89,9 @@ export class MemberStatusSyncService {
         },
       });
 
-      this.logger.debug(`Processing ${tenants.length} tenants for status sync`);
+      this.logger.debug(
+        `[${correlationId}] Processing ${tenants.length} tenants for status sync`,
+      );
 
       // Process each tenant
       for (const tenant of tenants) {
@@ -101,12 +134,12 @@ export class MemberStatusSyncService {
 
           if (count > 0) {
             this.logger.log(
-              `Tenant ${tenant.id}: Updated ${count} expired active members to INACTIVE`,
+              `[${correlationId}] Tenant ${tenant.id}: Updated ${count} expired active members to INACTIVE`,
             );
           }
         } catch (error) {
           this.logger.error(
-            `Error syncing statuses for tenant ${tenant.id}: ${error.message}`,
+            `[${correlationId}] Error syncing statuses for tenant ${tenant.id}: ${error.message}`,
             error.stack,
           );
           // Continue processing other tenants even if one fails
@@ -114,7 +147,7 @@ export class MemberStatusSyncService {
       }
 
       this.logger.log(
-        `Status sync completed: ${totalUpdated} members updated across ${Object.keys(updatesByTenant).length} tenants`,
+        `[${correlationId}] Status sync completed: ${totalUpdated} members updated across ${Object.keys(updatesByTenant).length} tenants`,
       );
 
       return {
@@ -123,7 +156,7 @@ export class MemberStatusSyncService {
       };
     } catch (error) {
       this.logger.error(
-        `Fatal error in status sync job: ${error.message}`,
+        `[${correlationId}] Fatal error in status sync job: ${error.message}`,
         error.stack,
       );
       throw error;

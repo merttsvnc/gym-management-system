@@ -56,6 +56,8 @@ export class RateLimiterService {
     );
 
     // Clean up expired entries every 5 minutes
+    // NOTE (multi-instance): Rate limits are per-instance only. In multi-instance deployments,
+    // the same IP/email can hit different instances and bypass limits. Consider Redis for shared limits.
     this.cleanupInterval = setInterval(
       () => {
         this.cleanup();

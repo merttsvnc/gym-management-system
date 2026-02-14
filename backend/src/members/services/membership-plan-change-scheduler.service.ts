@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
+import { PgAdvisoryLockService } from '../../common/services/pg-advisory-lock.service';
 
 @Injectable()
 export class MembershipPlanChangeSchedulerService {
@@ -8,17 +9,25 @@ export class MembershipPlanChangeSchedulerService {
     MembershipPlanChangeSchedulerService.name,
   );
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly lockService: PgAdvisoryLockService,
+  ) {}
 
   /**
    * Apply scheduled membership plan changes
    * Runs daily at 02:00 AM
    * Finds members with pending changes where pendingMembershipStartDate <= today
    * Applies the changes in a transaction and creates history records
+   * Uses per-member advisory locks to prevent duplicate processing across instances
    */
   @Cron('0 2 * * *') // Every day at 02:00 AM
   async applyScheduledMembershipPlanChanges() {
-    this.logger.log('Starting scheduled membership plan change job');
+    const correlationId =
+      this.lockService.generateCorrelationId('plan-change-scheduler');
+    this.logger.log(
+      `[${correlationId}] Starting scheduled membership plan change job`,
+    );
 
     // Use UTC normalization to avoid timezone issues when comparing dates
     const today = new Date();
@@ -40,28 +49,43 @@ export class MembershipPlanChangeSchedulerService {
       },
     });
 
+    const totalFound = membersWithPendingChanges.length;
     this.logger.log(
-      `Found ${membersWithPendingChanges.length} members with pending changes ready to apply`,
+      `[${correlationId}] Found ${totalFound} members with pending changes ready to apply`,
     );
 
     let appliedCount = 0;
     let errorCount = 0;
+    let skippedLockCount = 0;
 
     for (const member of membersWithPendingChanges) {
+      const lockName = `cron:plan-change:${member.id}`;
+      const acquired = await this.lockService.tryAcquire(lockName, correlationId);
+
+      if (!acquired) {
+        skippedLockCount++;
+        this.logger.debug(
+          `[${correlationId}] Skipped member ${member.id} (lock held by another instance)`,
+        );
+        continue;
+      }
+
       try {
         await this.applyPendingChange(member.id, member.tenantId);
         appliedCount++;
       } catch (error) {
         this.logger.error(
-          `Failed to apply pending change for member ${member.id}: ${error.message}`,
+          `[${correlationId}] Failed to apply pending change for member ${member.id}: ${error.message}`,
           error.stack,
         );
         errorCount++;
+      } finally {
+        await this.lockService.release(lockName, correlationId);
       }
     }
 
     this.logger.log(
-      `Scheduled plan change job completed: ${appliedCount} applied, ${errorCount} errors`,
+      `[${correlationId}] Scheduled plan change job completed: totalFound=${totalFound}, applied=${appliedCount}, skipped(lock)=${skippedLockCount}, errors=${errorCount}`,
     );
   }
 
@@ -114,6 +138,11 @@ export class MembershipPlanChangeSchedulerService {
       });
 
       // Create history record with changeType="APPLIED"
+      // effectiveDateDay: defense-in-depth for unique constraint (prevents duplicate APPLIED per member per day)
+      const newStartDate = member.pendingMembershipStartDate!;
+      const effectiveDateDay = new Date(newStartDate);
+      effectiveDateDay.setUTCHours(0, 0, 0, 0);
+
       await tx.memberPlanChangeHistory.create({
         data: {
           tenantId: member.tenantId,
@@ -122,7 +151,7 @@ export class MembershipPlanChangeSchedulerService {
           newPlanId: member.pendingMembershipPlanId!,
           oldStartDate: member.membershipStartDate,
           oldEndDate: member.membershipEndDate,
-          newStartDate: member.pendingMembershipStartDate!,
+          newStartDate,
           newEndDate: member.pendingMembershipEndDate!,
           oldPriceAtPurchase: member.membershipPriceAtPurchase
             ? member.membershipPriceAtPurchase.toNumber()
@@ -133,6 +162,7 @@ export class MembershipPlanChangeSchedulerService {
           changeType: 'APPLIED',
           appliedAt: new Date(),
           changedByUserId: member.pendingMembershipScheduledByUserId,
+          effectiveDateDay,
         },
       });
     });
