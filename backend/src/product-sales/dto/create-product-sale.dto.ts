@@ -12,8 +12,8 @@ import {
   MaxLength,
   MinLength,
   ValidateIf,
-  IsUUID,
 } from 'class-validator';
+import { IsProductIdOrUuid } from '../../common/validators/is-product-id.validator';
 import { Type } from 'class-transformer';
 import { PaymentMethod, Prisma } from '@prisma/client';
 
@@ -23,7 +23,8 @@ import { PaymentMethod, Prisma } from '@prisma/client';
  */
 export class SaleItemDto {
   @IsOptional()
-  @IsUUID('4', { message: 'productId must be a valid UUID' })
+  @IsString()
+  @IsProductIdOrUuid({ message: 'productId must be either CUID or UUID format' })
   @ValidateIf((o) => !o.customName)
   productId?: string;
 

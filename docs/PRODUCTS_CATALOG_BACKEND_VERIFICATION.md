@@ -232,3 +232,9 @@ The mobile Sales screen may show "Ürün bulunamadı" when:
 ---
 
 **Products Catalog backend verified (or fixed).**
+
+---
+
+## Related: Product Sales productId Format
+
+`POST /api/v1/product-sales` previously validated `productId` as UUID only, while Products return CUID. This caused "productId must be a valid UUID" when creating sales with catalog products. **Fixed.** See `docs/PRODUCT_ID_FORMAT_FIX.md`.

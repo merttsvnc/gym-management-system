@@ -256,9 +256,7 @@ export class ProductSalesService {
         });
 
         if (!product) {
-          throw new NotFoundException(
-            `Product with ID ${item.productId} not found or inactive in this branch`,
-          );
+          throw new BadRequestException('Invalid productId for this branch.');
         }
 
         // Use provided unitPrice or default to product's defaultPrice

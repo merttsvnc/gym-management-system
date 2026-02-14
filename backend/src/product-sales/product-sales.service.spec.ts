@@ -4,7 +4,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   BadRequestException,
   ForbiddenException,
-  NotFoundException,
 } from '@nestjs/common';
 import { Prisma, PaymentMethod } from '@prisma/client';
 
@@ -47,12 +46,13 @@ describe('ProductSalesService', () => {
   });
 
   describe('create', () => {
+    const validCuid = 'cmllx1luq0002a6jm2lxohg78';
     const mockDto = {
       soldAt: '2026-02-13T10:00:00Z',
       paymentMethod: PaymentMethod.CASH,
       items: [
         {
-          productId: 'product-1',
+          productId: validCuid,
           quantity: 2,
           unitPrice: 100,
         },
@@ -67,7 +67,7 @@ describe('ProductSalesService', () => {
         ...mockDto,
         items: [
           {
-            productId: 'product-1',
+            productId: validCuid,
             customName: 'Custom Item',
             quantity: 1,
           },
@@ -85,15 +85,15 @@ describe('ProductSalesService', () => {
       const dtoWithoutPrice = {
         ...mockDto,
         items: [
-          {
-            productId: 'product-1',
-            quantity: 2,
-          },
+        {
+          productId: validCuid,
+          quantity: 2,
+        },
         ],
       };
 
       const mockProduct = {
-        id: 'product-1',
+        id: validCuid,
         defaultPrice: new Prisma.Decimal(150),
         isActive: true,
       };
@@ -127,7 +127,7 @@ describe('ProductSalesService', () => {
         ...mockDto,
         items: [
           {
-            productId: 'product-1',
+            productId: validCuid,
             quantity: 2,
             unitPrice: 100,
           },
@@ -140,7 +140,7 @@ describe('ProductSalesService', () => {
       };
 
       const mockProduct = {
-        id: 'product-1',
+        id: validCuid,
         defaultPrice: new Prisma.Decimal(100),
         isActive: true,
       };
@@ -201,13 +201,15 @@ describe('ProductSalesService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException when productId not found', async () => {
+    it('should throw BadRequestException when productId not found (wrong tenant/branch or inactive)', async () => {
       mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
       mockPrismaService.product.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.create(mockDto as any, tenantId, branchId, 'user-1'),
-      ).rejects.toThrow(NotFoundException);
+      const err = await service
+        .create(mockDto as any, tenantId, branchId, 'user-1')
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(BadRequestException);
+      expect(err.message).toBe('Invalid productId for this branch.');
     });
 
     it('should throw BadRequestException for custom item without unitPrice', async () => {
@@ -272,7 +274,7 @@ describe('ProductSalesService', () => {
         ...mockDto,
         items: [
           {
-            productId: 'product-1',
+            productId: validCuid,
             quantity: 0, // Invalid quantity
           },
         ],
@@ -337,7 +339,7 @@ describe('ProductSalesService', () => {
         ...mockDto,
         items: [
           {
-            productId: 'product-1',
+            productId: validCuid,
             quantity: 3,
             // unitPrice omitted
           },
@@ -345,7 +347,7 @@ describe('ProductSalesService', () => {
       };
 
       const mockProduct = {
-        id: 'product-1',
+        id: validCuid,
         defaultPrice: new Prisma.Decimal(100),
         isActive: true,
       };
@@ -377,7 +379,7 @@ describe('ProductSalesService', () => {
       expect(result).toBeDefined();
       expect(mockPrismaService.product.findFirst).toHaveBeenCalledWith({
         where: {
-          id: 'product-1',
+          id: validCuid,
           tenantId,
           branchId,
           isActive: true,
@@ -390,7 +392,7 @@ describe('ProductSalesService', () => {
         ...mockDto,
         items: [
           {
-            productId: 'product-1',
+            productId: validCuid,
             quantity: 2,
             // unitPrice omitted
           },
@@ -398,7 +400,7 @@ describe('ProductSalesService', () => {
       };
 
       const mockProduct = {
-        id: 'product-1',
+        id: validCuid,
         defaultPrice: null, // No default price
         isActive: true,
       };
