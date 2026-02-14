@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 
 describe('ProductsService', () => {
   let service: ProductsService;
-  let _prismaService: PrismaService;
+  let prismaService: PrismaService;
 
   const mockPrismaService = {
     product: {
@@ -30,6 +30,44 @@ describe('ProductsService', () => {
 
     service = module.get<ProductsService>(ProductsService);
     prismaService = module.get<PrismaService>(PrismaService);
+  });
+
+  describe('findAll', () => {
+    it('should return products scoped by tenantId and branchId', async () => {
+      const tenantId = 'tenant-1';
+      const branchId = 'branch-1';
+      const mockProducts = [
+        {
+          id: 'product-1',
+          name: 'Protein',
+          defaultPrice: new Prisma.Decimal(100),
+          tenantId,
+          branchId,
+          isActive: true,
+          category: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      mockPrismaService.product.findMany.mockResolvedValue(mockProducts);
+
+      const result = await service.findAll({
+        tenantId,
+        branchId,
+        isActive: true,
+      });
+
+      expect(result).toEqual(mockProducts);
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith({
+        where: {
+          tenantId,
+          branchId,
+          isActive: true,
+        },
+        orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+      });
+    });
   });
 
   afterEach(() => {
@@ -125,6 +163,48 @@ describe('ProductsService', () => {
           'branch-1',
         ),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('should refuse cross-tenant/branch update (product not found)', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.update(
+          'product-other-tenant',
+          { name: 'New Name' },
+          'tenant-1',
+          'branch-1',
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('remove', () => {
+    it('should set isActive=false (soft delete)', async () => {
+      const mockProduct = {
+        id: 'product-1',
+        name: 'Protein',
+        defaultPrice: new Prisma.Decimal(100),
+        tenantId: 'tenant-1',
+        branchId: 'branch-1',
+        isActive: true,
+        category: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockPrismaService.product.findFirst.mockResolvedValue(mockProduct);
+      mockPrismaService.product.update.mockResolvedValue({
+        ...mockProduct,
+        isActive: false,
+      });
+
+      await service.remove('product-1', 'tenant-1', 'branch-1');
+
+      expect(mockPrismaService.product.update).toHaveBeenCalledWith({
+        where: { id: 'product-1' },
+        data: { isActive: false },
+      });
     });
   });
 });

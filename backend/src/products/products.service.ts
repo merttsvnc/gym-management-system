@@ -87,7 +87,7 @@ export class ProductsService {
 
     if (existing) {
       throw new ConflictException(
-        `Product with name "${dto.name}" already exists`,
+        'Product name already exists in this branch.',
       );
     }
 
@@ -135,7 +135,7 @@ export class ProductsService {
 
       if (existing) {
         throw new ConflictException(
-          `Product with name "${dto.name}" already exists`,
+          'Product name already exists in this branch.',
         );
       }
     }

@@ -43,10 +43,7 @@ export class ProductsController {
     @CurrentUser('tenantId') tenantId: string,
     @Query() query: ProductQueryDto,
   ) {
-    // branchId is required
-    if (!query.branchId) {
-      throw new BadRequestException('branchId query parameter is required');
-    }
+    this.validateBranchId(query.branchId);
 
     const products = await this.productsService.findAll({
       tenantId,
@@ -72,9 +69,7 @@ export class ProductsController {
     @Query('branchId') branchId: string,
     @Param('id') id: string,
   ) {
-    if (!branchId) {
-      throw new BadRequestException('branchId query parameter is required');
-    }
+    this.validateBranchId(branchId);
 
     const product = await this.productsService.findOne(id, tenantId, branchId);
 
@@ -96,9 +91,7 @@ export class ProductsController {
     @Query('branchId') branchId: string,
     @Body() dto: CreateProductDto,
   ) {
-    if (!branchId) {
-      throw new BadRequestException('branchId query parameter is required');
-    }
+    this.validateBranchId(branchId);
 
     const product = await this.productsService.create(dto, tenantId, branchId);
 
@@ -120,9 +113,7 @@ export class ProductsController {
     @Param('id') id: string,
     @Body() dto: UpdateProductDto,
   ) {
-    if (!branchId) {
-      throw new BadRequestException('branchId query parameter is required');
-    }
+    this.validateBranchId(branchId);
 
     const product = await this.productsService.update(
       id,
@@ -149,11 +140,43 @@ export class ProductsController {
     @Query('branchId') branchId: string,
     @Param('id') id: string,
   ) {
-    if (!branchId) {
-      throw new BadRequestException('branchId query parameter is required');
-    }
+    this.validateBranchId(branchId);
 
     await this.productsService.remove(id, tenantId, branchId);
     return { message: 'Product deactivated successfully' };
+  }
+
+  /**
+   * Validates branchId: required, not placeholder, valid format (cuid or UUID)
+   */
+  private validateBranchId(branchId: string | undefined): void {
+    if (!branchId || typeof branchId !== 'string' || !branchId.trim()) {
+      throw new BadRequestException('branchId query parameter is required.');
+    }
+
+    const trimmed = branchId.trim();
+    const placeholders = [
+      'branch-id-placeholder',
+      'placeholder',
+      'default',
+      'undefined',
+      'null',
+      '00000000-0000-0000-0000-000000000000',
+    ];
+    if (placeholders.includes(trimmed.toLowerCase())) {
+      throw new BadRequestException(
+        'Invalid branchId. Please select a real branch.',
+      );
+    }
+
+    // Accept cuid (25 chars, starts with c) or UUID v4 format
+    const cuidRegex = /^c[a-z0-9]{24}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!cuidRegex.test(trimmed) && !uuidRegex.test(trimmed)) {
+      throw new BadRequestException(
+        'Invalid branchId format. Must be a valid branch identifier.',
+      );
+    }
   }
 }
