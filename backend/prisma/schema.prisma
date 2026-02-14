@@ -101,6 +101,7 @@ model Tenant {
   name                   String
   slug                   String        @unique
   defaultCurrency        String        @default("USD")
+  timezone               String        @default("Europe/Istanbul") // IANA timezone for business-day grouping in reports
   planKey                PlanKey       @default(SINGLE)
   billingStatus          BillingStatus @default(TRIAL)
   billingStatusUpdatedAt DateTime?

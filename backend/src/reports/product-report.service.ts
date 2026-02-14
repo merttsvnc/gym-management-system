@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { getMonthRangeUtc } from '../utils/timezone.util';
 
 /**
  * ProductReportService
@@ -13,20 +14,32 @@ export class ProductReportService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Helper: Parse month string and return UTC date range
+   * Resolve tenant timezone (IANA string)
+   * Fetches from tenant settings or returns default
    */
-  private getMonthDateRange(month: string): {
+  private async getTenantTimezone(tenantId: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
+
+    return tenant?.timezone || 'Europe/Istanbul';
+  }
+
+  /**
+   * Helper: Parse month string and return UTC date range for the tenant's timezone
+   */
+  private async getMonthDateRangeWithTimezone(
+    tenantId: string,
+    month: string,
+  ): Promise<{
     startDate: Date;
     endDate: Date;
-  } {
-    const [year, monthStr] = month.split('-');
-    const yearNum = parseInt(year, 10);
-    const monthNum = parseInt(monthStr, 10);
+  }> {
+    const timezone = await this.getTenantTimezone(tenantId);
+    const { startUtc, endUtc } = getMonthRangeUtc(month, timezone);
 
-    const startDate = new Date(Date.UTC(yearNum, monthNum - 1, 1, 0, 0, 0, 0));
-    const endDate = new Date(Date.UTC(yearNum, monthNum, 1, 0, 0, 0, 0));
-
-    return { startDate, endDate };
+    return { startDate: startUtc, endDate: endUtc };
   }
 
   /**
@@ -57,7 +70,11 @@ export class ProductReportService {
       revenue: Prisma.Decimal;
     }>
   > {
-    const { startDate, endDate } = this.getMonthDateRange(month);
+    // Get month date range in tenant timezone
+    const { startDate, endDate } = await this.getMonthDateRangeWithTimezone(
+      tenantId,
+      month,
+    );
 
     // Fetch all product sale line items for the month
     type LineItemWithProduct = {

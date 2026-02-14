@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import {
+  getMonthRangeUtc,
+  normalizeDayKey,
+  getAllDaysInMonth,
+  normalizeMonthKey,
+} from '../utils/timezone.util';
 
 /**
  * RevenueReportService
@@ -16,29 +22,42 @@ export class RevenueReportService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Helper: Parse month string and return UTC date range
+   * Resolve tenant timezone (IANA string)
+   * Fetches from tenant settings or returns default
    */
-  private getMonthDateRange(month: string): {
-    startDate: Date;
-    endDate: Date;
-  } {
-    const [year, monthStr] = month.split('-');
-    const yearNum = parseInt(year, 10);
-    const monthNum = parseInt(monthStr, 10);
+  private async getTenantTimezone(tenantId: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
 
-    const startDate = new Date(Date.UTC(yearNum, monthNum - 1, 1, 0, 0, 0, 0));
-    const endDate = new Date(Date.UTC(yearNum, monthNum, 1, 0, 0, 0, 0));
-
-    return { startDate, endDate };
+    return tenant?.timezone || 'Europe/Istanbul';
   }
 
   /**
-   * Helper: Get month key in YYYY-MM format from a date
+   * Helper: Parse month string and return UTC date range for the tenant's timezone
+   * @deprecated Use getMonthRangeUtc() with tenant timezone instead
    */
-  private getMonthKey(date: Date): string {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
+  private async getMonthDateRangeWithTimezone(
+    tenantId: string,
+    month: string,
+  ): Promise<{
+    startDate: Date;
+    endDate: Date;
+    timezone: string;
+  }> {
+    const timezone = await this.getTenantTimezone(tenantId);
+    const { startUtc, endUtc } = getMonthRangeUtc(month, timezone);
+
+    return { startDate: startUtc, endDate: endUtc, timezone };
+  }
+
+  /**
+   * Helper: Get month key in YYYY-MM format from a date in tenant timezone
+   * @deprecated Use normalizeMonthKey() with tenant timezone instead
+   */
+  private getMonthKeyInTimezone(date: Date, timezone: string): string {
+    return normalizeMonthKey(date, timezone);
   }
 
   /**
@@ -65,8 +84,11 @@ export class RevenueReportService {
     totalRevenue: Prisma.Decimal;
     locked: boolean;
   }> {
-    // Parse month string to get date range
-    const { startDate, endDate } = this.getMonthDateRange(month);
+    // Parse month string to get date range in tenant timezone
+    const { startDate, endDate } = await this.getMonthDateRangeWithTimezone(
+      tenantId,
+      month,
+    );
 
     // Query membership revenue from Payment table
     // Source: Existing Payment model stores membership fee payments
@@ -157,23 +179,28 @@ export class RevenueReportService {
       locked: boolean;
     }>
   > {
-    // Calculate date range: from N months ago to current month
+    // Get tenant timezone
+    const timezone = await this.getTenantTimezone(tenantId);
+
+    // Calculate date range: from N months ago to current month in tenant timezone
     const now = new Date();
-    const endYear = now.getUTCFullYear();
-    const endMonth = now.getUTCMonth();
+    const currentMonth = normalizeMonthKey(now, timezone);
 
     // Generate list of months to query
     const monthKeys: string[] = [];
+    const [currentYear, currentMonthNum] = currentMonth.split('-').map(Number);
+
     for (let i = months - 1; i >= 0; i--) {
-      const date = new Date(Date.UTC(endYear, endMonth - i, 1));
-      monthKeys.push(this.getMonthKey(date));
+      const targetDate = new Date(currentYear, currentMonthNum - 1 - i, 1);
+      const monthKey = normalizeMonthKey(targetDate, timezone);
+      monthKeys.push(monthKey);
     }
 
-    // Get start and end dates for the entire range
+    // Get start and end dates for the entire range in tenant timezone
     const firstMonth = monthKeys[0];
     const lastMonth = monthKeys[monthKeys.length - 1];
-    const { startDate } = this.getMonthDateRange(firstMonth);
-    const { endDate } = this.getMonthDateRange(lastMonth);
+    const { startUtc: startDate } = getMonthRangeUtc(firstMonth, timezone);
+    const { endUtc: endDate } = getMonthRangeUtc(lastMonth, timezone);
 
     // Fetch all payments and product sales in the date range
     const payments = await this.prisma.payment.findMany({
@@ -229,18 +256,18 @@ export class RevenueReportService {
       });
     });
 
-    // Aggregate membership revenue by month
+    // Aggregate membership revenue by month in tenant timezone
     payments.forEach((payment) => {
-      const monthKey = this.getMonthKey(payment.paidOn);
+      const monthKey = this.getMonthKeyInTimezone(payment.paidOn, timezone);
       const current = revenueByMonth.get(monthKey);
       if (current) {
         current.membership = current.membership.add(payment.amount);
       }
     });
 
-    // Aggregate product revenue by month
+    // Aggregate product revenue by month in tenant timezone
     productSales.forEach((sale) => {
-      const monthKey = this.getMonthKey(sale.soldAt);
+      const monthKey = this.getMonthKeyInTimezone(sale.soldAt, timezone);
       const current = revenueByMonth.get(monthKey);
       if (current) {
         current.product = current.product.add(sale.totalAmount);
@@ -264,6 +291,13 @@ export class RevenueReportService {
    * Phase 3: Get daily revenue breakdown for a given month
    *
    * Returns revenue for each day in the month, including days with zero revenue.
+   * Groups by tenant timezone, not UTC, to match mobile app display.
+   *
+   * Uses PostgreSQL timezone conversion for accurate day grouping:
+   * - soldAt/paidOn are stored in UTC (timestamptz)
+   * - Grouped by (soldAt AT TIME ZONE $timezone)::date
+   * - Example: 2026-02-13T21:35:00Z in Europe/Istanbul = 2026-02-14 00:35:00
+   *   -> Grouped under 2026-02-14, not 2026-02-13
    *
    * @param tenantId - Tenant ID from JWT
    * @param branchId - Branch ID from query parameter
@@ -282,101 +316,89 @@ export class RevenueReportService {
       totalRevenue: Prisma.Decimal;
     }>
   > {
-    const { startDate, endDate } = this.getMonthDateRange(month);
+    // Get tenant timezone and month date range
+    const timezone = await this.getTenantTimezone(tenantId);
+    const { startUtc, endUtc } = getMonthRangeUtc(month, timezone);
 
-    // Fetch all payments for the month
-    const payments = await this.prisma.payment.findMany({
-      where: {
-        tenantId,
-        branchId,
-        paidOn: { gte: startDate, lt: endDate },
-        isCorrected: false,
-      },
-      select: {
-        amount: true,
-        paidOn: true,
-      },
-    });
+    // Use raw SQL for timezone-aware grouping
+    // PostgreSQL: (timestamptz AT TIME ZONE 'timezone')::date gives local date
 
-    // Fetch all product sales for the month
-    const productSales = await this.prisma.productSale.findMany({
-      where: {
-        tenantId,
-        branchId,
-        soldAt: { gte: startDate, lt: endDate },
-      },
-      select: {
-        totalAmount: true,
-        soldAt: true,
-      },
-    });
+    // Query product sales daily sums
+    const productDailySums = await this.prisma.$queryRaw<
+      Array<{ day: string; amount: string }>
+    >`
+      SELECT
+        to_char((sold_at AT TIME ZONE ${timezone})::date, 'YYYY-MM-DD') AS day,
+        COALESCE(SUM(total_amount), 0)::text AS amount
+      FROM "ProductSale"
+      WHERE tenant_id = ${tenantId}
+        AND branch_id = ${branchId}
+        AND sold_at >= ${startUtc}
+        AND sold_at < ${endUtc}
+      GROUP BY (sold_at AT TIME ZONE ${timezone})::date
+      ORDER BY day ASC
+    `;
 
-    // Generate all days in the month
-    const daysInMonth = new Date(
-      endDate.getUTCFullYear(),
-      endDate.getUTCMonth(),
-      0,
-    ).getUTCDate();
+    // Query membership payments daily sums
+    const membershipDailySums = await this.prisma.$queryRaw<
+      Array<{ day: string; amount: string }>
+    >`
+      SELECT
+        to_char((paid_on AT TIME ZONE ${timezone})::date, 'YYYY-MM-DD') AS day,
+        COALESCE(SUM(amount), 0)::text AS amount
+      FROM "Payment"
+      WHERE tenant_id = ${tenantId}
+        AND branch_id = ${branchId}
+        AND paid_on >= ${startUtc}
+        AND paid_on < ${endUtc}
+        AND is_corrected = false
+      GROUP BY (paid_on AT TIME ZONE ${timezone})::date
+      ORDER BY day ASC
+    `;
 
+    // Build map of daily revenue
     const revenueByDay = new Map<
       string,
       { membership: Prisma.Decimal; product: Prisma.Decimal }
     >();
 
+    // Get all days in the month (in tenant timezone)
+    const allDays = getAllDaysInMonth(month, timezone);
+
     // Initialize all days with zero
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(
-        Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), day),
-      );
-      const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-      revenueByDay.set(dateKey, {
+    allDays.forEach((day) => {
+      revenueByDay.set(day, {
         membership: new Prisma.Decimal(0),
         product: new Prisma.Decimal(0),
       });
-    }
+    });
 
-    // Aggregate membership revenue by day
-    payments.forEach((payment) => {
-      const dateKey = payment.paidOn.toISOString().split('T')[0];
-      const current = revenueByDay.get(dateKey);
+    // Fill in product sales data
+    productDailySums.forEach((row) => {
+      const current = revenueByDay.get(row.day);
       if (current) {
-        current.membership = current.membership.add(payment.amount);
+        current.product = new Prisma.Decimal(row.amount);
       }
     });
 
-    // Aggregate product revenue by day
-    productSales.forEach((sale) => {
-      const dateKey = sale.soldAt.toISOString().split('T')[0];
-      const current = revenueByDay.get(dateKey);
+    // Fill in membership payment data
+    membershipDailySums.forEach((row) => {
+      const current = revenueByDay.get(row.day);
       if (current) {
-        current.product = current.product.add(sale.totalAmount);
+        current.membership = new Prisma.Decimal(row.amount);
       }
     });
 
     // Build result array (sorted by date)
-    const result: Array<{
-      date: string;
-      membershipRevenue: Prisma.Decimal;
-      productRevenue: Prisma.Decimal;
-      totalRevenue: Prisma.Decimal;
-    }> = [];
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(
-        Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), day),
-      );
-      const dateKey = date.toISOString().split('T')[0];
-      const revenue = revenueByDay.get(dateKey)!;
-
-      result.push({
-        date: dateKey,
+    return allDays.map((day) => {
+      const revenue = revenueByDay.get(day)!;
+      return {
+        date: day,
         membershipRevenue: revenue.membership,
         productRevenue: revenue.product,
         totalRevenue: revenue.membership.add(revenue.product),
-      });
-    }
-
-    return result;
+      };
+    });
   }
 
   /**
@@ -403,7 +425,11 @@ export class RevenueReportService {
       amount: Prisma.Decimal;
     }>;
   }> {
-    const { startDate, endDate } = this.getMonthDateRange(month);
+    // Get month date range in tenant timezone
+    const { startDate, endDate } = await this.getMonthDateRangeWithTimezone(
+      tenantId,
+      month,
+    );
 
     // Group membership payments by payment method
     const membershipByMethod = await this.prisma.payment.groupBy({
