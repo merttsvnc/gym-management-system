@@ -23,13 +23,12 @@ describe('MembersService - Tenant Isolation', () => {
     member: {
       create: jest.fn(),
       findMany: jest.fn(),
-      findUnique: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
     },
     branch: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -60,7 +59,6 @@ describe('MembersService - Tenant Isolation', () => {
     }).compile();
 
     service = module.get<MembersService>(MembersService);
-    prisma = module.get<PrismaService>(PrismaService);
 
     jest.clearAllMocks();
   });
@@ -68,14 +66,8 @@ describe('MembersService - Tenant Isolation', () => {
   describe('findOne - Tenant Isolation', () => {
     it('should throw NotFoundException if member belongs to another tenant', async () => {
       const memberId = 'member-1';
-      const memberFromTenant2 = {
-        id: memberId,
-        tenantId: tenant2Id, // Different tenant
-        firstName: 'John',
-        lastName: 'Doe',
-      };
-
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant2);
+      // findFirst with tenant1Id returns null when member is in tenant2 (query filters by tenantId)
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(service.findOne(tenant1Id, memberId)).rejects.toThrow(
         NotFoundException,
@@ -99,7 +91,7 @@ describe('MembersService - Tenant Isolation', () => {
         resumedAt: null,
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant1);
+      mockPrismaService.member.findFirst.mockResolvedValue(memberFromTenant1);
 
       const result = await service.findOne(tenant1Id, memberId);
 
@@ -112,7 +104,7 @@ describe('MembersService - Tenant Isolation', () => {
       const memberId = 'member-1';
 
       // Test 1: Member doesn't exist
-      mockPrismaService.member.findUnique.mockResolvedValue(null);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       let error1: any;
       try {
@@ -121,11 +113,8 @@ describe('MembersService - Tenant Isolation', () => {
         error1 = e;
       }
 
-      // Test 2: Member belongs to another tenant
-      mockPrismaService.member.findUnique.mockResolvedValue({
-        id: memberId,
-        tenantId: tenant2Id,
-      });
+      // Test 2: Member belongs to another tenant (findFirst returns null - no match for id+tenant1Id)
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       let error2: any;
       try {
@@ -149,7 +138,8 @@ describe('MembersService - Tenant Isolation', () => {
         firstName: 'John',
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant2);
+      // findFirst returns null (member in tenant2, we query with tenant1Id)
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(
         service.update(tenant1Id, memberId, { firstName: 'Jane' }),
@@ -174,8 +164,9 @@ describe('MembersService - Tenant Isolation', () => {
         name: 'Other Tenant Branch',
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant1);
-      mockPrismaService.branch.findUnique.mockResolvedValue(branchFromTenant2);
+      mockPrismaService.member.findFirst.mockResolvedValue(memberFromTenant1);
+      // Branch from tenant2 - findFirst with tenant1Id returns null
+      mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
       await expect(
         service.update(tenant1Id, memberId, { branchId: 'branch-1-tenant2' }),
@@ -203,8 +194,8 @@ describe('MembersService - Tenant Isolation', () => {
         name: 'Same Tenant Branch',
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant1);
-      mockPrismaService.branch.findUnique.mockResolvedValue(
+      mockPrismaService.member.findFirst.mockResolvedValue(memberFromTenant1);
+      mockPrismaService.branch.findFirst.mockResolvedValue(
         branchFromSameTenant,
       );
       mockPrismaService.member.update.mockResolvedValue({
@@ -217,7 +208,11 @@ describe('MembersService - Tenant Isolation', () => {
       });
 
       expect(result).toBeDefined();
-      expect(mockPrismaService.member.update).toHaveBeenCalled();
+      expect(mockPrismaService.member.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id_tenantId: { id: memberId, tenantId: tenant1Id } },
+        }),
+      );
     });
   });
 
@@ -230,7 +225,7 @@ describe('MembersService - Tenant Isolation', () => {
         status: MemberStatus.ACTIVE,
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant2);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(
         service.changeStatus(tenant1Id, memberId, {
@@ -251,7 +246,7 @@ describe('MembersService - Tenant Isolation', () => {
         resumedAt: null,
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant1);
+      mockPrismaService.member.findFirst.mockResolvedValue(memberFromTenant1);
       mockPrismaService.member.update.mockResolvedValue({
         ...memberFromTenant1,
         status: MemberStatus.PAUSED,
@@ -276,7 +271,7 @@ describe('MembersService - Tenant Isolation', () => {
         status: MemberStatus.ACTIVE,
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant2);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(service.archive(tenant1Id, memberId)).rejects.toThrow(
         NotFoundException,
@@ -295,7 +290,7 @@ describe('MembersService - Tenant Isolation', () => {
         resumedAt: null,
       };
 
-      mockPrismaService.member.findUnique.mockResolvedValue(memberFromTenant1);
+      mockPrismaService.member.findFirst.mockResolvedValue(memberFromTenant1);
       mockPrismaService.member.update.mockResolvedValue({
         ...memberFromTenant1,
         status: MemberStatus.ARCHIVED,
@@ -403,7 +398,7 @@ describe('MembersService - Tenant Isolation', () => {
         name: 'Other Tenant Branch',
       };
 
-      mockPrismaService.branch.findUnique.mockResolvedValue(branchFromTenant2);
+      mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
       const createDto = {
         branchId: 'branch-1-tenant2',
@@ -431,7 +426,7 @@ describe('MembersService - Tenant Isolation', () => {
       const endDate = new Date(startDate);
       endDate.setFullYear(endDate.getFullYear() + 1);
 
-      mockPrismaService.branch.findUnique.mockResolvedValue(branchFromTenant1);
+      mockPrismaService.branch.findFirst.mockResolvedValue(branchFromTenant1);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
       mockPrismaService.member.create.mockResolvedValue({
         id: 'member-1',
@@ -466,7 +461,7 @@ describe('MembersService - Tenant Isolation', () => {
         tenantId: tenant1Id,
       };
 
-      mockPrismaService.branch.findUnique.mockResolvedValue(branchFromTenant1);
+      mockPrismaService.branch.findFirst.mockResolvedValue(branchFromTenant1);
       mockPrismaService.member.findFirst.mockResolvedValue(null);
       mockPrismaService.member.create.mockResolvedValue({
         id: 'new-member',
@@ -507,11 +502,8 @@ describe('MembersService - Tenant Isolation', () => {
     it('should not reveal existence of members in other tenants', async () => {
       const memberId = 'member-in-tenant2';
 
-      // Member exists but belongs to another tenant
-      mockPrismaService.member.findUnique.mockResolvedValue({
-        id: memberId,
-        tenantId: tenant2Id,
-      });
+      // Member exists but belongs to another tenant - findFirst returns null
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       // Requesting from tenant1 should get the same error as non-existent member
       await expect(service.findOne(tenant1Id, memberId)).rejects.toThrow(
@@ -528,18 +520,15 @@ describe('MembersService - Tenant Isolation', () => {
       const errorMessages: string[] = [];
 
       // Scenario 1: Member doesn't exist
-      mockPrismaService.member.findUnique.mockResolvedValue(null);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
       try {
         await service.findOne(tenant1Id, memberId);
       } catch (e: any) {
         errorMessages.push(e.message);
       }
 
-      // Scenario 2: Member exists in another tenant
-      mockPrismaService.member.findUnique.mockResolvedValue({
-        id: memberId,
-        tenantId: tenant2Id,
-      });
+      // Scenario 2: Member exists in another tenant (findFirst returns null)
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
       try {
         await service.findOne(tenant1Id, memberId);
       } catch (e: any) {

@@ -3,8 +3,8 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
@@ -149,10 +149,20 @@ export class ProductsService {
     if (dto.category !== undefined) updateData.category = dto.category;
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
 
-    return this.prisma.product.update({
-      where: { id },
-      data: updateData,
-    });
+    try {
+      return await this.prisma.product.update({
+        where: { id_tenantId_branchId: { id, tenantId, branchId } },
+        data: updateData,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Product with ID ${id} not found`);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -163,9 +173,19 @@ export class ProductsService {
     // Verify product exists and belongs to tenant/branch
     await this.findOne(id, tenantId, branchId);
 
-    return this.prisma.product.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    try {
+      return await this.prisma.product.update({
+        where: { id_tenantId_branchId: { id, tenantId, branchId } },
+        data: { isActive: false },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Product with ID ${id} not found`);
+      }
+      throw error;
+    }
   }
 }

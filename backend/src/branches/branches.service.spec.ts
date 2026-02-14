@@ -148,18 +148,18 @@ describe('BranchesService', () => {
 
   describe('getBranchById', () => {
     it('should return branch when found and belongs to tenant', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
 
       const result = await service.getBranchById(tenantId, branchId);
 
       expect(result).toEqual(mockBranch);
-      expect(prismaService.branch.findUnique).toHaveBeenCalledWith({
-        where: { id: branchId },
+      expect(prismaService.branch.findFirst).toHaveBeenCalledWith({
+        where: { id: branchId, tenantId },
       });
     });
 
     it('should throw NotFoundException when branch not found', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue(null);
+      mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
       await expect(service.getBranchById(tenantId, branchId)).rejects.toThrow(
         NotFoundException,
@@ -167,8 +167,8 @@ describe('BranchesService', () => {
     });
 
     it('should throw NotFoundException when branch belongs to different tenant', async () => {
-      const otherTenantBranch = { ...mockBranch, tenantId: 'other-tenant' };
-      mockPrismaService.branch.findUnique.mockResolvedValue(otherTenantBranch);
+      // findFirst with tenantId returns null when branch is in another tenant
+      mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
       await expect(service.getBranchById(tenantId, branchId)).rejects.toThrow(
         NotFoundException,
@@ -251,21 +251,22 @@ describe('BranchesService', () => {
 
     it('should update branch successfully', async () => {
       const updatedBranch = { ...mockBranch, ...updateDto };
-      mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
-      mockPrismaService.branch.findFirst.mockResolvedValue(null);
+      mockPrismaService.branch.findFirst
+        .mockResolvedValueOnce(mockBranch) // getBranchById
+        .mockResolvedValueOnce(null); // duplicate name check
       mockPrismaService.branch.update.mockResolvedValue(updatedBranch);
 
       const result = await service.updateBranch(tenantId, branchId, updateDto);
 
       expect(result).toEqual(updatedBranch);
       expect(prismaService.branch.update).toHaveBeenCalledWith({
-        where: { id: branchId },
+        where: { id_tenantId: { id: branchId, tenantId } },
         data: updateDto,
       });
     });
 
     it('should throw NotFoundException if branch not found', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue(null);
+      mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
       await expect(
         service.updateBranch(tenantId, branchId, updateDto),
@@ -274,7 +275,7 @@ describe('BranchesService', () => {
 
     it('should throw BadRequestException if updating archived branch', async () => {
       const archivedBranch = { ...mockBranch, isActive: false };
-      mockPrismaService.branch.findUnique.mockResolvedValue(archivedBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(archivedBranch);
 
       await expect(
         service.updateBranch(tenantId, branchId, updateDto),
@@ -286,7 +287,7 @@ describe('BranchesService', () => {
 
     it('should throw ConflictException for duplicate name', async () => {
       const existingBranch = { ...mockBranch, id: 'other-branch-id' };
-      mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
       mockPrismaService.branch.findFirst.mockResolvedValue(existingBranch);
 
       await expect(
@@ -299,8 +300,9 @@ describe('BranchesService', () => {
         name: mockBranch.name.toUpperCase(),
       };
       const updatedBranch = { ...mockBranch, ...updateDtoSameName };
-      mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
-      mockPrismaService.branch.findFirst.mockResolvedValue(null);
+      mockPrismaService.branch.findFirst
+        .mockResolvedValueOnce(mockBranch) // getBranchById
+        .mockResolvedValueOnce(null); // duplicate name check
       mockPrismaService.branch.update.mockResolvedValue(updatedBranch);
 
       const result = await service.updateBranch(
@@ -321,7 +323,8 @@ describe('BranchesService', () => {
         isActive: false,
         archivedAt: new Date(),
       };
-      mockPrismaService.branch.findUnique.mockResolvedValue(nonDefaultBranch);
+      mockPrismaService.branch.findFirst.mockReset();
+      mockPrismaService.branch.findFirst.mockResolvedValue(nonDefaultBranch);
       mockPrismaService.branch.count.mockResolvedValue(2);
       mockPrismaService.branch.update.mockResolvedValue(archivedBranch);
 
@@ -330,7 +333,7 @@ describe('BranchesService', () => {
       expect(result.isActive).toBe(false);
       expect(result.archivedAt).toBeDefined();
       expect(prismaService.branch.update).toHaveBeenCalledWith({
-        where: { id: branchId },
+        where: { id_tenantId: { id: branchId, tenantId } },
         data: {
           isActive: false,
           archivedAt: expect.any(Date),
@@ -340,7 +343,7 @@ describe('BranchesService', () => {
 
     it('should throw BadRequestException if branch already archived', async () => {
       const archivedBranch = { ...mockBranch, isActive: false };
-      mockPrismaService.branch.findUnique.mockResolvedValue(archivedBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(archivedBranch);
 
       await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
         BadRequestException,
@@ -351,7 +354,7 @@ describe('BranchesService', () => {
     });
 
     it('should throw BadRequestException if archiving default branch', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
 
       await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
         BadRequestException,
@@ -363,7 +366,7 @@ describe('BranchesService', () => {
 
     it('should throw BadRequestException if archiving last active branch', async () => {
       const nonDefaultBranch = { ...mockBranch, isDefault: false };
-      mockPrismaService.branch.findUnique.mockResolvedValue(nonDefaultBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(nonDefaultBranch);
       mockPrismaService.branch.count.mockResolvedValue(1);
 
       await expect(service.archiveBranch(tenantId, branchId)).rejects.toThrow(
@@ -387,7 +390,7 @@ describe('BranchesService', () => {
         isActive: true,
         archivedAt: null,
       };
-      mockPrismaService.branch.findUnique.mockResolvedValue(archivedBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(archivedBranch);
       mockPrismaService.branch.update.mockResolvedValue(restoredBranch);
 
       const result = await service.restoreBranch(tenantId, branchId);
@@ -395,7 +398,7 @@ describe('BranchesService', () => {
       expect(result.isActive).toBe(true);
       expect(result.archivedAt).toBeNull();
       expect(prismaService.branch.update).toHaveBeenCalledWith({
-        where: { id: branchId },
+        where: { id_tenantId: { id: branchId, tenantId } },
         data: {
           isActive: true,
           archivedAt: null,
@@ -404,7 +407,7 @@ describe('BranchesService', () => {
     });
 
     it('should throw BadRequestException if branch is not archived', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
 
       await expect(service.restoreBranch(tenantId, branchId)).rejects.toThrow(
         BadRequestException,
@@ -420,7 +423,7 @@ describe('BranchesService', () => {
         isActive: false,
         archivedAt: new Date(),
       };
-      mockPrismaService.branch.findUnique.mockResolvedValue(archivedBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(archivedBranch);
       mockPlanService.getTenantPlan.mockResolvedValue({
         maxBranches: 3,
       } as any);
@@ -437,7 +440,7 @@ describe('BranchesService', () => {
     it('should set branch as default successfully', async () => {
       const nonDefaultBranch = { ...mockBranch, isDefault: false };
       const updatedBranch = { ...nonDefaultBranch, isDefault: true };
-      mockPrismaService.branch.findUnique.mockResolvedValue(nonDefaultBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(nonDefaultBranch);
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           branch: {
@@ -456,7 +459,7 @@ describe('BranchesService', () => {
 
     it('should throw BadRequestException if branch is archived', async () => {
       const archivedBranch = { ...mockBranch, isActive: false };
-      mockPrismaService.branch.findUnique.mockResolvedValue(archivedBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(archivedBranch);
 
       await expect(
         service.setDefaultBranch(tenantId, branchId),
@@ -467,7 +470,7 @@ describe('BranchesService', () => {
     });
 
     it('should return branch if already default (no-op)', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
 
       const result = await service.setDefaultBranch(tenantId, branchId);
 
@@ -478,7 +481,7 @@ describe('BranchesService', () => {
     it('should use transaction to ensure exactly one default branch', async () => {
       const nonDefaultBranch = { ...mockBranch, isDefault: false };
       const updatedBranch = { ...nonDefaultBranch, isDefault: true };
-      mockPrismaService.branch.findUnique.mockResolvedValue(nonDefaultBranch);
+      mockPrismaService.branch.findFirst.mockResolvedValue(nonDefaultBranch);
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           branch: {
@@ -507,7 +510,7 @@ describe('BranchesService', () => {
         data: { isDefault: false },
       });
       expect(mockTx.branch.update).toHaveBeenCalledWith({
-        where: { id: branchId },
+        where: { id_tenantId: { id: branchId, tenantId } },
         data: { isDefault: true },
       });
     });

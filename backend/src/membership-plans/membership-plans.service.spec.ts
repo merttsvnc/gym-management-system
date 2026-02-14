@@ -21,7 +21,6 @@ describe('MembershipPlansService', () => {
     membershipPlan: {
       create: jest.fn(),
       findMany: jest.fn(),
-      findUnique: jest.fn(),
       findFirst: jest.fn(),
       count: jest.fn(),
       update: jest.fn(),
@@ -31,7 +30,7 @@ describe('MembershipPlansService', () => {
       count: jest.fn(),
     },
     branch: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -52,6 +51,14 @@ describe('MembershipPlansService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    // Reset and set default mocks to avoid chain exhaustion from mockResolvedValueOnce
+    mockPrismaService.membershipPlan.findFirst.mockReset();
+    mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
+    mockPrismaService.branch.findFirst.mockReset();
+    mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
   });
 
   const tenantId = 'tenant-123';
@@ -306,18 +313,18 @@ describe('MembershipPlansService', () => {
 
   describe('getPlanByIdForTenant', () => {
     it('should return plan when it exists and belongs to tenant', async () => {
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
 
       const result = await service.getPlanByIdForTenant(tenantId, planId);
 
       expect(result).toEqual(mockPlan);
-      expect(prismaService.membershipPlan.findUnique).toHaveBeenCalledWith({
-        where: { id: planId },
+      expect(prismaService.membershipPlan.findFirst).toHaveBeenCalledWith({
+        where: { id: planId, tenantId },
       });
     });
 
     it('should throw NotFoundException when plan does not exist', async () => {
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(null);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
 
       await expect(
         service.getPlanByIdForTenant(tenantId, planId),
@@ -327,12 +334,9 @@ describe('MembershipPlansService', () => {
       ).rejects.toThrow('Plan bulunamadı');
     });
 
-    // T119: Tenant isolation test
+    // T119: Tenant isolation test - findFirst with tenantId returns null for other tenant's plan
     it('should throw NotFoundException when plan belongs to different tenant', async () => {
-      const planFromOtherTenant = { ...mockPlan, tenantId: 'other-tenant' };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
-        planFromOtherTenant,
-      );
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
 
       await expect(
         service.getPlanByIdForTenant(tenantId, planId),
@@ -350,8 +354,9 @@ describe('MembershipPlansService', () => {
         price: 150,
       };
       const updatedPlan = { ...mockPlan, ...updateInput };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
-      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null); // No duplicate name
+      mockPrismaService.membershipPlan.findFirst
+        .mockResolvedValueOnce(mockPlan) // getPlanByIdForTenant
+        .mockResolvedValueOnce(null); // checkNameUniqueness (no duplicate)
       mockPrismaService.membershipPlan.update.mockResolvedValue(updatedPlan);
 
       const result = await service.updatePlanForTenant(
@@ -362,7 +367,7 @@ describe('MembershipPlansService', () => {
 
       expect(result).toEqual(updatedPlan);
       expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-        where: { id: planId },
+        where: { id_tenantId: { id: planId, tenantId } },
         data: expect.objectContaining({
           name: 'Updated Plan',
           price: 150,
@@ -372,8 +377,9 @@ describe('MembershipPlansService', () => {
 
     it('should trim whitespace from updated name', async () => {
       const updateInput = { name: '  Updated Plan  ' };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
-      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
+      mockPrismaService.membershipPlan.findFirst
+        .mockResolvedValueOnce(mockPlan)
+        .mockResolvedValueOnce(null);
       mockPrismaService.membershipPlan.update.mockResolvedValue(mockPlan);
 
       await service.updatePlanForTenant(tenantId, planId, updateInput);
@@ -389,7 +395,7 @@ describe('MembershipPlansService', () => {
 
     it('should store currency in uppercase format when updating', async () => {
       const updateInput = { currency: 'USD' };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
       mockPrismaService.membershipPlan.update.mockResolvedValue(mockPlan);
 
       await service.updatePlanForTenant(tenantId, planId, updateInput);
@@ -405,7 +411,7 @@ describe('MembershipPlansService', () => {
 
     it('should throw error for negative price', async () => {
       const updateInput = { price: -50 };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
 
       await expect(
         service.updatePlanForTenant(tenantId, planId, updateInput),
@@ -420,7 +426,7 @@ describe('MembershipPlansService', () => {
         durationType: DurationType.DAYS,
         durationValue: 800, // > 730, should fail
       };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
 
       await expect(
         service.updatePlanForTenant(tenantId, planId, updateInput),
@@ -431,7 +437,7 @@ describe('MembershipPlansService', () => {
       const updateInput = {
         durationValue: 12, // Valid for MONTHS (existing durationType which is MONTHS)
       };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
       mockPrismaService.membershipPlan.update.mockResolvedValue(mockPlan);
 
       await expect(
@@ -446,7 +452,7 @@ describe('MembershipPlansService', () => {
         ...mockPlan,
         archivedAt: new Date(),
       };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
       mockPrismaService.member.count.mockResolvedValue(5); // 5 active members
       mockPrismaService.membershipPlan.update.mockResolvedValue(archivedPlan);
 
@@ -455,7 +461,7 @@ describe('MembershipPlansService', () => {
       expect((result.plan as any).archivedAt).not.toBeNull();
       expect(result.activeMemberCount).toBe(5);
       expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-        where: { id: planId },
+        where: { id_tenantId: { id: planId, tenantId } },
         data: {
           archivedAt: expect.any(Date),
           status: PlanStatus.ARCHIVED,
@@ -468,7 +474,7 @@ describe('MembershipPlansService', () => {
         ...mockPlan,
         archivedAt: new Date('2024-01-01'),
       };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
         archivedPlan,
       );
       mockPrismaService.member.count.mockResolvedValue(2);
@@ -486,7 +492,7 @@ describe('MembershipPlansService', () => {
         ...mockPlan,
         archivedAt: new Date(),
       };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
       mockPrismaService.member.count.mockResolvedValue(10); // 10 active members
       mockPrismaService.membershipPlan.update.mockResolvedValue(archivedPlan);
 
@@ -508,7 +514,7 @@ describe('MembershipPlansService', () => {
         archivedAt: null,
         scopeKey: 'TENANT',
       };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
         archivedPlan,
       );
       mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
@@ -518,7 +524,7 @@ describe('MembershipPlansService', () => {
 
       expect((result as any).archivedAt).toBeNull();
       expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-        where: { id: planId },
+        where: { id_tenantId: { id: planId, tenantId } },
         data: {
           archivedAt: null,
           status: PlanStatus.ACTIVE,
@@ -528,7 +534,7 @@ describe('MembershipPlansService', () => {
     });
 
     it('should return plan as-is if already active', async () => {
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
 
       await expect(
         service.restorePlanForTenant(tenantId, planId),
@@ -539,20 +545,20 @@ describe('MembershipPlansService', () => {
 
   describe('deletePlanForTenant', () => {
     it('should delete plan when no members exist', async () => {
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
       mockPrismaService.member.count.mockResolvedValue(0); // No members
       mockPrismaService.membershipPlan.delete.mockResolvedValue(mockPlan);
 
       await service.deletePlanForTenant(tenantId, planId);
 
       expect(prismaService.membershipPlan.delete).toHaveBeenCalledWith({
-        where: { id: planId },
+        where: { id_tenantId: { id: planId, tenantId } },
       });
     });
 
     // T123: Archival protection logic - cannot delete with members
     it('should throw BadRequestException when members exist', async () => {
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
       mockPrismaService.member.count.mockResolvedValue(5); // Has members
 
       await expect(
@@ -752,7 +758,7 @@ describe('MembershipPlansService', () => {
 
     it('should exclude current plan when checking name uniqueness on update', async () => {
       const updateInput = { name: 'New Name' };
-      mockPrismaService.membershipPlan.findUnique.mockResolvedValue(mockPlan);
+      mockPrismaService.membershipPlan.findFirst.mockResolvedValue(mockPlan);
       mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
       mockPrismaService.membershipPlan.update.mockResolvedValue(mockPlan);
 
@@ -1125,26 +1131,21 @@ describe('MembershipPlansService', () => {
         expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
       });
 
-      it('should reject BRANCH scope with branchId from different tenant (403 Forbidden)', async () => {
+      it('should reject BRANCH scope with branchId from different tenant (404 Not Found)', async () => {
         const createInput = {
           ...baseCreateInput,
           scope: PlanScope.BRANCH,
           branchId: branchId,
         };
-        const branchFromOtherTenant = {
-          ...mockBranch,
-          tenantId: otherTenantId,
-        };
-        mockPrismaService.branch.findUnique.mockResolvedValue(
-          branchFromOtherTenant,
-        );
+        // findFirst with tenantId returns null when branch belongs to another tenant
+        mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
         await expect(
           service.createPlanForTenant(tenantId, createInput),
-        ).rejects.toThrow(ForbiddenException);
+        ).rejects.toThrow(NotFoundException);
         await expect(
           service.createPlanForTenant(tenantId, createInput),
-        ).rejects.toThrow('Bu işlem için yetkiniz bulunmamaktadır');
+        ).rejects.toThrow('Şube bulunamadı');
         expect(prismaService.membershipPlan.create).not.toHaveBeenCalled();
       });
 
@@ -1154,7 +1155,7 @@ describe('MembershipPlansService', () => {
           scope: PlanScope.BRANCH,
           branchId: branchId,
         };
-        mockPrismaService.branch.findUnique.mockResolvedValue(
+        mockPrismaService.branch.findFirst.mockResolvedValue(
           mockArchivedBranch,
         );
 
@@ -1179,7 +1180,7 @@ describe('MembershipPlansService', () => {
           scopeKey: branchId,
           id: 'new-branch-plan-id',
         };
-        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
         mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
 
@@ -1244,7 +1245,7 @@ describe('MembershipPlansService', () => {
           scopeKey: branchId,
           id: 'new-branch-plan-id',
         };
-        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
         mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan);
 
@@ -1356,14 +1357,14 @@ describe('MembershipPlansService', () => {
         };
 
         // First plan creation
-        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
         mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan1);
         await service.createPlanForTenant(tenantId, createInput1);
 
         // Second plan creation with same name but different branch - should succeed
         const otherBranch = { ...mockBranch, id: otherBranchId };
-        mockPrismaService.branch.findUnique.mockResolvedValue(otherBranch);
+        mockPrismaService.branch.findFirst.mockResolvedValue(otherBranch);
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null); // No duplicate in this branch
         mockPrismaService.membershipPlan.create.mockResolvedValue(createdPlan2);
 
@@ -1404,7 +1405,7 @@ describe('MembershipPlansService', () => {
         await service.createPlanForTenant(tenantId, tenantPlanInput);
 
         // Create BRANCH plan with same name - should succeed
-        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null); // No duplicate (different scope)
         mockPrismaService.membershipPlan.create.mockResolvedValue(branchPlan);
 
@@ -1491,7 +1492,7 @@ describe('MembershipPlansService', () => {
           branchId: branchId,
           archivedAt: null,
         };
-        mockPrismaService.branch.findUnique.mockResolvedValue(mockBranch);
+        mockPrismaService.branch.findFirst.mockResolvedValue(mockBranch);
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           existingPlan,
         );
@@ -1536,7 +1537,7 @@ describe('MembershipPlansService', () => {
           price: 150,
           status: PlanStatus.ARCHIVED,
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           existingPlan,
         );
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
@@ -1572,7 +1573,7 @@ describe('MembershipPlansService', () => {
           ...existingPlan,
           ...updateInput,
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           existingPlan,
         );
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
@@ -1586,7 +1587,7 @@ describe('MembershipPlansService', () => {
 
         expect(result).toEqual(updatedPlan);
         expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-          where: { id: planId },
+          where: { id_tenantId: { id: planId, tenantId } },
           data: expect.objectContaining({
             name: 'Updated Name',
             price: 200,
@@ -1610,7 +1611,7 @@ describe('MembershipPlansService', () => {
         const updateInput = {
           name: 'Updated Name',
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           existingPlan,
         );
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
@@ -1640,7 +1641,7 @@ describe('MembershipPlansService', () => {
           ...existingPlan,
           archivedAt: new Date(),
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           existingPlan,
         );
         mockPrismaService.member.count.mockResolvedValue(0);
@@ -1650,7 +1651,7 @@ describe('MembershipPlansService', () => {
 
         expect((result.plan as any).archivedAt).not.toBeNull();
         expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-          where: { id: planId },
+          where: { id_tenantId: { id: planId, tenantId } },
           data: {
             archivedAt: expect.any(Date),
             status: PlanStatus.ARCHIVED,
@@ -1663,7 +1664,7 @@ describe('MembershipPlansService', () => {
           ...mockPlan,
           archivedAt: new Date('2024-01-01'),
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           alreadyArchivedPlan,
         );
         mockPrismaService.member.count.mockResolvedValue(5);
@@ -1690,7 +1691,7 @@ describe('MembershipPlansService', () => {
           archivedAt: null,
           scopeKey: 'TENANT',
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           archivedPlan,
         );
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null); // No conflict
@@ -1701,7 +1702,7 @@ describe('MembershipPlansService', () => {
         expect((result as any).archivedAt).toBeNull();
         expect(result.scopeKey).toBe('TENANT');
         expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-          where: { id: planId },
+          where: { id_tenantId: { id: planId, tenantId } },
           data: {
             archivedAt: null,
             status: PlanStatus.ACTIVE,
@@ -1715,7 +1716,7 @@ describe('MembershipPlansService', () => {
           ...mockPlan,
           archivedAt: null,
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           activePlan,
         );
 
@@ -1746,12 +1747,9 @@ describe('MembershipPlansService', () => {
           archivedAt: null, // Active plan
           id: 'other-plan-id',
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
-          archivedPlan,
-        );
-        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
-          conflictingPlan,
-        );
+        mockPrismaService.membershipPlan.findFirst
+          .mockResolvedValueOnce(archivedPlan) // getPlanByIdForTenant
+          .mockResolvedValueOnce(conflictingPlan); // checkNameUniqueness
 
         await expect(
           service.restorePlanForTenant(tenantId, planId),
@@ -1776,7 +1774,7 @@ describe('MembershipPlansService', () => {
           archivedAt: null,
           scopeKey: 'TENANT',
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           archivedPlan,
         );
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
@@ -1785,7 +1783,7 @@ describe('MembershipPlansService', () => {
         await service.restorePlanForTenant(tenantId, planId);
 
         expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-          where: { id: planId },
+          where: { id_tenantId: { id: planId, tenantId } },
           data: {
             archivedAt: null,
             status: PlanStatus.ACTIVE,
@@ -1806,7 +1804,7 @@ describe('MembershipPlansService', () => {
           archivedAt: null,
           scopeKey: branchId,
         };
-        mockPrismaService.membershipPlan.findUnique.mockResolvedValue(
+        mockPrismaService.membershipPlan.findFirst.mockResolvedValue(
           archivedPlan,
         );
         mockPrismaService.membershipPlan.findFirst.mockResolvedValue(null);
@@ -1815,7 +1813,7 @@ describe('MembershipPlansService', () => {
         await service.restorePlanForTenant(tenantId, planId);
 
         expect(prismaService.membershipPlan.update).toHaveBeenCalledWith({
-          where: { id: planId },
+          where: { id_tenantId: { id: planId, tenantId } },
           data: {
             archivedAt: null,
             status: PlanStatus.ACTIVE,

@@ -5,6 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanService } from '../plan/plan.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
@@ -56,15 +57,11 @@ export class BranchesService {
    * Enforces tenant isolation - throws NotFoundException if branch doesn't belong to tenant
    */
   async getBranchById(tenantId: string, branchId: string) {
-    const branch = await this.prisma.branch.findUnique({
-      where: { id: branchId },
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, tenantId },
     });
 
     if (!branch) {
-      throw new NotFoundException('Branch not found');
-    }
-
-    if (branch.tenantId !== tenantId) {
       throw new NotFoundException('Branch not found');
     }
 
@@ -159,10 +156,20 @@ export class BranchesService {
       }
     }
 
-    return this.prisma.branch.update({
-      where: { id: branchId },
-      data: dto,
-    });
+    try {
+      return await this.prisma.branch.update({
+        where: { id_tenantId: { id: branchId, tenantId } },
+        data: dto,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Branch not found');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -196,13 +203,23 @@ export class BranchesService {
       throw new BadRequestException('Cannot archive the last active branch');
     }
 
-    return this.prisma.branch.update({
-      where: { id: branchId },
-      data: {
-        isActive: false,
-        archivedAt: new Date(),
-      },
-    });
+    try {
+      return await this.prisma.branch.update({
+        where: { id_tenantId: { id: branchId, tenantId } },
+        data: {
+          isActive: false,
+          archivedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Branch not found');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -230,13 +247,23 @@ export class BranchesService {
       );
     }
 
-    return this.prisma.branch.update({
-      where: { id: branchId },
-      data: {
-        isActive: true,
-        archivedAt: null,
-      },
-    });
+    try {
+      return await this.prisma.branch.update({
+        where: { id_tenantId: { id: branchId, tenantId } },
+        data: {
+          isActive: true,
+          archivedAt: null,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Branch not found');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -291,9 +318,9 @@ export class BranchesService {
         },
       });
 
-      // Set new default
+      // Set new default (tenant-scoped)
       return tx.branch.update({
-        where: { id: branchId },
+        where: { id_tenantId: { id: branchId, tenantId } },
         data: {
           isDefault: true,
         },

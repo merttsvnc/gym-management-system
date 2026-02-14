@@ -201,10 +201,13 @@ export class ProductSalesService {
       );
     }
 
-    // Delete sale (cascade to items)
-    await this.prisma.productSale.delete({
-      where: { id },
+    // Delete sale (tenant+branch scoped - defense-in-depth)
+    const result = await this.prisma.productSale.deleteMany({
+      where: { id, tenantId, branchId },
     });
+    if (result.count === 0) {
+      throw new NotFoundException(`Product sale with ID ${id} not found`);
+    }
 
     return { success: true };
   }

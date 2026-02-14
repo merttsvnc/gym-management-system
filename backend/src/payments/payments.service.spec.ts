@@ -21,10 +21,10 @@ describe('PaymentsService', () => {
 
   const mockPrismaService = {
     member: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     payment: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       count: jest.fn(),
@@ -107,14 +107,14 @@ describe('PaymentsService', () => {
     };
 
     it('should create payment successfully', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.create.mockResolvedValue(mockPayment);
 
       const result = await service.createPayment(tenantId, userId, createInput);
 
       expect(result).toEqual(mockPayment);
-      expect(prismaService.member.findUnique).toHaveBeenCalledWith({
-        where: { id: memberId },
+      expect(prismaService.member.findFirst).toHaveBeenCalledWith({
+        where: { id: memberId, tenantId },
         include: { branch: true },
       });
       expect(prismaService.payment.create).toHaveBeenCalled();
@@ -122,7 +122,7 @@ describe('PaymentsService', () => {
 
     // T071: Test createPayment() validates member belongs to tenant
     it('should throw NotFoundException when member does not exist', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(null);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(
         service.createPayment(tenantId, userId, createInput),
@@ -133,8 +133,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw NotFoundException when member belongs to different tenant', async () => {
-      const otherTenantMember = { ...mockMember, tenantId: 'other-tenant' };
-      mockPrismaService.member.findUnique.mockResolvedValue(otherTenantMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(
         service.createPayment(tenantId, userId, createInput),
@@ -146,7 +145,7 @@ describe('PaymentsService', () => {
 
     // T072: Test createPayment() validates amount is positive
     it('should throw BadRequestException when amount is zero', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
 
       await expect(
         service.createPayment(tenantId, userId, {
@@ -163,7 +162,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw BadRequestException when amount is negative', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
 
       await expect(
         service.createPayment(tenantId, userId, {
@@ -174,7 +173,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw BadRequestException when amount exceeds maximum', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
 
       await expect(
         service.createPayment(tenantId, userId, {
@@ -191,7 +190,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw BadRequestException when amount has more than 2 decimal places', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
 
       await expect(
         service.createPayment(tenantId, userId, {
@@ -208,7 +207,7 @@ describe('PaymentsService', () => {
     });
 
     it('should accept valid amount with 2 decimal places', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.create.mockResolvedValue(mockPayment);
 
       await service.createPayment(tenantId, userId, {
@@ -221,7 +220,7 @@ describe('PaymentsService', () => {
 
     // T073: Test createPayment() validates paidOn date is not in future
     it('should throw BadRequestException when paidOn is in future', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 1);
 
@@ -240,7 +239,7 @@ describe('PaymentsService', () => {
     });
 
     it('should accept paidOn date for today', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.create.mockResolvedValue(mockPayment);
       const today = new Date();
 
@@ -253,7 +252,7 @@ describe('PaymentsService', () => {
     });
 
     it('should accept paidOn date in the past', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.create.mockResolvedValue(mockPayment);
       const pastDate = new Date('2020-01-01');
 
@@ -267,7 +266,7 @@ describe('PaymentsService', () => {
 
     // T074: Test createPayment() truncates paidOn to start-of-day UTC
     it('should truncate paidOn to start-of-day UTC', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.create.mockResolvedValue(mockPayment);
       const dateWithTime = new Date('2024-01-15T14:30:00Z');
 
@@ -286,7 +285,7 @@ describe('PaymentsService', () => {
 
     // T075: Test createPayment() sets branchId from member's branch
     it('should set branchId from member branch', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.create.mockResolvedValue(mockPayment);
 
       await service.createPayment(tenantId, userId, createInput);
@@ -336,7 +335,7 @@ describe('PaymentsService', () => {
       mockPrismaService.idempotencyKey.findUnique.mockResolvedValue(
         mockIdempotencyKey,
       );
-      mockPrismaService.payment.findUnique.mockResolvedValue(mockPayment);
+      mockPrismaService.payment.findFirst.mockResolvedValue(mockPayment);
 
       const result = await service.createPayment(
         tenantId,
@@ -377,7 +376,7 @@ describe('PaymentsService', () => {
 
     // T076: Test correctPayment() validates original payment belongs to tenant
     it('should throw NotFoundException when payment does not exist', async () => {
-      mockPrismaService.payment.findUnique.mockResolvedValue(null);
+      mockPrismaService.payment.findFirst.mockResolvedValue(null);
 
       await expect(
         service.correctPayment(tenantId, userId, paymentId, correctInput),
@@ -392,7 +391,7 @@ describe('PaymentsService', () => {
         ...mockPayment,
         tenantId: 'other-tenant',
       };
-      mockPrismaService.payment.findUnique.mockResolvedValue(
+      mockPrismaService.payment.findFirst.mockResolvedValue(
         otherTenantPayment,
       );
 
@@ -407,7 +406,7 @@ describe('PaymentsService', () => {
         ...mockPayment,
         isCorrected: true,
       };
-      mockPrismaService.payment.findUnique.mockResolvedValue(
+      mockPrismaService.payment.findFirst.mockResolvedValue(
         alreadyCorrectedPayment,
       );
 
@@ -447,7 +446,7 @@ describe('PaymentsService', () => {
         ...mockPayment,
         version: 1,
       };
-      mockPrismaService.payment.findUnique.mockResolvedValue(
+      mockPrismaService.payment.findFirst.mockResolvedValue(
         paymentWithDifferentVersion,
       );
 
@@ -462,7 +461,7 @@ describe('PaymentsService', () => {
     // T080: Test correctPayment() creates new payment record with corrected values
     // T081: Test correctPayment() marks original payment as corrected and increments version
     it('should create corrected payment and update original atomically', async () => {
-      mockPrismaService.payment.findUnique.mockResolvedValue(mockPayment);
+      mockPrismaService.payment.findFirst.mockResolvedValue(mockPayment);
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           payment: {
@@ -525,7 +524,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw ConflictException when updateMany returns count 0', async () => {
-      mockPrismaService.payment.findUnique.mockResolvedValue(mockPayment);
+      mockPrismaService.payment.findFirst.mockResolvedValue(mockPayment);
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           payment: {
@@ -546,7 +545,7 @@ describe('PaymentsService', () => {
         amount: 150.0,
         version: 0,
       };
-      mockPrismaService.payment.findUnique.mockResolvedValue(mockPayment);
+      mockPrismaService.payment.findFirst.mockResolvedValue(mockPayment);
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           payment: {
@@ -582,13 +581,13 @@ describe('PaymentsService', () => {
 
   describe('getPaymentById', () => {
     it('should return payment when found and belongs to tenant', async () => {
-      mockPrismaService.payment.findUnique.mockResolvedValue(mockPayment);
+      mockPrismaService.payment.findFirst.mockResolvedValue(mockPayment);
 
       const result = await service.getPaymentById(tenantId, paymentId);
 
       expect(result).toEqual(mockPayment);
-      expect(prismaService.payment.findUnique).toHaveBeenCalledWith({
-        where: { id: paymentId },
+      expect(prismaService.payment.findFirst).toHaveBeenCalledWith({
+        where: { id: paymentId, tenantId },
         include: {
           member: true,
           branch: true,
@@ -599,7 +598,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw NotFoundException when payment not found', async () => {
-      mockPrismaService.payment.findUnique.mockResolvedValue(null);
+      mockPrismaService.payment.findFirst.mockResolvedValue(null);
 
       await expect(service.getPaymentById(tenantId, paymentId)).rejects.toThrow(
         NotFoundException,
@@ -607,13 +606,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw NotFoundException when payment belongs to different tenant', async () => {
-      const otherTenantPayment = {
-        ...mockPayment,
-        tenantId: 'other-tenant',
-      };
-      mockPrismaService.payment.findUnique.mockResolvedValue(
-        otherTenantPayment,
-      );
+      mockPrismaService.payment.findFirst.mockResolvedValue(null);
 
       await expect(service.getPaymentById(tenantId, paymentId)).rejects.toThrow(
         NotFoundException,
@@ -710,20 +703,20 @@ describe('PaymentsService', () => {
 
   describe('getMemberPayments', () => {
     it('should return member payments filtered by tenant', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.findMany.mockResolvedValue([mockPayment]);
       mockPrismaService.payment.count.mockResolvedValue(1);
 
       const result = await service.getMemberPayments(tenantId, memberId);
 
       expect(result.data).toEqual([mockPayment]);
-      expect(prismaService.member.findUnique).toHaveBeenCalledWith({
-        where: { id: memberId },
+      expect(prismaService.member.findFirst).toHaveBeenCalledWith({
+        where: { id: memberId, tenantId },
       });
     });
 
     it('should throw NotFoundException when member does not exist', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue(null);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(
         service.getMemberPayments(tenantId, memberId),
@@ -731,8 +724,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw NotFoundException when member belongs to different tenant', async () => {
-      const otherTenantMember = { ...mockMember, tenantId: 'other-tenant' };
-      mockPrismaService.member.findUnique.mockResolvedValue(otherTenantMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(
         service.getMemberPayments(tenantId, memberId),
@@ -908,7 +900,7 @@ describe('PaymentsService', () => {
   describe('structured logging', () => {
     it('should log payment.created event without amount and note', async () => {
       const loggerSpy = jest.spyOn(service['logger'], 'log');
-      mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(mockMember);
       mockPrismaService.payment.create.mockResolvedValue(mockPayment);
 
       await service.createPayment(tenantId, userId, {
@@ -941,7 +933,7 @@ describe('PaymentsService', () => {
 
     it('should log payment.corrected event without amount and note', async () => {
       const loggerSpy = jest.spyOn(service['logger'], 'log');
-      mockPrismaService.payment.findUnique.mockResolvedValue(mockPayment);
+      mockPrismaService.payment.findFirst.mockResolvedValue(mockPayment);
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           payment: {

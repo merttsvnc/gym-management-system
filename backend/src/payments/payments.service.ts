@@ -85,17 +85,13 @@ export class PaymentsService {
         return cachedResponse;
       }
     }
-    // Validate member belongs to tenant
-    const member = await this.prisma.member.findUnique({
-      where: { id: input.memberId },
+    // Validate member belongs to tenant (tenant-scoped query)
+    const member = await this.prisma.member.findFirst({
+      where: { id: input.memberId, tenantId },
       include: { branch: true },
     });
 
     if (!member) {
-      throw new NotFoundException('Üye bulunamadı');
-    }
-
-    if (member.tenantId !== tenantId) {
       throw new NotFoundException('Üye bulunamadı');
     }
 
@@ -185,16 +181,12 @@ export class PaymentsService {
     paymentId: string,
     input: CorrectPaymentInput,
   ) {
-    // Get original payment and validate tenant isolation
-    const originalPayment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
+    // Get original payment and validate tenant isolation (tenant-scoped query)
+    const originalPayment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, tenantId },
     });
 
     if (!originalPayment) {
-      throw new NotFoundException('Ödeme bulunamadı');
-    }
-
-    if (originalPayment.tenantId !== tenantId) {
       throw new NotFoundException('Ödeme bulunamadı');
     }
 
@@ -306,8 +298,8 @@ export class PaymentsService {
    * - Enforces tenant isolation - throws NotFoundException if payment doesn't belong to tenant
    */
   async getPaymentById(tenantId: string, paymentId: string) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, tenantId },
       include: {
         member: true,
         branch: true,
@@ -317,10 +309,6 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Ödeme bulunamadı');
-    }
-
-    if (payment.tenantId !== tenantId) {
       throw new NotFoundException('Ödeme bulunamadı');
     }
 
@@ -425,16 +413,12 @@ export class PaymentsService {
     memberId: string,
     filters: { startDate?: Date | string; endDate?: Date | string } = {},
   ) {
-    // Validate member belongs to tenant
-    const member = await this.prisma.member.findUnique({
-      where: { id: memberId },
+    // Validate member belongs to tenant (tenant-scoped query)
+    const member = await this.prisma.member.findFirst({
+      where: { id: memberId, tenantId },
     });
 
     if (!member) {
-      throw new NotFoundException('Üye bulunamadı');
-    }
-
-    if (member.tenantId !== tenantId) {
       throw new NotFoundException('Üye bulunamadı');
     }
 
@@ -801,9 +785,9 @@ export class PaymentsService {
     const cachedResponse =
       idempotencyKey.response as unknown as CachedPaymentResponse;
 
-    // Fetch the actual payment with relations to ensure data consistency
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: cachedResponse.id },
+    // Fetch the actual payment with relations (tenant-scoped - idempotencyKey.tenantId already validated)
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: cachedResponse.id, tenantId },
       include: {
         member: true,
         branch: true,

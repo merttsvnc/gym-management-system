@@ -202,7 +202,13 @@ describe('ProductsService', () => {
       await service.remove('product-1', 'tenant-1', 'branch-1');
 
       expect(mockPrismaService.product.update).toHaveBeenCalledWith({
-        where: { id: 'product-1' },
+        where: {
+          id_tenantId_branchId: {
+            id: 'product-1',
+            tenantId: 'tenant-1',
+            branchId: 'branch-1',
+          },
+        },
         data: { isActive: false },
       });
     });

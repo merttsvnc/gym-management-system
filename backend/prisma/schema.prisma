@@ -145,6 +145,7 @@ model Branch {
   productSales    ProductSale[]
 
   @@unique([tenantId, name])
+  @@unique([id, tenantId])
   @@index([tenantId])
   @@index([tenantId, isActive])
   @@index([tenantId, isDefault])
@@ -201,6 +202,7 @@ model MembershipPlan {
   pendingMembers Member[] @relation("PendingMembershipPlan")
 
   @@unique([tenantId, scope, scopeKey, name])
+  @@unique([id, tenantId])
   @@index([tenantId])
   @@index([tenantId, scope])
   @@index([tenantId, status])
@@ -274,6 +276,7 @@ model Member {
   planChangeHistory            MemberPlanChangeHistory[]
 
   @@unique([tenantId, phone])
+  @@unique([id, tenantId])
   @@index([tenantId, branchId])
   @@index([tenantId, phone])
   @@index([membershipPlanId])
@@ -323,6 +326,7 @@ model Payment {
   correctedPayment   Payment?  @relation("PaymentCorrection", fields: [correctedPaymentId], references: [id], onDelete: SetNull)
   correctingPayments Payment[] @relation("PaymentCorrection") // One-to-many: original payment can have multiple corrections
 
+  @@unique([id, tenantId])
   @@index([tenantId])
   @@index([tenantId, branchId])
   @@index([tenantId, memberId])
@@ -442,6 +446,7 @@ model Product {
   branch    Branch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
   saleItems ProductSaleItem[]
 
+  @@unique([id, tenantId, branchId])
   @@index([tenantId, branchId])
   @@index([tenantId, branchId, isActive])
 }
@@ -464,6 +469,7 @@ model ProductSale {
   branch Branch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
   items  ProductSaleItem[]
 
+  @@unique([id, tenantId, branchId])
   @@index([tenantId, branchId, soldAt])
   @@index([tenantId, branchId, createdAt])
   @@index([tenantId, soldAt])

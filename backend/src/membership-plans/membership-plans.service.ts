@@ -304,15 +304,11 @@ export class MembershipPlansService {
     tenantId: string,
     planId: string,
   ): Promise<MembershipPlan> {
-    const plan = await this.prisma.membershipPlan.findUnique({
-      where: { id: planId },
+    const plan = await this.prisma.membershipPlan.findFirst({
+      where: { id: planId, tenantId },
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan bulunamadı');
-    }
-
-    if (plan.tenantId !== tenantId) {
       throw new NotFoundException('Plan bulunamadı');
     }
 
@@ -419,10 +415,20 @@ export class MembershipPlansService {
       );
     }
 
-    return this.prisma.membershipPlan.update({
-      where: { id: planId },
-      data: updateData,
-    });
+    try {
+      return await this.prisma.membershipPlan.update({
+        where: { id_tenantId: { id: planId, tenantId } },
+        data: updateData,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Plan bulunamadı');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -448,15 +454,25 @@ export class MembershipPlansService {
     const activeMemberCount = await this.countActiveMembersForPlan(planId);
 
     // Soft delete by setting archivedAt = now and status = ARCHIVED
-    const archivedPlan = await this.prisma.membershipPlan.update({
-      where: { id: planId },
-      data: {
-        archivedAt: new Date(),
-        status: PlanStatus.ARCHIVED,
-      },
-    });
+    try {
+      const archivedPlan = await this.prisma.membershipPlan.update({
+        where: { id_tenantId: { id: planId, tenantId } },
+        data: {
+          archivedAt: new Date(),
+          status: PlanStatus.ARCHIVED,
+        },
+      });
 
-    return { plan: archivedPlan, activeMemberCount };
+      return { plan: archivedPlan, activeMemberCount };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Plan bulunamadı');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -495,14 +511,24 @@ export class MembershipPlansService {
     const scopeKey = this.computeScopeKey(plan.scope, plan.branchId);
 
     // Restore by setting archivedAt = null, status = ACTIVE, and updating scopeKey
-    return this.prisma.membershipPlan.update({
-      where: { id: planId },
-      data: {
-        archivedAt: null,
-        status: PlanStatus.ACTIVE,
-        scopeKey, // Recompute scopeKey during restore
-      },
-    });
+    try {
+      return await this.prisma.membershipPlan.update({
+        where: { id_tenantId: { id: planId, tenantId } },
+        data: {
+          archivedAt: null,
+          status: PlanStatus.ACTIVE,
+          scopeKey, // Recompute scopeKey during restore
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Plan bulunamadı');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -528,9 +554,19 @@ export class MembershipPlansService {
       );
     }
 
-    await this.prisma.membershipPlan.delete({
-      where: { id: planId },
-    });
+    try {
+      await this.prisma.membershipPlan.delete({
+        where: { id_tenantId: { id: planId, tenantId } },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Plan bulunamadı');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -629,17 +665,12 @@ export class MembershipPlansService {
     tenantId: string,
     branchId: string,
   ): Promise<void> {
-    const branch = await this.prisma.branch.findUnique({
-      where: { id: branchId },
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, tenantId },
     });
 
     if (!branch) {
       throw new NotFoundException('Şube bulunamadı');
-    }
-
-    if (branch.tenantId !== tenantId) {
-      // Generic error message to prevent tenant leakage
-      throw new ForbiddenException('Bu işlem için yetkiniz bulunmamaktadır');
     }
 
     if (!branch.isActive) {
@@ -661,12 +692,11 @@ export class MembershipPlansService {
     tenantId: string,
     branchId: string,
   ): Promise<void> {
-    const branch = await this.prisma.branch.findUnique({
-      where: { id: branchId },
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, tenantId },
     });
 
-    if (!branch || branch.tenantId !== tenantId) {
-      // Generic error message to prevent tenant leakage
+    if (!branch) {
       throw new BadRequestException('Geçersiz şube kimliği');
     }
   }

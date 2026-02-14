@@ -13,7 +13,7 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { MemberListQueryDto } from './dto/member-list-query.dto';
 import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
 import { SchedulePlanChangeDto } from './dto/schedule-plan-change.dto';
-import { MemberStatus } from '@prisma/client';
+import { MemberStatus, Prisma } from '@prisma/client';
 import { MembershipPlansService } from '../membership-plans/membership-plans.service';
 import { calculateMembershipEndDate } from '../membership-plans/utils/duration-calculator';
 import {
@@ -83,16 +83,12 @@ export class MembersService {
       membershipPriceAtPurchase?: number;
     },
   ) {
-    // Validate branch belongs to tenant
-    const branch = await this.prisma.branch.findUnique({
-      where: { id: dto.branchId },
+    // Validate branch belongs to tenant (tenant-scoped query - no cross-tenant leak)
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: dto.branchId, tenantId },
     });
 
     if (!branch) {
-      throw new NotFoundException('Şube bulunamadı');
-    }
-
-    if (branch.tenantId !== tenantId) {
       throw new NotFoundException('Şube bulunamadı');
     }
 
@@ -406,8 +402,8 @@ export class MembersService {
    * - Always includes pending membership plan if pendingMembershipPlanId exists
    */
   async findOne(tenantId: string, id: string, includePlan = false) {
-    const member = await this.prisma.member.findUnique({
-      where: { id },
+    const member = await this.prisma.member.findFirst({
+      where: { id, tenantId },
       include: {
         branch: true,
         ...(includePlan ? { membershipPlan: true } : {}),
@@ -416,10 +412,6 @@ export class MembersService {
     });
 
     if (!member) {
-      throw new NotFoundException('Üye bulunamadı');
-    }
-
-    if (member.tenantId !== tenantId) {
       throw new NotFoundException('Üye bulunamadı');
     }
 
@@ -442,15 +434,11 @@ export class MembersService {
 
     // If branchId is being updated, validate new branch belongs to tenant
     if (dto.branchId && dto.branchId !== existingMember.branchId) {
-      const branch = await this.prisma.branch.findUnique({
-        where: { id: dto.branchId },
+      const branch = await this.prisma.branch.findFirst({
+        where: { id: dto.branchId, tenantId },
       });
 
       if (!branch) {
-        throw new NotFoundException('Şube bulunamadı');
-      }
-
-      if (branch.tenantId !== tenantId) {
         throw new NotFoundException('Şube bulunamadı');
       }
     }
@@ -567,15 +555,25 @@ export class MembersService {
 
     try {
       const updatedMember = await this.prisma.member.update({
-        where: { id },
+        where: { id_tenantId: { id, tenantId } },
         data: updateData,
       });
 
       return this.enrichMemberWithComputedFields(updatedMember);
     } catch (error) {
+      // P2025: Record not found (wrong tenant or non-existent)
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Üye bulunamadı');
+      }
       // Handle unique constraint violation from database
       // P2002: "Unique constraint failed on the {constraint}"
-      if (error.code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         const target = error.meta?.target;
         // Check if target contains 'phone' (target can be array or string)
         const isPhoneConstraint =
@@ -687,12 +685,22 @@ export class MembersService {
     // For other transitions (ACTIVE → INACTIVE, INACTIVE → ACTIVE),
     // don't modify pausedAt/resumedAt (they remain as historical data)
 
-    const updatedMember = await this.prisma.member.update({
-      where: { id },
-      data: updateData,
-    });
+    try {
+      const updatedMember = await this.prisma.member.update({
+        where: { id_tenantId: { id, tenantId } },
+        data: updateData,
+      });
 
-    return this.enrichMemberWithComputedFields(updatedMember);
+      return this.enrichMemberWithComputedFields(updatedMember);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Üye bulunamadı');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -710,16 +718,26 @@ export class MembersService {
       return member;
     }
 
-    const archivedMember = await this.prisma.member.update({
-      where: { id },
-      data: {
-        status: 'ARCHIVED',
-        pausedAt: null,
-        resumedAt: null,
-      },
-    });
+    try {
+      const archivedMember = await this.prisma.member.update({
+        where: { id_tenantId: { id, tenantId } },
+        data: {
+          status: 'ARCHIVED',
+          pausedAt: null,
+          resumedAt: null,
+        },
+      });
 
-    return this.enrichMemberWithComputedFields(archivedMember);
+      return this.enrichMemberWithComputedFields(archivedMember);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Üye bulunamadı');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -894,9 +912,9 @@ export class MembersService {
     // Update member with pending plan change (overwrites existing if present)
     // Also create history record in the same transaction
     const updatedMember = await this.prisma.$transaction(async (tx) => {
-      // Update member with pending fields
+      // Update member with pending fields (tenant-scoped)
       const updated = await tx.member.update({
-        where: { id: memberId },
+        where: { id_tenantId: { id: memberId, tenantId } },
         data: {
           pendingMembershipPlanId: dto.membershipPlanId,
           pendingMembershipStartDate: pendingStartDate,
@@ -952,9 +970,9 @@ export class MembersService {
 
     // Clear pending fields and create history record
     const updatedMember = await this.prisma.$transaction(async (tx) => {
-      // Clear pending fields
+      // Clear pending fields (tenant-scoped)
       const updated = await tx.member.update({
-        where: { id: memberId },
+        where: { id_tenantId: { id: memberId, tenantId } },
         data: {
           pendingMembershipPlanId: null,
           pendingMembershipStartDate: null,
