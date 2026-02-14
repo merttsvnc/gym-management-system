@@ -16,6 +16,14 @@
 - **Updated** `backend/.env.example` – template with no secrets
 - **Created** `docs/PRODUCTION_ENV.md` – documentation for each env var
 
+### E) Env Template Consolidation (PR-4 follow-up)
+
+- **Single master template**: `backend/.env.example` is the only env template
+- **Removed** `backend/.env.staging.template` – all variables merged into `.env.example`
+- **Organized** `.env.example` into sections: Core, JWT, Auth/Email, CORS, Cron, Upload limits, Storage (R2), Rate limiting
+- **Added** comments with recommended values for development, staging, production
+- **Updated** `docs/PRODUCTION_ENV.md` to reference only `.env.example`
+
 ### B) CRON Kill Switch
 
 - **Added** `CRON_ENABLED` env var (default: `true`)

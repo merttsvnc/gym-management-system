@@ -44,43 +44,9 @@ Before deploying, confirm:
 | `UPLOAD_MAX_FILE_SIZE_MB`, `UPLOAD_ALLOWED_MIME_TYPES` | Upload limits |
 | `RESET_START_IP_LIMIT`, `RESET_START_EMAIL_LIMIT` | Rate limiting |
 
-### Example `.env.staging.template` (no secrets)
+### Env template
 
-```bash
-# === Core ===
-NODE_ENV=staging
-PORT=3000
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME?schema=public
-APP_VERSION=1.0.0-staging
-
-# === JWT (REQUIRED - set real secrets) ===
-JWT_ACCESS_SECRET=
-JWT_REFRESH_SECRET=
-JWT_SIGNUP_SECRET=
-JWT_RESET_SECRET=
-JWT_ACCESS_EXPIRES_IN=900s
-JWT_REFRESH_EXPIRES_IN=30d
-
-# === Auth / Email ===
-AUTH_EMAIL_VERIFICATION_ENABLED=true
-# AUTH_OTP_DEV_FIXED_CODE=  # Only for dev/QA when verification disabled
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=
-
-# === CORS ===
-FRONTEND_URL=https://staging.example.com
-
-# === R2 (if using uploads) ===
-# R2_ACCOUNT_ID=
-# R2_ACCESS_KEY_ID=
-# R2_SECRET_ACCESS_KEY=
-# R2_BUCKET_NAME=
-# R2_PUBLIC_BASE_URL=
-
-# === Upload limits ===
-UPLOAD_MAX_FILE_SIZE_MB=2
-UPLOAD_ALLOWED_MIME_TYPES=image/jpeg,image/png,image/webp
-```
+Use **`backend/.env.example`** as the single master template. Copy to `.env.staging` (or `.env`) and fill in staging values. See [docs/PRODUCTION_ENV.md](docs/PRODUCTION_ENV.md) for full variable documentation.
 
 ### How to set env vars safely
 
