@@ -4,6 +4,7 @@ import {
   ServiceUnavailableException,
   Res,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,6 +17,7 @@ interface HealthResponse {
   version?: string;
 }
 
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}

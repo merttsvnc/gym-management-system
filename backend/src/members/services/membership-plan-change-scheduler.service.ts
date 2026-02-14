@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
 import { PgAdvisoryLockService } from '../../common/services/pg-advisory-lock.service';
@@ -13,6 +14,7 @@ export class MembershipPlanChangeSchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lockService: PgAdvisoryLockService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -26,6 +28,13 @@ export class MembershipPlanChangeSchedulerService {
   async applyScheduledMembershipPlanChanges() {
     const correlationId =
       this.lockService.generateCorrelationId('plan-change-scheduler');
+
+    const cronEnabled = this.configService.get<string>('CRON_ENABLED') !== 'false';
+    if (!cronEnabled) {
+      this.logger.log(`[${correlationId}] Cron disabled by env`);
+      return;
+    }
+
     this.logger.log(
       `[${correlationId}] Starting scheduled membership plan change job`,
     );

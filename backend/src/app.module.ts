@@ -31,11 +31,12 @@ import { HttpLoggingInterceptor } from './common/interceptors/http-logging.inter
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
+    // Rate limiting: per-instance only (no Redis). Auth routes use @Throttle() for custom limits.
     ThrottlerModule.forRoot([
       {
         name: 'default',
-        ttl: 900000, // 15 minutes in milliseconds
-        limit: 5, // 5 requests per 15 minutes (for login endpoint)
+        ttl: 60000, // 1 minute
+        limit: 100, // Default: 100/min for non-auth routes
       },
     ]),
     PrismaModule,

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PgAdvisoryLockService } from '../common/services/pg-advisory-lock.service';
 import { MemberStatusSyncService } from './member-status-sync.service';
@@ -7,6 +8,9 @@ describe('MemberStatusSyncService', () => {
   let service: MemberStatusSyncService;
 
   const mockExecuteWithLock = jest.fn();
+  const mockConfigService = {
+    get: jest.fn((key: string) => (key === 'CRON_ENABLED' ? 'true' : undefined)),
+  };
 
   const mockPrismaService = {
     tenant: { findMany: jest.fn() },
@@ -20,6 +24,9 @@ describe('MemberStatusSyncService', () => {
   };
 
   beforeEach(async () => {
+    mockConfigService.get.mockImplementation((key: string) =>
+      key === 'CRON_ENABLED' ? 'true' : undefined,
+    );
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MemberStatusSyncService,
@@ -30,6 +37,10 @@ describe('MemberStatusSyncService', () => {
         {
           provide: PgAdvisoryLockService,
           useValue: mockLockService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -44,6 +55,17 @@ describe('MemberStatusSyncService', () => {
   });
 
   describe('handleCron (via syncExpiredMemberStatuses)', () => {
+    it('should return early when CRON_ENABLED=false', async () => {
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'CRON_ENABLED' ? 'false' : undefined,
+      );
+
+      await service.handleCron();
+
+      expect(mockExecuteWithLock).not.toHaveBeenCalled();
+      expect(mockPrismaService.tenant.findMany).not.toHaveBeenCalled();
+    });
+
     it('should return early when lock is not acquired', async () => {
       mockExecuteWithLock.mockResolvedValue({ acquired: false });
 

@@ -1,22 +1,29 @@
 import 'dotenv/config';
+import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { validateEnv } from './config/env';
 
 async function bootstrap() {
-  // Production safety check: fail startup if email verification is disabled in production
-  const nodeEnv = process.env.NODE_ENV;
-  const emailVerificationEnabled =
-    process.env.AUTH_EMAIL_VERIFICATION_ENABLED === 'true';
-
-  if (nodeEnv === 'production' && !emailVerificationEnabled) {
-    throw new Error(
-      'FATAL: AUTH_EMAIL_VERIFICATION_ENABLED must be true in production. Email verification cannot be disabled in production environments.',
-    );
-  }
+  // Fail-fast: validate required env vars before any NestJS bootstrap
+  validateEnv();
 
   const app = await NestFactory.create(AppModule);
+
+  // Security headers (before CORS so headers are set correctly)
+  app.use(
+    helmet({
+      hidePoweredBy: true,
+      noSniff: true,
+      frameguard: { action: 'deny' },
+      hsts:
+        process.env.NODE_ENV === 'production'
+          ? { maxAge: 31536000, includeSubDomains: true }
+          : false,
+    }),
+  );
 
   // Enable CORS for frontend development
   app.enableCors({
@@ -44,6 +51,7 @@ async function bootstrap() {
     exclude: ['', 'health', 'api/mobile/*'],
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = parseInt(process.env.PORT ?? '3000', 10);
+  await app.listen(port);
 }
 void bootstrap();

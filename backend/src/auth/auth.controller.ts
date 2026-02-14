@@ -48,7 +48,7 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes (900000ms)
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute per IP
   @UseFilters(ThrottlerExceptionFilter)
   async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(
@@ -117,7 +117,7 @@ export class AuthController {
 
   @Post('signup/verify-otp')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 10, ttl: 900000 } }) // 10 attempts per 15 minutes
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute per IP
   @UseFilters(ThrottlerExceptionFilter)
   async signupVerifyOtp(@Body() dto: SignupVerifyOtpDto) {
     try {
@@ -157,8 +157,9 @@ export class AuthController {
   }
 
   @Post('password-reset/start')
-  // NOTE: No @Throttle decorator here - rate limiting is handled at service level
-  // to prevent email enumeration through 429 vs 201 status code differences
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute per IP
+  @UseFilters(ThrottlerExceptionFilter)
   async passwordResetStart(
     @Body() dto: PasswordResetStartDto,
     @Req() req: RequestWithIp,
@@ -169,7 +170,7 @@ export class AuthController {
 
   @Post('password-reset/verify-otp')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 10, ttl: 900000 } }) // 10 attempts per 15 minutes
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute per IP
   @UseFilters(ThrottlerExceptionFilter)
   async passwordResetVerifyOtp(@Body() dto: PasswordResetVerifyOtpDto) {
     try {
@@ -185,7 +186,9 @@ export class AuthController {
   }
 
   @Post('password-reset/complete')
-  @UseGuards(ResetTokenGuard)
+  @UseGuards(ThrottlerGuard, ResetTokenGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute per IP
+  @UseFilters(ThrottlerExceptionFilter)
   async passwordResetComplete(
     @CurrentUser() resetTokenPayload: ResetTokenPayload,
     @Body() dto: PasswordResetCompleteDto,

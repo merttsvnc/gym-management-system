@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { getTodayStart } from '../common/utils/membership-status.util';
@@ -29,6 +30,7 @@ export class MemberStatusSyncService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lockService: PgAdvisoryLockService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -42,6 +44,13 @@ export class MemberStatusSyncService {
   async handleCron() {
     const correlationId =
       this.lockService.generateCorrelationId('status-sync');
+
+    const cronEnabled = this.configService.get<string>('CRON_ENABLED') !== 'false';
+    if (!cronEnabled) {
+      this.logger.log(`[${correlationId}] Cron disabled by env`);
+      return;
+    }
+
     this.logger.log(
       `[${correlationId}] Starting daily member status sync job`,
     );

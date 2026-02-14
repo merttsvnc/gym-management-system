@@ -1,18 +1,18 @@
 /**
  * Jest e2e test setup file
- * Ensures DATABASE_URL is set for Prisma Client initialization
+ * Ensures required env vars are set for Prisma and app initialization
  */
 
 // Ensure DATABASE_URL is set for tests
-// If not set, use a default test database URL
-// IMPORTANT: This must run before PrismaClient is instantiated
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL =
     'postgresql://mertsevinc@localhost:5432/gym_management_test?schema=public';
+}
 
-  // Log for debugging (can be removed in production)
-  console.log(
-    '[jest-e2e.setup] DATABASE_URL set to:',
-    process.env.DATABASE_URL,
-  );
+// PR-4: Ensure required env vars for config (tests bypass main.ts validateEnv)
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'test';
+}
+if (!process.env.JWT_ACCESS_SECRET || process.env.JWT_ACCESS_SECRET.length < 32) {
+  process.env.JWT_ACCESS_SECRET = 'a'.repeat(32);
 }

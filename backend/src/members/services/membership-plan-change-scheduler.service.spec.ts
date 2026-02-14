@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PgAdvisoryLockService } from '../../common/services/pg-advisory-lock.service';
 import { MembershipPlanChangeSchedulerService } from './membership-plan-change-scheduler.service';
@@ -9,6 +10,9 @@ describe('MembershipPlanChangeSchedulerService', () => {
 
   const mockExecuteWithLock = jest.fn();
   const mockGenerateCorrelationId = jest.fn();
+  const mockConfigService = {
+    get: jest.fn((key: string) => (key === 'CRON_ENABLED' ? 'true' : undefined)),
+  };
 
   const mockMember = {
     id: 'member-1',
@@ -39,6 +43,9 @@ describe('MembershipPlanChangeSchedulerService', () => {
   };
 
   beforeEach(async () => {
+    mockConfigService.get.mockImplementation((key: string) =>
+      key === 'CRON_ENABLED' ? 'true' : undefined,
+    );
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MembershipPlanChangeSchedulerService,
@@ -49,6 +56,10 @@ describe('MembershipPlanChangeSchedulerService', () => {
         {
           provide: PgAdvisoryLockService,
           useValue: mockLockService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -64,6 +75,17 @@ describe('MembershipPlanChangeSchedulerService', () => {
   });
 
   describe('applyScheduledMembershipPlanChanges', () => {
+    it('should return early when CRON_ENABLED=false', async () => {
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'CRON_ENABLED' ? 'false' : undefined,
+      );
+
+      await service.applyScheduledMembershipPlanChanges();
+
+      expect(mockPrismaService.member.findMany).not.toHaveBeenCalled();
+      expect(mockExecuteWithLock).not.toHaveBeenCalled();
+    });
+
     it('should skip member when lock is not acquired', async () => {
       mockPrismaService.member.findMany.mockResolvedValue([mockMember]);
       mockExecuteWithLock.mockResolvedValue({ acquired: false });
