@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 06_cron_lock_test.sh - Cron advisory lock verification
-# Verifies pg_try_advisory_lock works with gym_management_dev.
-# Uses Prisma to run raw SQL (same as PgAdvisoryLockService).
+# Validates: 1) Acquire (true) 2) Same lock from other session (false) 3) Release (true) 4) Acquire again (true)
+# Uses Prisma $queryRaw (no new deps). Optional psql pg_locks on failure.
 
 set -euo pipefail
 # shellcheck source=_common.sh
@@ -15,35 +15,19 @@ log_info "=== 06_cron_lock_test.sh ==="
 cd "$BACKEND_ROOT"
 
 LOCK_NAME="gate:test:advisory-lock-$(date +%s)"
+export LOCK_NAME
 
-if command -v psql &>/dev/null; then
-  ACQUIRED=$(psql "$DATABASE_URL" -tAc "SELECT pg_try_advisory_lock(hashtext('$LOCK_NAME'));" 2>/dev/null || echo "f")
-  if [[ "$ACQUIRED" == "t" ]]; then
-    # Release lock
-    psql "$DATABASE_URL" -tAc "SELECT pg_advisory_unlock(hashtext('$LOCK_NAME'));" 2>/dev/null || true
-    log_pass "06_cron_lock_test: Advisory lock acquire/release OK"
-  else
-    log_fail "06_cron_lock_test: Failed to acquire advisory lock"
-  fi
+# Run 4-step validation via Node (Prisma $queryRaw - two PrismaClient instances)
+RESULT=$(node "$BACKEND_ROOT/scripts/production-gate/06_cron_lock_test.cjs" 2>&1) || true
+
+if [[ "$RESULT" == *"ok"* ]]; then
+  log_pass "06_cron_lock_test: Advisory lock 4-step validation OK"
 else
-  # Fallback: node script using Prisma (lockName is safe - we generate it)
-  RESULT=$(cd "$BACKEND_ROOT" && node -e "
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    const lockName = '$LOCK_NAME';
-    (async () => {
-      const r = await prisma.\$queryRawUnsafe(\`SELECT pg_try_advisory_lock(hashtext('\${lockName}')) as acquired\`);
-      const acquired = r[0]?.acquired ?? false;
-      if (acquired) {
-        await prisma.\$queryRawUnsafe(\`SELECT pg_advisory_unlock(hashtext('\${lockName}'))\`);
-      }
-      console.log(acquired ? 'ok' : 'fail');
-      await prisma.\$disconnect();
-    })();
-  " 2>/dev/null || echo "fail")
-  if [[ "$RESULT" == "ok" ]]; then
-    log_pass "06_cron_lock_test: Advisory lock acquire/release OK (node fallback)"
-  else
-    log_fail "06_cron_lock_test: Advisory lock test failed"
+  # Node script prints diagnostics to stderr; capture and show
+  echo "$RESULT" | tee -a "$LOG_DIR/gate.log"
+  if command -v psql &>/dev/null; then
+    log_info "=== pg_locks (advisory) via psql ==="
+    psql "$DATABASE_URL" -tAc "SELECT pid, locktype, classid, objid, objsubid, granted FROM pg_locks WHERE locktype='advisory';" 2>/dev/null || true
   fi
+  log_fail "06_cron_lock_test: Advisory lock validation failed"
 fi

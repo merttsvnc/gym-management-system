@@ -38,3 +38,7 @@ npm run gate:cleanup
 ## Logs
 
 `backend/tmp/gate/`
+
+## Entry detection
+
+Step 03 (start two instances) detects the built entry file via `find dist -type f -name 'main.js'`. If no `main.js` is found under `dist`, the script fails with a helpful message and prints the `find` output. This handles varying NestJS build output layouts.

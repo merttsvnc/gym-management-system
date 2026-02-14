@@ -22,13 +22,22 @@ sleep 2
 log_info "Building..."
 npm run build || log_fail "Build failed"
 
+# Detect built entry file
+ENTRY="$(find dist -type f -name 'main.js' 2>/dev/null | head -n 1)"
+if [[ -z "$ENTRY" ]]; then
+  log_info "find dist -name main.js output:"
+  find dist -name 'main.js' 2>/dev/null || true
+  log_fail "No main.js found under dist. Check build output."
+fi
+log_info "Using entry: $ENTRY"
+
 # Start instance 1 on 3001
-(PORT=3001 DATABASE_URL="$DATABASE_URL" node dist/main.js) > "$LOG_DIR/instance1.log" 2>&1 &
+(PORT=3001 DATABASE_URL="$DATABASE_URL" node "$ENTRY") > "$LOG_DIR/instance1.log" 2>&1 &
 echo $! > "$LOG_DIR/instance1.pid"
 log_info "Started instance 1 (PID $(cat "$LOG_DIR/instance1.pid")) on port 3001"
 
 # Start instance 2 on 3002
-(PORT=3002 DATABASE_URL="$DATABASE_URL" node dist/main.js) > "$LOG_DIR/instance2.log" 2>&1 &
+(PORT=3002 DATABASE_URL="$DATABASE_URL" node "$ENTRY") > "$LOG_DIR/instance2.log" 2>&1 &
 echo $! > "$LOG_DIR/instance2.pid"
 log_info "Started instance 2 (PID $(cat "$LOG_DIR/instance2.pid")) on port 3002"
 
@@ -42,5 +51,18 @@ for i in {1..30}; do
   fi
   sleep 1
 done
+
+# Diagnostics on readiness failure
+log_info "--- DIAGNOSTICS (instances did not become ready) ---"
+log_info "=== tail -120 instance1.log ==="
+tail -120 "$LOG_DIR/instance1.log" 2>/dev/null || true
+log_info "=== tail -120 instance2.log ==="
+tail -120 "$LOG_DIR/instance2.log" 2>/dev/null || true
+log_info "=== curl -i http://127.0.0.1:3001/health ==="
+curl -i -s -m 5 "http://127.0.0.1:3001/health" 2>/dev/null || true
+log_info "=== curl -i http://127.0.0.1:3002/health ==="
+curl -i -s -m 5 "http://127.0.0.1:3002/health" 2>/dev/null || true
+log_info "=== lsof LISTEN for 3001, 3002 ==="
+lsof -i :3001 -i :3002 -sTCP:LISTEN 2>/dev/null || true
 
 log_fail "03_start_two_instances: Instances did not become ready in 30s"
