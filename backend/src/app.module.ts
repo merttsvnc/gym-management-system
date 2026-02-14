@@ -53,8 +53,11 @@ import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
   providers: [
     AppService,
     // Register BillingStatusGuard globally
-    // The guard runs after JwtAuthGuard and TenantGuard
-    // Auth routes are excluded using @SkipBillingStatusCheck() decorator
+    // IMPORTANT: Global guards run BEFORE controller-level guards (@UseGuards)
+    // Execution order: BillingStatusGuard → JwtAuthGuard → TenantGuard → RolesGuard
+    // BillingStatusGuard gracefully skips when req.user is undefined (before JWT validation)
+    // This allows JwtAuthGuard to handle authentication first
+    // Auth routes use @SkipBillingStatusCheck() decorator to fully bypass
     {
       provide: APP_GUARD,
       useClass: BillingStatusGuard,

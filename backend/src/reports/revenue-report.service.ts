@@ -322,20 +322,21 @@ export class RevenueReportService {
 
     // Use raw SQL for timezone-aware grouping
     // PostgreSQL: (timestamptz AT TIME ZONE 'timezone')::date gives local date
+    // IMPORTANT: Use quoted camelCase identifiers - Prisma does NOT use @map for these fields
 
     // Query product sales daily sums
     const productDailySums = await this.prisma.$queryRaw<
       Array<{ day: string; amount: string }>
     >`
       SELECT
-        to_char((sold_at AT TIME ZONE ${timezone})::date, 'YYYY-MM-DD') AS day,
-        COALESCE(SUM(total_amount), 0)::text AS amount
+        to_char(("soldAt" AT TIME ZONE ${timezone})::date, 'YYYY-MM-DD') AS day,
+        COALESCE(SUM("totalAmount"), 0)::text AS amount
       FROM "ProductSale"
-      WHERE tenant_id = ${tenantId}
-        AND branch_id = ${branchId}
-        AND sold_at >= ${startUtc}
-        AND sold_at < ${endUtc}
-      GROUP BY (sold_at AT TIME ZONE ${timezone})::date
+      WHERE "tenantId" = ${tenantId}
+        AND "branchId" = ${branchId}
+        AND "soldAt" >= ${startUtc}
+        AND "soldAt" < ${endUtc}
+      GROUP BY ("soldAt" AT TIME ZONE ${timezone})::date
       ORDER BY day ASC
     `;
 
@@ -344,15 +345,15 @@ export class RevenueReportService {
       Array<{ day: string; amount: string }>
     >`
       SELECT
-        to_char((paid_on AT TIME ZONE ${timezone})::date, 'YYYY-MM-DD') AS day,
+        to_char(("paidOn" AT TIME ZONE ${timezone})::date, 'YYYY-MM-DD') AS day,
         COALESCE(SUM(amount), 0)::text AS amount
       FROM "Payment"
-      WHERE tenant_id = ${tenantId}
-        AND branch_id = ${branchId}
-        AND paid_on >= ${startUtc}
-        AND paid_on < ${endUtc}
-        AND is_corrected = false
-      GROUP BY (paid_on AT TIME ZONE ${timezone})::date
+      WHERE "tenantId" = ${tenantId}
+        AND "branchId" = ${branchId}
+        AND "paidOn" >= ${startUtc}
+        AND "paidOn" < ${endUtc}
+        AND "isCorrected" = false
+      GROUP BY ("paidOn" AT TIME ZONE ${timezone})::date
       ORDER BY day ASC
     `;
 

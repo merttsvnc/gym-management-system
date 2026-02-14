@@ -19,11 +19,14 @@ import { SKIP_BILLING_STATUS_CHECK_KEY } from '../decorators/skip-billing-status
 /**
  * BillingStatusGuard enforces billing status-based access restrictions
  *
- * This guard runs after JwtAuthGuard and TenantGuard, ensuring:
- * - User is authenticated (JWT validated)
- * - Tenant context is available (tenantId in request.user)
+ * IMPORTANT: This is a GLOBAL guard (APP_GUARD) that runs BEFORE controller-level guards
+ * Execution order: BillingStatusGuard → JwtAuthGuard → TenantGuard → RolesGuard
  *
- * Access rules:
+ * Because it runs before JwtAuthGuard, this guard gracefully skips when req.user is undefined.
+ * Protected routes will still be blocked by JwtAuthGuard returning 401 Unauthorized.
+ * This design allows BillingStatusGuard to check billing status ONLY after user is authenticated.
+ *
+ * Access rules (applied only when user is authenticated):
  * - TRIAL/ACTIVE: Full access (all requests allowed)
  * - PAST_DUE: Read-only access (GET allowed, POST/PATCH/DELETE blocked with 403)
  * - SUSPENDED: Full blocking (all requests blocked with 403 and error code TENANT_BILLING_LOCKED)
