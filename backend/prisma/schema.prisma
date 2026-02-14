@@ -124,6 +124,22 @@ model Tenant {
   @@index([billingStatus])
 }
 
+// ============================================================
+// Tenant Isolation Enforcement
+// ------------------------------------------------------------
+// @@unique([id, tenantId]) enables composite where usage:
+//
+// where: { id_tenantId: { id, tenantId } }
+//
+// This enforces tenant scoping at DB level for update/delete.
+// Branch-scoped models use:
+//
+// @@unique([id, tenantId, branchId])
+//
+// Do NOT remove these constraints unless the service layer
+// is redesigned accordingly.
+// ============================================================
+
 // Branch model
 model Branch {
   id         String    @id @default(cuid())

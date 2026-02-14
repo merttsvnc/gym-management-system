@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Prisma, PaymentMethod } from '@prisma/client';
 
@@ -16,6 +17,7 @@ describe('ProductSalesService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     product: {
       findFirst: jest.fn(),
@@ -416,8 +418,13 @@ describe('ProductSalesService', () => {
 
   describe('remove', () => {
     beforeEach(() => {
-      // Reset the mock properly for each test
-      mockPrismaService.productSale.findFirst = jest.fn();
+      // Reset the mock properly for each test (create tests may overwrite productSale)
+      mockPrismaService.productSale = {
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+      };
     });
 
     it('should forbid deletion if month is locked', async () => {
@@ -437,6 +444,43 @@ describe('ProductSalesService', () => {
       await expect(
         service.remove('sale-1', 'tenant-1', 'branch-1'),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should successfully remove with correct id, tenantId, branchId', async () => {
+      const id = 'sale-1';
+      const tenantId = 'tenant-1';
+      const branchId = 'branch-1';
+      const mockSale = {
+        id,
+        soldAt: new Date('2026-02-13'),
+        tenantId,
+        branchId,
+      };
+
+      mockPrismaService.productSale.findFirst.mockResolvedValue(mockSale);
+      mockPrismaService.revenueMonthLock.findUnique.mockResolvedValue(null);
+      mockPrismaService.productSale.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.remove(id, tenantId, branchId);
+
+      expect(result).toEqual({ success: true });
+      expect(mockPrismaService.productSale.deleteMany).toHaveBeenCalledWith({
+        where: { id, tenantId, branchId },
+      });
+    });
+
+    it('should throw NotFoundException when remove with wrong branchId', async () => {
+      const id = 'sale-1';
+      const tenantId = 'tenant-1';
+      const wrongBranchId = 'wrong-branch';
+
+      mockPrismaService.productSale.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.remove(id, tenantId, wrongBranchId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockPrismaService.productSale.deleteMany).not.toHaveBeenCalled();
     });
   });
 });
