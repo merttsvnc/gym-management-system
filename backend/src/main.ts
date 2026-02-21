@@ -33,7 +33,9 @@ async function bootstrap() {
 
   // CORS: CORS_ORIGINS (comma-separated) takes precedence; else FRONTEND_URL; else localhost
   const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    ? process.env.CORS_ORIGINS.split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
     : process.env.FRONTEND_URL || 'http://localhost:5173';
   app.enableCors({
     origin: corsOrigins,

@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gym_api_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gym_api
+      POSTGRES_USER: gym_api
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - gym_api_db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  gym-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gym-api
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    depends_on:
+      - db
+    networks:
+      - internal
+      - traefik_web
+    labels:
+      - "traefik.enable=true"
+
+      # HTTP -> HTTPS redirect
+      - "traefik.http.routers.gym-api.rule=Host(`gym-api.quuilo.com`)"
+      - "traefik.http.routers.gym-api.entrypoints=web"
+      - "traefik.http.routers.gym-api.middlewares=gym-api-https-redirect"
+      - "traefik.http.middlewares.gym-api-https-redirect.redirectscheme.scheme=https"
+
+      # HTTPS router
+      - "traefik.http.routers.gym-api-secure.rule=Host(`gym-api.quuilo.com`)"
+      - "traefik.http.routers.gym-api-secure.entrypoints=websecure"
+      - "traefik.http.routers.gym-api-secure.tls=true"
+      - "traefik.http.routers.gym-api-secure.tls.certresolver=le"
+
+      # App port (NestJS container içindeki port)
+      - "traefik.http.services.gym-api.loadbalancer.server.port=3000"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  gym_api_db_data:
+
+networks:
+  internal:
+    driver: bridge
+
+  traefik_web:
+    external: true
