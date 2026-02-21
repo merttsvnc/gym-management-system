@@ -2,11 +2,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install dependencies
+# Install deps
 COPY package*.json ./
 RUN npm ci
 
-# Copy source
+# Copy full source (including prisma folder)
 COPY . .
 
 # Generate Prisma client BEFORE build
@@ -25,10 +25,10 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy built files
+# Copy built app
 COPY --from=builder /app/dist ./dist
 
-# Copy Prisma schema + generated client
+# Copy prisma schema + generated client
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
