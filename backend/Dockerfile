@@ -2,19 +2,18 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install deps
+# Install dependencies
 COPY package*.json ./
 RUN npm ci
 
 # Copy source
 COPY . .
 
-# Build (NestJS)
-RUN npm run build
+# Generate Prisma client BEFORE build
+RUN npx prisma generate
 
-# If Prisma exists, generate client at build-time
-# (If you don't use Prisma, you can remove these two lines.)
-RUN npx prisma generate || true
+# Build NestJS
+RUN npm run build
 
 # ---------- Runner ----------
 FROM node:20-alpine AS runner
@@ -22,18 +21,18 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy only necessary files
-COPY --from=builder /app/package*.json ./
+# Install prod deps
+COPY package*.json ./
 RUN npm ci --omit=dev
 
+# Copy built files
 COPY --from=builder /app/dist ./dist
 
-# If Prisma exists and runtime needs it:
+# Copy Prisma schema + generated client
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Default port (Traefik will route to this)
-ENV PORT=3000
 EXPOSE 3000
 
 CMD ["node", "dist/main.js"]
