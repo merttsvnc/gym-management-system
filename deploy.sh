@@ -79,7 +79,7 @@ build_and_deploy() {
   set -e
 
   log "Prisma migrate deploy..."
-  sudo docker exec -i "${API_CONTAINER}" sh -lc "npx prisma migrate deploy"
+  sudo docker exec -i "${API_CONTAINER}" sh -lc "npx prisma migrate deploy --schema=prisma/schema.prisma"
 
   if ! health_check; then
     err "Health-check başarısız."
