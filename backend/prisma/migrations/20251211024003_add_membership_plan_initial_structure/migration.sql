@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('ADMIN');
+-- CREATE TYPE "Role" AS ENUM ('ADMIN');
 
 -- CreateEnum
 CREATE TYPE "PlanKey" AS ENUM ('SINGLE');
