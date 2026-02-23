@@ -72,6 +72,8 @@ secrets/
 # Database dumps
 *.sql
 *.dump
+# But keep Prisma migration SQL files
+!**/migrations/**/*.sql
 
 # Package manager locks (optional - uncomment if you want to ignore)
 # package-lock.json
