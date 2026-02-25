@@ -52,6 +52,7 @@ Thumbs.db
 # Prisma
 prisma/*.db
 prisma/*.db-journal
+backend/prisma/migrations_backup_*/
 
 # Build tools
 .cache/
@@ -74,6 +75,8 @@ secrets/
 *.dump
 # But keep Prisma migration SQL files
 !**/migrations/**/*.sql
+!**/prisma/fix_migrations_rebaseline.sql
+!**/prisma/reset_db_for_first_deploy.sql
 
 # Package manager locks (optional - uncomment if you want to ignore)
 # package-lock.json

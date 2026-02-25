@@ -79,7 +79,19 @@ build_and_deploy() {
   set -e
 
   log "Prisma migrate deploy..."
+  set +e
   sudo docker exec -i "${API_CONTAINER}" sh -lc "npx prisma migrate deploy --schema=prisma/schema.prisma"
+  local MIGRATE_RC=$?
+  set -e
+  if [[ $MIGRATE_RC -ne 0 ]]; then
+    err "Prisma migrate deploy başarısız."
+    err ""
+    err "İlk kurulum ise:  $0 reset-db"
+    err "Var olan prod DB:  $0 fix-migrations  ardından  $0 force"
+    err ""
+    err "Detay: DEPLOY.md"
+    exit 1
+  fi
 
   if ! health_check; then
     err "Health-check başarısız."
@@ -94,6 +106,48 @@ build_and_deploy() {
   log "✅ Deploy tamamlandı (${GIT_SHA})."
 }
 
+fix_migrations() {
+  log "Migration fix (rebaseline) uygulanıyor..."
+  if ! sudo docker ps --format '{{.Names}}' | grep -q "^${DB_CONTAINER}$"; then
+    err "DB container (${DB_CONTAINER}) çalışmıyor. Önce: $0 force (migrate hatası alacaksınız), sonra: $0 fix-migrations"
+    exit 1
+  fi
+  local FIX_SQL="${BACKEND_DIR}/prisma/fix_migrations_rebaseline.sql"
+  if [[ ! -f "$FIX_SQL" ]]; then
+    err "${FIX_SQL} bulunamadı."
+    exit 1
+  fi
+  sudo docker exec -i "${DB_CONTAINER}" psql -U gym_api -d gym_api < "$FIX_SQL"
+  log "✅ Migration fix tamamlandı. Şimdi: $0 force"
+}
+
+# İlk deploy: DB sıfırla + baseline migrate. TÜM VERİ SİLİNİR!
+reset_db() {
+  log "DB sıfırlanıyor (ilk kurulum için - TÜM VERİ SİLİNİR)..."
+  if ! sudo docker ps --format '{{.Names}}' | grep -q "^${DB_CONTAINER}$"; then
+    err "DB container (${DB_CONTAINER}) çalışmıyor. Önce: $0 force"
+    exit 1
+  fi
+  if ! sudo docker ps --format '{{.Names}}' | grep -q "^${API_CONTAINER}$"; then
+    err "API container (${API_CONTAINER}) çalışmıyor. Önce: $0 force"
+    exit 1
+  fi
+  local RESET_SQL="${BACKEND_DIR}/prisma/reset_db_for_first_deploy.sql"
+  if [[ ! -f "$RESET_SQL" ]]; then
+    err "${RESET_SQL} bulunamadı."
+    exit 1
+  fi
+  sudo docker exec -i "${DB_CONTAINER}" psql -U gym_api -d gym_api < "$RESET_SQL"
+  log "Prisma migrate deploy..."
+  sudo docker exec -i "${API_CONTAINER}" sh -lc "npx prisma migrate deploy --schema=prisma/schema.prisma"
+  if ! health_check; then
+    err "Health-check başarısız."
+    sudo docker logs --tail 200 "${API_CONTAINER}" || true
+    exit 1
+  fi
+  log "✅ İlk kurulum tamamlandı."
+}
+
 case "${1:-once}" in
   once)
     if has_updates; then
@@ -105,6 +159,12 @@ case "${1:-once}" in
   force)
     build_and_deploy
     ;;
+  fix-migrations)
+    fix_migrations
+    ;;
+  reset-db)
+    reset_db
+    ;;
   watch)
     while true; do
       if has_updates; then
@@ -114,7 +174,7 @@ case "${1:-once}" in
     done
     ;;
   *)
-    err "Kullanım: $0 [once|force|watch]"
+    err "Kullanım: $0 [once|force|fix-migrations|reset-db|watch]"
     exit 2
     ;;
 esac

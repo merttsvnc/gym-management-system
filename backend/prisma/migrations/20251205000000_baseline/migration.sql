@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
--- CREATE TYPE "Role" AS ENUM ('ADMIN');
+CREATE TYPE "Role" AS ENUM ('ADMIN');
 
 -- CreateEnum
 CREATE TYPE "PlanKey" AS ENUM ('SINGLE');
@@ -455,6 +455,11 @@ CREATE INDEX "MemberPlanChangeHistory_tenantId_scheduledAt_idx" ON "MemberPlanCh
 -- CreateIndex
 CREATE INDEX "MemberPlanChangeHistory_memberId_idx" ON "MemberPlanChangeHistory"("memberId");
 
+-- Partial unique index: prevent duplicate APPLIED history for same member and effective date (from 20260214134256)
+CREATE UNIQUE INDEX "MemberPlanChangeHistory_memberId_effectiveDateDay_APPLIED_key"
+ON "MemberPlanChangeHistory" ("memberId", "effectiveDateDay")
+WHERE "changeType" = 'APPLIED';
+
 -- CreateIndex
 CREATE INDEX "EmailOtp_email_idx" ON "EmailOtp"("email");
 
@@ -583,4 +588,3 @@ ALTER TABLE "ProductSaleItem" ADD CONSTRAINT "ProductSaleItem_saleId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "ProductSaleItem" ADD CONSTRAINT "ProductSaleItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
