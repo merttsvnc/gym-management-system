@@ -27,6 +27,8 @@ services:
       - traefik_web
     labels:
       - 'traefik.enable=true'
+      # Force Traefik to use traefik_web when gym-api is on multiple networks (internal + traefik_web)
+      - 'traefik.docker.network=traefik_web'
 
       # HTTP -> HTTPS redirect
       - 'traefik.http.routers.gym-api.rule=Host(`gym-api.quuilo.com`)'
