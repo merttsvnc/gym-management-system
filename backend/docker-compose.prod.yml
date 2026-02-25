@@ -31,12 +31,14 @@ services:
       # HTTP -> HTTPS redirect
       - 'traefik.http.routers.gym-api.rule=Host(`gym-api.quuilo.com`)'
       - 'traefik.http.routers.gym-api.entrypoints=web'
+      - 'traefik.http.routers.gym-api.service=gym-api'
       - 'traefik.http.routers.gym-api.middlewares=gym-api-https-redirect'
       - 'traefik.http.middlewares.gym-api-https-redirect.redirectscheme.scheme=https'
 
-      # HTTPS router
+      # HTTPS router (must explicitly bind to gym-api service)
       - 'traefik.http.routers.gym-api-secure.rule=Host(`gym-api.quuilo.com`)'
       - 'traefik.http.routers.gym-api-secure.entrypoints=websecure'
+      - 'traefik.http.routers.gym-api-secure.service=gym-api'
       - 'traefik.http.routers.gym-api-secure.tls=true'
       - 'traefik.http.routers.gym-api-secure.tls.certresolver=le'
 
