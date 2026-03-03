@@ -2,6 +2,10 @@
 
 A professional-grade, multi-tenant SaaS platform for gym management, built with modern technologies and designed for long-term growth.
 
+## Documentation
+
+- Backend canonical docs index: [`docs/README.md`](docs/README.md)
+
 ## Overview
 
 This system provides comprehensive gym management capabilities including:

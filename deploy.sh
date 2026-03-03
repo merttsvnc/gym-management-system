@@ -89,7 +89,7 @@ build_and_deploy() {
     err "İlk kurulum ise:  $0 reset-db"
     err "Var olan prod DB:  $0 fix-migrations  ardından  $0 force"
     err ""
-    err "Detay: DEPLOY.md"
+    err "Detay: docs/runbooks/deployment.md"
     exit 1
   fi
 

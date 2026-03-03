@@ -268,6 +268,6 @@ This provides sufficient randomness for test data while maintaining determinism.
 
 ## Related Documentation
 
-- [Member Filtering Reference](../docs/MEMBERS_FILTERING_REFERENCE.md)
-- [Dashboard Counts Documentation](../docs/MEMBER_CREATE_FIELD_ANALYSIS.md)
-- [Mobile Auth Integration](../docs/MOBILE_AUTH_INTEGRATION.md)
+- [Members API Documentation](../docs/api/members.md)
+- [Reports API Documentation](../docs/api/reports.md)
+- [Auth API Documentation](../docs/api/auth.md)

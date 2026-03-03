@@ -340,7 +340,7 @@ expect(response.body).toHaveProperty('data');
 ## 📚 Related Documentation
 
 - [Member Management Spec](../../../specs/002-athlete-management/spec.md)
-- [Backend API Audit Report](../../../specs/002-athlete-management/BACKEND_API_AUDIT_REPORT.md)
+- API docs: [docs/api (canonical)](../../../docs/api/README.md)
 - [NestJS Testing Documentation](https://docs.nestjs.com/fundamentals/testing)
 - [Jest Documentation](https://jestjs.io/docs/getting-started)
 
