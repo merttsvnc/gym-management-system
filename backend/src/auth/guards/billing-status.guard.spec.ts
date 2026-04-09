@@ -161,8 +161,8 @@ describe('BillingStatusGuard', () => {
       const ex = e as HttpException;
       expect(ex.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED);
       expect(ex.getResponse()).toEqual({
-        code: 'PREMIUM_REQUIRED',
-        message: 'Premium subscription is required for this action.',
+        code: BILLING_ERROR_CODES.PREMIUM_REQUIRED,
+        message: BILLING_ERROR_MESSAGES.PREMIUM_REQUIRED,
         source: 'none',
       });
     }

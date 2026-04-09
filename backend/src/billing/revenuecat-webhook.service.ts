@@ -45,6 +45,15 @@ type AppUserResolutionResult =
   | AppUserResolutionFailure
   | AppUserResolutionSuccess;
 
+/**
+ * RevenueCat webhook ingestion.
+ *
+ * **Webhook row status semantics**
+ * - `PROCESSED`: terminal — event applied successfully; duplicate `eventId` deliveries are no-ops.
+ * - `IGNORED`: retryable — preconditions failed (e.g. tenant missing, replay window); same `eventId`
+ *   may be re-evaluated on a later delivery; `RevenueCatWebhookDeliveryAttempt` rows record each try.
+ * - `FAILED`: terminal for that delivery’s processing attempt (transaction error); not auto-retried here.
+ */
 @Injectable()
 export class RevenueCatWebhookService {
   private readonly logger = new Logger(RevenueCatWebhookService.name);
@@ -104,14 +113,6 @@ export class RevenueCatWebhookService {
       select: { id: true, status: true },
     });
     if (existingPeek?.status === RevenueCatWebhookStatus.PROCESSED) {
-      return { ok: true, eventId };
-    }
-    if (existingPeek?.status === RevenueCatWebhookStatus.IGNORED) {
-      await this.appendDeliveryAttempt({
-        webhookEventId: existingPeek.id,
-        reason: 'duplicate_delivery_while_ignored',
-        payload: body as Prisma.InputJsonValue,
-      });
       return { ok: true, eventId };
     }
 
@@ -220,10 +221,7 @@ export class RevenueCatWebhookService {
             rowStatus = rows[0].status;
           }
 
-          if (
-            rowStatus === RevenueCatWebhookStatus.PROCESSED ||
-            rowStatus === RevenueCatWebhookStatus.IGNORED
-          ) {
+          if (rowStatus === RevenueCatWebhookStatus.PROCESSED) {
             return;
           }
 
@@ -392,7 +390,7 @@ export class RevenueCatWebhookService {
           payload: args.envelope as Prisma.InputJsonValue,
           status: RevenueCatWebhookStatus.IGNORED,
           errorMessage: args.reason,
-          processedAt: new Date(),
+          processedAt: null,
         },
       });
     } catch (error) {
@@ -446,6 +444,15 @@ export class RevenueCatWebhookService {
       return;
     }
     if (existing) {
+      if (existing.status === RevenueCatWebhookStatus.IGNORED) {
+        await this.prisma.revenueCatWebhookEvent.update({
+          where: { id: existing.id },
+          data: {
+            errorMessage: reason,
+            processedAt: null,
+          },
+        });
+      }
       await this.appendDeliveryAttempt({
         webhookEventId: existing.id,
         reason,
@@ -467,7 +474,7 @@ export class RevenueCatWebhookService {
           payload: body as Prisma.InputJsonValue,
           status: RevenueCatWebhookStatus.IGNORED,
           errorMessage: reason,
-          processedAt: new Date(),
+          processedAt: null,
         },
       });
     } catch (error) {

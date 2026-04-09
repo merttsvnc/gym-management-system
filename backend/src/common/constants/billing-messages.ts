@@ -16,6 +16,8 @@
 export const BILLING_ERROR_CODES = {
   TENANT_BILLING_LOCKED: 'TENANT_BILLING_LOCKED',
   TRIAL_EXPIRED: 'TRIAL_EXPIRED',
+  /** No RevenueCat snapshot and no qualifying legacy access; mutations require in-app purchase / entitlement. */
+  PREMIUM_REQUIRED: 'PREMIUM_REQUIRED',
 } as const;
 
 /**
@@ -30,6 +32,7 @@ export const BILLING_ERROR_MESSAGES = {
     'Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin.',
   PAST_DUE_MUTATION:
     'Ödeme gecikmesi nedeniyle hesabınız salt okunur modda. Lütfen ödemenizi tamamlayın.',
+  PREMIUM_REQUIRED: 'Premium subscription is required for this action.',
   /** Mutations blocked: premium is not active (RevenueCat snapshot present or legacy path evaluated; not payment-delay-specific). */
   PREMIUM_MUTATIONS_LOCKED:
     'Bu işlem için aktif premium gerekir. Şu anda hesabınız salt okunur; yazma işlemleri kapalı.',

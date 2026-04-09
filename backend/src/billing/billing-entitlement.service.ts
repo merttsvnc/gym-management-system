@@ -7,6 +7,18 @@ import { premiumAccessFromEntitlementSnapshot } from './entitlement-premium.util
 
 type PremiumSource = 'revenuecat' | 'legacy_fallback' | 'none';
 
+/**
+ * Premium access evaluation for API enforcement.
+ *
+ * Authority (aligned with BillingStatusGuard):
+ * - **SUSPENDED** always denies access regardless of RevenueCat.
+ * - When a **RevenueCat entitlement snapshot** row exists for `REVENUECAT_PREMIUM_ENTITLEMENT_ID`,
+ *   premium follows `premiumAccessFromEntitlementSnapshot` only; `billingStatus` **PAST_DUE** does not
+ *   revoke access (in-app subscription is source of truth).
+ * - **Legacy fallback** (no snapshot, `BILLING_LEGACY_FALLBACK_ENABLED=true`): only `ACTIVE` or non-expired
+ *   `TRIAL` grant access; **PAST_DUE** does not (manual/offline billing remains read-only on that path).
+ * - **No snapshot and no legacy access** → `source: 'none'` (mutations → PREMIUM_REQUIRED).
+ */
 export interface PremiumAccessResult {
   hasPremiumAccess: boolean;
   /** True when tenant.billingStatus is SUSPENDED (premium must be denied regardless of RevenueCat). */

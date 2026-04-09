@@ -32,9 +32,14 @@ import { JwtPayload } from '../strategies/jwt.strategy';
  *
  * - hasPremiumAccess: full access (all methods allowed).
  * - Otherwise: read-only for GET, HEAD, OPTIONS.
- * - Mutations when not premium: 402 PAYMENT_REQUIRED with code PREMIUM_REQUIRED if the
+ * - Mutations when not premium: 402 PAYMENT_REQUIRED with BILLING_ERROR_CODES.PREMIUM_REQUIRED if the
  *   entitlement source is `none`; otherwise 403 FORBIDDEN with TENANT_BILLING_LOCKED and
  *   PREMIUM_MUTATIONS_LOCKED (inactive RevenueCat entitlement, legacy fallback without access, etc.).
+ *
+ * PAST_DUE vs RevenueCat: BillingEntitlementService is authoritative. When a RevenueCat entitlement
+ * snapshot exists for the premium id, access follows that snapshot (and SUSPENDED only). Tenant
+ * billingStatus PAST_DUE does not override an active RevenueCat entitlement. With legacy fallback only
+ * (no snapshot), PAST_DUE does not grant access (same as pre-RevenueCat read-only semantics for manual billing).
  *
  * Performance: bounded by entitlement + tenant reads; warn threshold logged above 10ms.
  */
@@ -111,8 +116,8 @@ export class BillingStatusGuard implements CanActivate {
       if (premiumStatus.source === 'none') {
         throw new HttpException(
           {
-            code: 'PREMIUM_REQUIRED',
-            message: 'Premium subscription is required for this action.',
+            code: BILLING_ERROR_CODES.PREMIUM_REQUIRED,
+            message: BILLING_ERROR_MESSAGES.PREMIUM_REQUIRED,
             source: premiumStatus.source,
           },
           HttpStatus.PAYMENT_REQUIRED,

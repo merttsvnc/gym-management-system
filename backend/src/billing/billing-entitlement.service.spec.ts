@@ -85,6 +85,20 @@ describe('BillingEntitlementService', () => {
     expect(r.source).toBe('revenuecat');
   });
 
+  it('grants premium when RevenueCat snapshot is active even if tenant billingStatus is PAST_DUE', async () => {
+    findEntitlement.mockResolvedValue(
+      snapshot({ expiresAt: null, isActive: true }),
+    );
+    findTenant.mockResolvedValue({
+      billingStatus: BillingStatus.PAST_DUE,
+      trialEndsAt: null,
+    });
+
+    const r = await service.getPremiumAccessForTenant('tenant-1');
+    expect(r.hasPremiumAccess).toBe(true);
+    expect(r.source).toBe('revenuecat');
+  });
+
   it('denies premium when suspended even if RevenueCat snapshot is active', async () => {
     findEntitlement.mockResolvedValue(
       snapshot({ expiresAt: null, isActive: true }),
