@@ -18,6 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:billing": "jest --runInBand src/billing/billing-entitlement.service.spec.ts src/auth/guards/billing-status.guard.spec.ts",
     "seed:members": "npx ts-node -r tsconfig-paths/register src/scripts/seed-members.ts",
     "gate:run": "bash scripts/production-gate/run.sh",
     "gate:cleanup": "bash scripts/production-gate/07_cleanup.sh"

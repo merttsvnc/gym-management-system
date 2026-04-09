@@ -12,12 +12,12 @@ import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { UsersRepository } from '../users/users.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { User, BillingStatus, PlanKey } from '@prisma/client';
-import { JwtPayload } from './strategies/jwt.strategy';
+import { User, PlanKey, BillingStatus } from '@prisma/client';
 import {
   BILLING_ERROR_CODES,
   BILLING_ERROR_MESSAGES,
 } from '../common/constants/billing-messages';
+import { JwtPayload } from './strategies/jwt.strategy';
 import { RegisterDto } from './dto/register.dto';
 import { PLAN_CONFIG } from '../plan/plan.config';
 import { OtpService } from './services/otp.service';
@@ -76,7 +76,6 @@ export class AuthService {
       throw new ForbiddenException('Tenant not found');
     }
 
-    // Reject SUSPENDED tenant login
     if (tenant.billingStatus === BillingStatus.SUSPENDED) {
       throw new ForbiddenException({
         code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
@@ -141,7 +140,6 @@ export class AuthService {
       return null;
     }
 
-    // Check if tenant is SUSPENDED
     if (tenant.billingStatus === BillingStatus.SUSPENDED) {
       throw new ForbiddenException({
         code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
@@ -251,20 +249,12 @@ export class AuthService {
       const baseSlug = this.generateSlug(dto.tenantName);
       const slug = await this.generateUniqueSlug(tx, baseSlug);
 
-      // Calculate trial dates (7 days from now)
-      const now = new Date();
-      const trialEndsAt = new Date(now);
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
       // Create tenant
       const tenant = await tx.tenant.create({
         data: {
           name: dto.tenantName,
           slug,
           planKey: PlanKey.SINGLE,
-          billingStatus: BillingStatus.TRIAL,
-          trialStartedAt: now,
-          trialEndsAt,
           defaultCurrency: 'TRY', // Turkish-focused product
         },
       });
@@ -376,7 +366,6 @@ export class AuthService {
             name: 'Temp', // Temporary, will be updated
             slug: `temp-${Date.now()}`, // Unique temporary slug
             planKey: PlanKey.SINGLE,
-            billingStatus: BillingStatus.TRIAL,
             defaultCurrency: 'TRY',
           },
         });
@@ -459,7 +448,6 @@ export class AuthService {
             name: 'Dev Test Tenant',
             slug: `dev-test-${Date.now()}`,
             planKey: PlanKey.SINGLE,
-            billingStatus: BillingStatus.TRIAL,
             defaultCurrency: 'TRY',
           },
         });
@@ -571,19 +559,12 @@ export class AuthService {
       const baseSlug = this.generateSlug(tenantNameFinal);
       const slug = await this.generateUniqueSlug(tx, baseSlug);
 
-      // Calculate trial dates (7 days from now)
-      const now = new Date();
-      const trialEndsAt = new Date(now);
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
       // Update existing tenant (created in signupStart)
       const tenant = await tx.tenant.update({
         where: { id: user.tenantId },
         data: {
           name: tenantNameFinal,
           slug,
-          trialStartedAt: now,
-          trialEndsAt,
         },
       });
 

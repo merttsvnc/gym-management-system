@@ -19,4 +19,5 @@
 - [Dashboard](./dashboard.md)
 - [Uploads](./uploads.md)
 - [Revenue Month Locks](./revenue-month-locks.md)
+- [Billing](./billing.md)
 - [Error Contract](./errors.md)

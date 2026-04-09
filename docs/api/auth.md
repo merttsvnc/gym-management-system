@@ -62,6 +62,8 @@ Response:
 }
 ```
 
+`billingStatus` is legacy tenant metadata. Premium authorization follows RevenueCat entitlements (see [Billing](./billing.md)); an optional legacy fallback exists only when `BILLING_LEGACY_FALLBACK_ENABLED=true`.
+
 ### `POST /auth/register`
 
 Request fields: `tenantName`, `email`, `password`, `firstName`, `lastName`, optional `branchName`, optional `branchAddress`.

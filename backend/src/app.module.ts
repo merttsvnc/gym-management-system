@@ -25,6 +25,7 @@ import { BillingStatusGuard } from './auth/guards/billing-status.guard';
 import { ClientIpMiddleware } from './common/middleware/client-ip.middleware';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
+import { BillingModule } from './billing/billing.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -55,16 +56,14 @@ import { HttpLoggingInterceptor } from './common/interceptors/http-logging.inter
     ProductsModule,
     ProductSalesModule,
     RevenueReportModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    // Register BillingStatusGuard globally
-    // IMPORTANT: Global guards run BEFORE controller-level guards (@UseGuards)
-    // Execution order: BillingStatusGuard → JwtAuthGuard → TenantGuard → RolesGuard
-    // BillingStatusGuard gracefully skips when req.user is undefined (before JWT validation)
-    // This allows JwtAuthGuard to handle authentication first
-    // Auth routes use @SkipBillingStatusCheck() decorator to fully bypass
+    // Register BillingStatusGuard globally (runs before controller JwtAuthGuard; verifies
+    // Bearer JWT when needed so premium/suspension rules apply to authenticated requests).
+    // Auth routes use @SkipBillingStatusCheck() to bypass.
     {
       provide: APP_GUARD,
       useClass: BillingStatusGuard,

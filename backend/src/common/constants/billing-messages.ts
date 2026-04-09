@@ -30,6 +30,9 @@ export const BILLING_ERROR_MESSAGES = {
     'Hesabınız askıya alınmıştır. Lütfen destek ekibi ile iletişime geçin.',
   PAST_DUE_MUTATION:
     'Ödeme gecikmesi nedeniyle hesabınız salt okunur modda. Lütfen ödemenizi tamamlayın.',
+  /** Mutations blocked: premium is not active (RevenueCat snapshot present or legacy path evaluated; not payment-delay-specific). */
+  PREMIUM_MUTATIONS_LOCKED:
+    'Bu işlem için aktif premium gerekir. Şu anda hesabınız salt okunur; yazma işlemleri kapalı.',
   BILLING_STATUS_UPDATE_FORBIDDEN:
     'Faturalama durumu API üzerinden güncellenemez.',
   RATE_LIMIT_EXCEEDED:

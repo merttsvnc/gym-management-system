@@ -27,10 +27,12 @@ import { RateLimiterService } from './services/rate-limiter.service';
       useFactory: (configService: ConfigService) => {
         const expiresIn = (configService.get<string>('JWT_ACCESS_EXPIRES_IN') ||
           '900s') as StringValue;
+        const jwtSecret = configService.get<string>('JWT_ACCESS_SECRET');
+        if (!jwtSecret) {
+          throw new Error('JWT_ACCESS_SECRET is required');
+        }
         return {
-          secret:
-            configService.get<string>('JWT_ACCESS_SECRET') ||
-            'your_access_secret_here',
+          secret: jwtSecret,
           signOptions: {
             expiresIn,
           },
@@ -50,6 +52,6 @@ import { RateLimiterService } from './services/rate-limiter.service';
     RateLimiterService,
   ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

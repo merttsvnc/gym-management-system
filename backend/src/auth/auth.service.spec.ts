@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { UsersRepository } from '../users/users.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from './services/otp.service';
+import { PasswordResetOtpService } from './services/password-reset-otp.service';
+import { RateLimiterService } from './services/rate-limiter.service';
 import { User, BillingStatus } from '@prisma/client';
 import {
   BILLING_ERROR_CODES,
@@ -51,6 +53,16 @@ describe('AuthService', () => {
     createAndSendOtp: jest.fn(),
   };
 
+  const mockPasswordResetOtpService = {
+    createAndSendOtp: jest.fn(),
+    verifyOtpCode: jest.fn(),
+    clearOtpsForUser: jest.fn(),
+  };
+
+  const mockRateLimiterService = {
+    checkPasswordResetLimit: jest.fn().mockReturnValue({ isLimited: false }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -75,6 +87,14 @@ describe('AuthService', () => {
           provide: OtpService,
           useValue: mockOtpService,
         },
+        {
+          provide: PasswordResetOtpService,
+          useValue: mockPasswordResetOtpService,
+        },
+        {
+          provide: RateLimiterService,
+          useValue: mockRateLimiterService,
+        },
       ],
     }).compile();
 
@@ -92,6 +112,12 @@ describe('AuthService', () => {
 
     mockJwtService.sign.mockImplementation(() => 'mock-jwt-token');
     mockOtpService.createAndSendOtp.mockResolvedValue(undefined);
+    mockPasswordResetOtpService.createAndSendOtp.mockResolvedValue(undefined);
+    mockPasswordResetOtpService.verifyOtpCode.mockResolvedValue(true);
+    mockPasswordResetOtpService.clearOtpsForUser.mockResolvedValue(undefined);
+    mockRateLimiterService.checkPasswordResetLimit.mockReturnValue({
+      isLimited: false,
+    });
     mockPrismaService.$transaction.mockImplementation((callback) =>
       callback(mockPrismaService),
     );

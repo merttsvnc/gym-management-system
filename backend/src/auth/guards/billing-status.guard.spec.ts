@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   ExecutionContext,
-  ForbiddenException,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
+import { BillingStatus, EntitlementState } from '@prisma/client';
 import { BillingStatusGuard } from './billing-status.guard';
-import { PrismaService } from '../../prisma/prisma.service';
-import { BillingStatus } from '@prisma/client';
+import { BillingEntitlementService } from '../../billing/billing-entitlement.service';
 import {
   BILLING_ERROR_CODES,
   BILLING_ERROR_MESSAGES,
@@ -18,14 +18,42 @@ import { SKIP_BILLING_STATUS_CHECK_KEY } from '../decorators/skip-billing-status
 describe('BillingStatusGuard', () => {
   let guard: BillingStatusGuard;
 
-  const mockPrismaService = {
-    tenant: {
-      findUnique: jest.fn(),
-    },
+  const mockGetPremiumAccess = jest.fn();
+
+  const mockBillingEntitlementService = {
+    getPremiumAccessForTenant: mockGetPremiumAccess,
   };
 
   const mockReflector = {
     getAllAndOverride: jest.fn(),
+  };
+
+  const mockJwtService = {
+    verify: jest.fn().mockImplementation(() => {
+      throw new Error('no token');
+    }),
+  };
+
+  const baseLegacy = {
+    billingStatus: BillingStatus.ACTIVE as BillingStatus | null,
+    trialEndsAt: null as string | null,
+  };
+
+  const premiumActiveResult = {
+    hasPremiumAccess: true,
+    tenantSuspended: false,
+    source: 'revenuecat' as const,
+    reason: 'RevenueCat entitlement is active',
+    entitlement: {
+      entitlementId: 'premium',
+      state: EntitlementState.ACTIVE,
+      isActive: true,
+      productId: null as string | null,
+      expiresAt: null as string | null,
+      gracePeriodExpiresAt: null as string | null,
+      updatedAt: new Date().toISOString(),
+    },
+    legacy: baseLegacy,
   };
 
   const createMockExecutionContext = (
@@ -38,6 +66,7 @@ describe('BillingStatusGuard', () => {
       user,
       method,
       url,
+      headers: {} as { authorization?: string },
     };
 
     mockReflector.getAllAndOverride.mockReturnValue(skipCheck);
@@ -52,742 +81,234 @@ describe('BillingStatusGuard', () => {
   };
 
   beforeEach(async () => {
+    mockGetPremiumAccess.mockReset();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BillingStatusGuard,
         {
-          provide: PrismaService,
-          useValue: mockPrismaService,
+          provide: BillingEntitlementService,
+          useValue: mockBillingEntitlementService,
         },
         {
           provide: Reflector,
           useValue: mockReflector,
         },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
+        },
       ],
     }).compile();
 
     guard = module.get<BillingStatusGuard>(BillingStatusGuard);
-    prismaService = module.get<PrismaService>(PrismaService);
-    reflector = module.get<Reflector>(Reflector);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('T042: Guard allows ACTIVE tenant requests', () => {
-    it('should allow GET request for ACTIVE tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.ACTIVE,
-        trialEndsAt: null,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-      expect(mockPrismaService.tenant.findUnique).toHaveBeenCalledWith({
-        where: { id: tenantId },
-        select: { billingStatus: true, trialEndsAt: true },
-      });
-    });
-
-    it('should allow POST request for ACTIVE tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.ACTIVE,
-        trialEndsAt: null,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
-
-    it('should allow PATCH request for ACTIVE tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'PATCH',
-        '/api/v1/members/123',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.ACTIVE,
-        trialEndsAt: null,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
-
-    it('should allow DELETE request for ACTIVE tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'DELETE',
-        '/api/v1/members/123',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.ACTIVE,
-        trialEndsAt: null,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
+  it('allows all methods when premium access is active', async () => {
+    mockGetPremiumAccess.mockResolvedValue(premiumActiveResult);
+    const post = createMockExecutionContext(
+      { tenantId: 't1' },
+      'POST',
+      '/api/v1/members',
+    );
+    await expect(guard.canActivate(post)).resolves.toBe(true);
+    expect(mockGetPremiumAccess).toHaveBeenCalledWith('t1');
   });
 
-  describe('T043: Guard allows TRIAL tenant requests', () => {
-    it('should allow GET request for TRIAL tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: null, // Active trial (not expired)
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
+  it('allows read methods when premium is not active', async () => {
+    mockGetPremiumAccess.mockResolvedValue({
+      hasPremiumAccess: false,
+      tenantSuspended: false,
+      source: 'revenuecat',
+      reason: 'RevenueCat entitlement is inactive or expired',
+      entitlement: {
+        entitlementId: 'premium',
+        state: EntitlementState.INACTIVE,
+        isActive: false,
+        productId: null,
+        expiresAt: null,
+        gracePeriodExpiresAt: null,
+        updatedAt: new Date().toISOString(),
+      },
+      legacy: baseLegacy,
     });
-
-    it('should allow POST request for TRIAL tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: null, // Active trial (not expired)
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
+    const get = createMockExecutionContext({ tenantId: 't1' }, 'GET', '/api/v1/members');
+    await expect(guard.canActivate(get)).resolves.toBe(true);
   });
 
-  describe('T044: Guard blocks PAST_DUE tenant POST/PATCH/DELETE requests', () => {
-    it('should block POST request for PAST_DUE tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.PAST_DUE,
-        trialEndsAt: null,
-      });
-
-      // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).getResponse()).toEqual({
-          code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-          message: BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
-        });
-      }
+  it('returns 402 PREMIUM_REQUIRED when source is none and method is a mutation', async () => {
+    mockGetPremiumAccess.mockResolvedValue({
+      hasPremiumAccess: false,
+      tenantSuspended: false,
+      source: 'none',
+      reason: 'No RevenueCat entitlement snapshot available',
+      entitlement: null,
+      legacy: { billingStatus: BillingStatus.TRIAL, trialEndsAt: null },
     });
-
-    it('should block PATCH request for PAST_DUE tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'PATCH',
-        '/api/v1/members/123',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.PAST_DUE,
-        trialEndsAt: null,
+    const post = createMockExecutionContext(
+      { tenantId: 't1' },
+      'POST',
+      '/api/v1/members',
+    );
+    try {
+      await guard.canActivate(post);
+      fail('expected HttpException');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpException);
+      const ex = e as HttpException;
+      expect(ex.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED);
+      expect(ex.getResponse()).toEqual({
+        code: 'PREMIUM_REQUIRED',
+        message: 'Premium subscription is required for this action.',
+        source: 'none',
       });
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).getResponse()).toEqual({
-          code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-          message: BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
-        });
-      }
-    });
-
-    it('should block DELETE request for PAST_DUE tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'DELETE',
-        '/api/v1/members/123',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.PAST_DUE,
-        trialEndsAt: null,
-      });
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).getResponse()).toEqual({
-          code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-          message: BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
-        });
-      }
-    });
-
-    it('should block PUT request for PAST_DUE tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'PUT',
-        '/api/v1/members/123',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.PAST_DUE,
-        trialEndsAt: null,
-      });
-
-      // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
+    }
   });
 
-  describe('T045: Guard allows PAST_DUE tenant GET requests', () => {
-    it('should allow GET request for PAST_DUE tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.PAST_DUE,
-        trialEndsAt: null,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
+  it('returns 403 TENANT_BILLING_LOCKED with PREMIUM_MUTATIONS_LOCKED when RevenueCat snapshot exists but premium inactive', async () => {
+    mockGetPremiumAccess.mockResolvedValue({
+      hasPremiumAccess: false,
+      tenantSuspended: false,
+      source: 'revenuecat',
+      reason: 'RevenueCat entitlement is inactive or expired',
+      entitlement: {
+        entitlementId: 'premium',
+        state: EntitlementState.INACTIVE,
+        isActive: false,
+        productId: null,
+        expiresAt: null,
+        gracePeriodExpiresAt: null,
+        updatedAt: new Date().toISOString(),
+      },
+      legacy: baseLegacy,
     });
-
-    it('should allow HEAD request for PAST_DUE tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'HEAD',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.PAST_DUE,
-        trialEndsAt: null,
+    const post = createMockExecutionContext(
+      { tenantId: 't1' },
+      'PATCH',
+      '/api/v1/members/x',
+    );
+    try {
+      await guard.canActivate(post);
+      fail('expected HttpException');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpException);
+      const ex = e as HttpException;
+      expect(ex.getStatus()).toBe(HttpStatus.FORBIDDEN);
+      expect(ex.getResponse()).toEqual({
+        code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        message: BILLING_ERROR_MESSAGES.PREMIUM_MUTATIONS_LOCKED,
+        source: 'revenuecat',
       });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
-
-    it('should allow OPTIONS request for PAST_DUE tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'OPTIONS',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.PAST_DUE,
-        trialEndsAt: null,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
+    }
   });
 
-  describe('T046: Guard blocks SUSPENDED tenant all requests', () => {
-    it('should block GET request for SUSPENDED tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.SUSPENDED,
-        trialEndsAt: null,
-      });
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).getResponse()).toEqual({
-          code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-          message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
-        });
-      }
+  it('returns 403 with PREMIUM_MUTATIONS_LOCKED when legacy_fallback evaluated but no access', async () => {
+    mockGetPremiumAccess.mockResolvedValue({
+      hasPremiumAccess: false,
+      tenantSuspended: false,
+      source: 'legacy_fallback',
+      reason: 'Legacy fallback enabled but tenant has no active access',
+      entitlement: null,
+      legacy: { billingStatus: BillingStatus.PAST_DUE, trialEndsAt: null },
     });
-
-    it('should block POST request for SUSPENDED tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.SUSPENDED,
-        trialEndsAt: null,
+    const del = createMockExecutionContext(
+      { tenantId: 't1' },
+      'DELETE',
+      '/api/v1/members/x',
+    );
+    try {
+      await guard.canActivate(del);
+      fail('expected HttpException');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpException);
+      const ex = e as HttpException;
+      expect(ex.getStatus()).toBe(HttpStatus.FORBIDDEN);
+      expect(ex.getResponse()).toEqual({
+        code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        message: BILLING_ERROR_MESSAGES.PREMIUM_MUTATIONS_LOCKED,
+        source: 'legacy_fallback',
       });
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).getResponse()).toEqual({
-          code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-          message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
-        });
-      }
-    });
-
-    it('should block PATCH request for SUSPENDED tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'PATCH',
-        '/api/v1/members/123',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.SUSPENDED,
-        trialEndsAt: null,
-      });
-
-      // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-
-    it('should block DELETE request for SUSPENDED tenant with 403', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'DELETE',
-        '/api/v1/members/123',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.SUSPENDED,
-        trialEndsAt: null,
-      });
-
-      // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
+    }
   });
 
-  describe('T047: Guard extracts tenantId from JWT correctly', () => {
-    it('should extract tenantId from request.user.tenantId', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.ACTIVE,
-        trialEndsAt: null,
-      });
-
-      // Act
-      await guard.canActivate(context);
-
-      // Assert
-      expect(mockPrismaService.tenant.findUnique).toHaveBeenCalledWith({
-        where: { id: tenantId },
-        select: { billingStatus: true, trialEndsAt: true },
-      });
-    });
+  it('skips when user is missing or tenantId is missing', async () => {
+    mockGetPremiumAccess.mockResolvedValue(premiumActiveResult);
+    await expect(
+      guard.canActivate(createMockExecutionContext(null, 'POST')),
+    ).resolves.toBe(true);
+    await expect(
+      guard.canActivate(
+        createMockExecutionContext({ tenantId: undefined }, 'POST'),
+      ),
+    ).resolves.toBe(true);
+    expect(mockGetPremiumAccess).not.toHaveBeenCalled();
   });
 
-  describe('T048: Guard handles missing tenantId gracefully', () => {
-    it('should return true (skip check) when tenantId is missing', async () => {
-      // Arrange
-      const context = createMockExecutionContext(
-        null,
-        'GET',
-        '/api/v1/members',
-      );
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-      expect(mockPrismaService.tenant.findUnique).not.toHaveBeenCalled();
-    });
-
-    it('should return true (skip check) when user exists but tenantId is undefined', async () => {
-      // Arrange
-      const context = createMockExecutionContext(
-        { tenantId: undefined },
-        'GET',
-        '/api/v1/members',
-      );
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-      expect(mockPrismaService.tenant.findUnique).not.toHaveBeenCalled();
-    });
-
-    it('should return 403 when tenant not found in database', async () => {
-      // Arrange
-      const tenantId = 'non-existent-tenant';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue(null);
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).message).toBe('Tenant not found');
-      }
-    });
+  it('skips when SkipBillingStatusCheck is set', async () => {
+    const ctx = createMockExecutionContext(
+      { tenantId: 't1' },
+      'POST',
+      '/api/v1/auth/x',
+      true,
+    );
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(mockGetPremiumAccess).not.toHaveBeenCalled();
+    expect(mockReflector.getAllAndOverride).toHaveBeenCalledWith(
+      SKIP_BILLING_STATUS_CHECK_KEY,
+      [ctx.getHandler(), ctx.getClass()],
+    );
   });
 
-  describe('Guard skips check when route is marked', () => {
-    it('should skip billing status check when SkipBillingStatusCheck decorator is used', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/auth/login',
-        true, // skipCheck = true
-      );
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-      expect(mockPrismaService.tenant.findUnique).not.toHaveBeenCalled();
-      expect(mockReflector.getAllAndOverride).toHaveBeenCalledWith(
-        SKIP_BILLING_STATUS_CHECK_KEY,
-        [context.getHandler(), context.getClass()],
-      );
+  it('returns 403 SUSPENDED_ACCESS when tenant is suspended (including GET)', async () => {
+    mockGetPremiumAccess.mockResolvedValue({
+      hasPremiumAccess: false,
+      tenantSuspended: true,
+      source: 'revenuecat',
+      reason: 'Tenant is suspended; premium access is not available',
+      entitlement: {
+        entitlementId: 'premium',
+        state: EntitlementState.ACTIVE,
+        isActive: true,
+        productId: null,
+        expiresAt: null,
+        gracePeriodExpiresAt: null,
+        updatedAt: new Date().toISOString(),
+      },
+      legacy: baseLegacy,
     });
+    const get = createMockExecutionContext({ tenantId: 't1' }, 'GET', '/api/v1/members');
+    try {
+      await guard.canActivate(get);
+      fail('expected HttpException');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpException);
+      const ex = e as HttpException;
+      expect(ex.getStatus()).toBe(HttpStatus.FORBIDDEN);
+      expect(ex.getResponse()).toEqual({
+        code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+        message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
+      });
+    }
   });
 
-  describe('Error handling', () => {
-    it('should handle database errors gracefully', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockRejectedValue(
-        new Error('Database connection error'),
-      );
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown ForbiddenException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as ForbiddenException).message).toBe('Access denied');
-      }
-    });
-  });
-
-  describe('T045: Guard handles expired TRIAL tenant', () => {
-    it('should allow GET request for expired TRIAL tenant', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      const expiredDate = new Date();
-      expiredDate.setDate(expiredDate.getDate() - 1); // Yesterday
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: expiredDate,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-      expect(mockPrismaService.tenant.findUnique).toHaveBeenCalledWith({
-        where: { id: tenantId },
-        select: { billingStatus: true, trialEndsAt: true },
-      });
-    });
-
-    it('should block POST request for expired TRIAL tenant with 402', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/members',
-      );
-
-      const expiredDate = new Date();
-      expiredDate.setDate(expiredDate.getDate() - 1); // Yesterday
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: expiredDate,
-      });
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown HttpException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        const httpError = error as HttpException;
-        expect(httpError.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED); // 402
-        const response = httpError.getResponse() as {
-          code: string;
-          message: string;
-          trialEndsAt: string;
-        };
-        expect(response.code).toBe('TRIAL_EXPIRED');
-        expect(response.message).toContain('Deneme süreniz dolmuştur');
-        expect(response.trialEndsAt).toBe(expiredDate.toISOString());
-      }
-    });
-
-    it('should block PATCH request for expired TRIAL tenant with 402', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'PATCH',
-        '/api/v1/members/123',
-      );
-
-      const expiredDate = new Date();
-      expiredDate.setDate(expiredDate.getDate() - 1); // Yesterday
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: expiredDate,
-      });
-
-      // Act & Assert
-      try {
-        await guard.canActivate(context);
-        fail('Should have thrown HttpException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        const httpError = error as HttpException;
-        expect(httpError.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED); // 402
-      }
-    });
-
-    it('should allow GET request for TRIAL tenant when trialEndsAt is null', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: null, // No trial end date
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
-
-    it('should allow POST request for TRIAL tenant when trialEndsAt is null', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/members',
-      );
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: null, // No trial end date
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
-
-    it('should allow GET request for TRIAL tenant when trialEndsAt is in the future', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'GET',
-        '/api/v1/members',
-      );
-
-      const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + 7); // 7 days from now
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: futureDate,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
-
-    it('should allow POST request for TRIAL tenant when trialEndsAt is in the future', async () => {
-      // Arrange
-      const tenantId = 'tenant-123';
-      const context = createMockExecutionContext(
-        { tenantId },
-        'POST',
-        '/api/v1/members',
-      );
-
-      const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + 7); // 7 days from now
-
-      mockPrismaService.tenant.findUnique.mockResolvedValue({
-        billingStatus: BillingStatus.TRIAL,
-        trialEndsAt: futureDate,
-      });
-
-      // Act
-      const result = await guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true);
-    });
+  it('returns 403 Access denied when entitlement service throws unexpectedly', async () => {
+    mockGetPremiumAccess.mockRejectedValue(new Error('db down'));
+    const post = createMockExecutionContext(
+      { tenantId: 't1' },
+      'POST',
+      '/api/v1/members',
+    );
+    try {
+      await guard.canActivate(post);
+      fail('expected HttpException');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpException);
+      const ex = e as HttpException;
+      expect(ex.getStatus()).toBe(HttpStatus.FORBIDDEN);
+      expect(ex.message).toBe('Access denied');
+    }
   });
 });

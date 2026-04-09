@@ -2,37 +2,41 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Logger,
   HttpStatus,
   HttpException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PrismaService } from '../../prisma/prisma.service';
-import { BillingStatus } from '@prisma/client';
+import { JwtService } from '@nestjs/jwt';
 import {
   BILLING_ERROR_CODES,
   BILLING_ERROR_MESSAGES,
 } from '../../common/constants/billing-messages';
 import { SKIP_BILLING_STATUS_CHECK_KEY } from '../decorators/skip-billing-status-check.decorator';
+import { BillingEntitlementService } from '../../billing/billing-entitlement.service';
+import { JwtPayload } from '../strategies/jwt.strategy';
 
 /**
- * BillingStatusGuard enforces billing status-based access restrictions
+ * BillingStatusGuard enforces premium (RevenueCat) access for authenticated requests.
  *
  * IMPORTANT: This is a GLOBAL guard (APP_GUARD) that runs BEFORE controller-level guards
  * Execution order: BillingStatusGuard → JwtAuthGuard → TenantGuard → RolesGuard
  *
- * Because it runs before JwtAuthGuard, this guard gracefully skips when req.user is undefined.
- * Protected routes will still be blocked by JwtAuthGuard returning 401 Unauthorized.
- * This design allows BillingStatusGuard to check billing status ONLY after user is authenticated.
+ * Global guards run before controller-level JwtAuthGuard. This guard verifies the same
+ * JWT access token when `req.user` is not yet populated so premium and suspension rules
+ * apply to authenticated traffic. Invalid tokens are left for JwtAuthGuard to reject.
  *
  * Access rules (applied only when user is authenticated):
- * - TRIAL/ACTIVE: Full access (all requests allowed)
- * - PAST_DUE: Read-only access (GET allowed, POST/PATCH/DELETE blocked with 403)
- * - SUSPENDED: Full blocking (all requests blocked with 403 and error code TENANT_BILLING_LOCKED)
+ * Uses BillingEntitlementService.getPremiumAccessForTenant (RevenueCat entitlement snapshot;
+ * optional legacy tenant billing fallback when BILLING_LEGACY_FALLBACK_ENABLED=true).
  *
- * The guard queries the Tenant table to fetch billingStatus for each request.
- * Performance: Uses primary key lookup (tenantId), expected overhead <5ms per request.
+ * - hasPremiumAccess: full access (all methods allowed).
+ * - Otherwise: read-only for GET, HEAD, OPTIONS.
+ * - Mutations when not premium: 402 PAYMENT_REQUIRED with code PREMIUM_REQUIRED if the
+ *   entitlement source is `none`; otherwise 403 FORBIDDEN with TENANT_BILLING_LOCKED and
+ *   PREMIUM_MUTATIONS_LOCKED (inactive RevenueCat entitlement, legacy fallback without access, etc.).
+ *
+ * Performance: bounded by entitlement + tenant reads; warn threshold logged above 10ms.
  */
 @Injectable()
 export class BillingStatusGuard implements CanActivate {
@@ -40,8 +44,9 @@ export class BillingStatusGuard implements CanActivate {
   private readonly EXECUTION_TIME_WARN_THRESHOLD_MS = 10;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly billingEntitlementService: BillingEntitlementService,
     private readonly reflector: Reflector,
+    private readonly jwtService: JwtService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -58,165 +63,110 @@ export class BillingStatusGuard implements CanActivate {
 
     const startTime = Date.now();
     const request = context.switchToHttp().getRequest<{
-      user?: { tenantId?: string };
+      user?: JwtPayload;
       method: string;
       url: string;
+      headers: { authorization?: string };
     }>();
+    this.attachUserFromAccessTokenIfNeeded(request);
     const user = request.user;
 
-    // DEBUG: Log guard execution
-    this.logger.log(
-      `BillingStatusGuard.canActivate() called: ${request.method} ${request.url}, user: ${JSON.stringify(user)}`,
-    );
-
     // Skip billing check if user is not authenticated
-    // This allows unauthenticated routes to pass through
-    // JwtAuthGuard will handle authentication for protected routes
     if (!user || !user.tenantId) {
-      // User not authenticated yet - skip billing check
-      // This is expected for routes that don't have JwtAuthGuard
-      this.logger.log(
-        `BillingStatusGuard: Skipping check - no user or tenantId`,
-      );
       return true;
     }
 
     const tenantId: string = user.tenantId;
     const method: string = request.method;
-    const path: string = request.url;
 
     try {
-      // Query Tenant table to fetch billingStatus and trial dates
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: {
-          billingStatus: true,
-          trialEndsAt: true,
-        },
-      });
+      const premiumStatus =
+        await this.billingEntitlementService.getPremiumAccessForTenant(tenantId);
 
-      if (!tenant) {
-        // Tenant not found (should not happen in normal flow)
-        this.logger.error(
-          `Tenant not found for tenantId: ${tenantId}, path: ${path}`,
-        );
-        throw new ForbiddenException('Tenant not found');
-      }
-
-      // Add defensive check for billingStatus field
-      if (!tenant.billingStatus) {
-        this.logger.error(
-          `BillingStatus field is null or undefined for tenantId: ${tenantId}, tenant: ${JSON.stringify(tenant)}`,
-        );
-        // Default to ACTIVE if billingStatus is missing (should not happen)
-        return true;
-      }
-
-      const billingStatus: BillingStatus = tenant.billingStatus;
-
-      // Check for expired trial (TRIAL status with trialEndsAt in the past)
-      if (
-        billingStatus === BillingStatus.TRIAL &&
-        tenant.trialEndsAt &&
-        new Date() > tenant.trialEndsAt
-      ) {
-        // Trial expired: Allow read operations, block write operations
-        const isReadOperation = ['GET', 'HEAD', 'OPTIONS'].includes(method);
-
-        if (!isReadOperation) {
-          // Block write operations with 402 Payment Required
-          const executionTime = Date.now() - startTime;
-          this.logger.warn(
-            `Trial expired: write operation blocked, tenantId: ${tenantId}, method: ${method}, path: ${path}, executionTime: ${executionTime}ms`,
-          );
-
-          throw new HttpException(
-            {
-              code: 'TRIAL_EXPIRED',
-              message:
-                'Deneme süreniz dolmuştur. Devam etmek için lütfen ödeme yapın.',
-              trialEndsAt: tenant.trialEndsAt.toISOString(),
-            },
-            HttpStatus.PAYMENT_REQUIRED, // 402
-          );
-        }
-
-        // Allow read operations even when trial expired
-        const executionTime = Date.now() - startTime;
-        if (executionTime > this.EXECUTION_TIME_WARN_THRESHOLD_MS) {
-          this.logger.warn(
-            `BillingStatusGuard execution time exceeded threshold: ${executionTime}ms, tenantId: ${tenantId}, path: ${path}`,
-          );
-        }
-
-        return true;
-      }
-
-      // Check billing status and enforce access rules
-      if (billingStatus === BillingStatus.SUSPENDED) {
-        // SUSPENDED: Block all requests with error code
-        const executionTime = Date.now() - startTime;
-        this.logger.warn(
-          `Billing status restriction: SUSPENDED tenant blocked, tenantId: ${tenantId}, method: ${method}, path: ${path}, executionTime: ${executionTime}ms`,
-        );
-
-        throw new ForbiddenException({
-          code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-          message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
-        });
-      }
-
-      if (billingStatus === BillingStatus.PAST_DUE) {
-        // PAST_DUE: Allow GET requests, block mutations
-        const isReadOperation = ['GET', 'HEAD', 'OPTIONS'].includes(method);
-
-        if (!isReadOperation) {
-          // Block mutation operations (POST, PATCH, DELETE, PUT)
-          const executionTime = Date.now() - startTime;
-          this.logger.warn(
-            `Billing status restriction: PAST_DUE tenant mutation blocked, tenantId: ${tenantId}, method: ${method}, path: ${path}, executionTime: ${executionTime}ms`,
-          );
-
-          throw new ForbiddenException({
+      if (premiumStatus.tenantSuspended) {
+        throw new HttpException(
+          {
             code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
-            message: BILLING_ERROR_MESSAGES.PAST_DUE_MUTATION,
-          });
-        }
-
-        // Allow read operations
-        const executionTime = Date.now() - startTime;
-        if (executionTime > this.EXECUTION_TIME_WARN_THRESHOLD_MS) {
-          this.logger.warn(
-            `BillingStatusGuard execution time exceeded threshold: ${executionTime}ms, tenantId: ${tenantId}, path: ${path}`,
-          );
-        }
-
-        return true;
-      }
-
-      // TRIAL/ACTIVE: Allow all requests
-      const executionTime = Date.now() - startTime;
-      if (executionTime > this.EXECUTION_TIME_WARN_THRESHOLD_MS) {
-        this.logger.warn(
-          `BillingStatusGuard execution time exceeded threshold: ${executionTime}ms, tenantId: ${tenantId}, path: ${path}`,
+            message: BILLING_ERROR_MESSAGES.SUSPENDED_ACCESS,
+          },
+          HttpStatus.FORBIDDEN,
         );
       }
 
-      return true;
+      if (premiumStatus.hasPremiumAccess) {
+        const executionTime = Date.now() - startTime;
+        if (executionTime > this.EXECUTION_TIME_WARN_THRESHOLD_MS) {
+          this.logger.warn(
+            `Billing guard execution exceeded threshold: ${executionTime}ms, tenantId: ${tenantId}`,
+          );
+        }
+        return true;
+      }
+
+      const isReadOperation = ['GET', 'HEAD', 'OPTIONS'].includes(method);
+      if (isReadOperation) {
+        return true;
+      }
+
+      if (premiumStatus.source === 'none') {
+        throw new HttpException(
+          {
+            code: 'PREMIUM_REQUIRED',
+            message: 'Premium subscription is required for this action.',
+            source: premiumStatus.source,
+          },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
+
+      throw new HttpException(
+        {
+          code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
+          message: BILLING_ERROR_MESSAGES.PREMIUM_MUTATIONS_LOCKED,
+          source: premiumStatus.source,
+        },
+        HttpStatus.FORBIDDEN,
+      );
     } catch (error) {
-      // Re-throw HttpException (includes ForbiddenException, payment required, etc.)
       if (error instanceof HttpException) {
         throw error;
       }
 
-      // Log unexpected errors
       const executionTime = Date.now() - startTime;
+      if (executionTime > this.EXECUTION_TIME_WARN_THRESHOLD_MS) {
+        this.logger.warn(
+          `Billing guard execution exceeded threshold: ${executionTime}ms, tenantId: ${tenantId}`,
+        );
+      }
       this.logger.error(
-        `Unexpected error in BillingStatusGuard: ${error instanceof Error ? error.message : String(error)}, tenantId: ${tenantId}, path: ${path}, executionTime: ${executionTime}ms`,
+        `Unexpected error in billing guard: ${error instanceof Error ? error.message : String(error)}, tenantId: ${tenantId}, executionTime: ${executionTime}ms`,
       );
+      throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+    }
+  }
 
-      // Re-throw as ForbiddenException for safety
-      throw new ForbiddenException('Access denied');
+  private attachUserFromAccessTokenIfNeeded(request: {
+    user?: JwtPayload;
+    headers: { authorization?: string };
+  }): void {
+    if (request.user?.tenantId) {
+      return;
+    }
+    const raw = request.headers?.authorization;
+    if (!raw || typeof raw !== 'string') {
+      return;
+    }
+    const token = raw.replace(/^Bearer\s+/i, '').trim();
+    if (!token) {
+      return;
+    }
+    try {
+      const payload = this.jwtService.verify<JwtPayload>(token);
+      if (payload?.sub && payload?.tenantId) {
+        request.user = payload;
+      }
+    } catch {
+      // Invalid or expired token: defer to JwtAuthGuard.
     }
   }
 }

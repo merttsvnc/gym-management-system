@@ -86,6 +86,28 @@ enum BillingStatus {
   SUSPENDED
 }
 
+enum AppStore {
+  APPLE_APP_STORE
+  GOOGLE_PLAY
+  STRIPE
+  UNKNOWN
+}
+
+enum EntitlementState {
+  ACTIVE
+  INACTIVE
+  GRACE_PERIOD
+  REFUNDED
+  REVOKED
+}
+
+enum RevenueCatWebhookStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
 // Payment method enum
 enum PaymentMethod {
   CASH
@@ -119,6 +141,10 @@ model Tenant {
   planChangeHistory MemberPlanChangeHistory[]
   products          Product[]
   productSales      ProductSale[]
+  revenueCatCustomers      RevenueCatCustomer[]
+  entitlementSnapshots     RevenueCatEntitlementSnapshot[]
+  subscriptionSnapshots    RevenueCatSubscriptionSnapshot[]
+  revenueCatWebhookEvents  RevenueCatWebhookEvent[]
 
   @@index([slug])
   @@index([billingStatus])
@@ -186,9 +212,135 @@ model User {
   scheduledPlanChanges Member[]                  @relation("ScheduledByUser")
   planChangeHistory    MemberPlanChangeHistory[]
   passwordResetOtps    PasswordResetOtp[]
+  revenueCatCustomers  RevenueCatCustomer[]
 
   @@index([tenantId])
   @@index([email])
+}
+
+model RevenueCatCustomer {
+  id             String   @id @default(cuid())
+  tenantId       String
+  userId         String?
+  /// Canonical RevenueCat app user id for this product: `tenant:<tenantId>` (required on webhooks).
+  appUserId      String
+  originalAppUserId String?
+  aliases        Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, appUserId])
+  @@index([userId])
+  @@index([appUserId])
+}
+
+model RevenueCatEntitlementSnapshot {
+  id                    String           @id @default(cuid())
+  tenantId              String
+  /// Always `tenant:<tenantId>` for premium scope (same as RevenueCat app user id after webhook normalization).
+  appUserId             String
+  entitlementId         String
+  state                 EntitlementState @default(INACTIVE)
+  isActive              Boolean          @default(false)
+  productId             String?
+  store                 AppStore         @default(UNKNOWN)
+  periodType            String?
+  purchasedAt           DateTime?
+  originalPurchaseDate  DateTime?
+  expiresAt             DateTime?
+  gracePeriodExpiresAt  DateTime?
+  unsubscribedAt        DateTime?
+  billingIssueDetectedAt DateTime?
+  ownershipType         String?
+  willRenew             Boolean?
+  trialType             String?
+  raw                   Json?
+  updatedFromEventId    String?
+  /// Maximum RevenueCat `event_timestamp_ms` applied to this row; older events are ignored (transaction + row lock).
+  lastAppliedEventAt    DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, entitlementId])
+  @@index([tenantId, isActive])
+  @@index([tenantId, appUserId])
+}
+
+model RevenueCatSubscriptionSnapshot {
+  id                      String    @id @default(cuid())
+  tenantId                String
+  /// Always `tenant:<tenantId>` after webhook normalization.
+  appUserId               String
+  productId               String
+  entitlementId           String?
+  store                   AppStore  @default(UNKNOWN)
+  originalTransactionId   String?
+  transactionId           String?
+  isSandbox               Boolean?
+  periodType              String?
+  purchaseStatus          String?
+  purchasedAt             DateTime?
+  originalPurchaseDate    DateTime?
+  expiresAt               DateTime?
+  gracePeriodExpiresAt    DateTime?
+  cancellationDetectedAt  DateTime?
+  billingIssueDetectedAt  DateTime?
+  refundedAt              DateTime?
+  willRenew               Boolean?
+  raw                     Json?
+  updatedFromEventId      String?
+  /// Maximum RevenueCat `event_timestamp_ms` applied to this row; older events are ignored (transaction + row lock).
+  lastAppliedEventAt      DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, appUserId, productId])
+  @@index([tenantId, appUserId])
+  @@index([tenantId, entitlementId])
+}
+
+model RevenueCatWebhookEvent {
+  id                String                  @id @default(cuid())
+  eventId           String                  @unique
+  apiVersion        String?
+  eventType         String
+  appUserId         String?
+  originalAppUserId String?
+  tenantId          String?
+  receivedAt        DateTime                @default(now())
+  eventTimestamp    DateTime?
+  idempotencyKey    String?
+  status            RevenueCatWebhookStatus @default(RECEIVED)
+  processedAt       DateTime?
+  errorMessage      String?
+  payload           Json
+
+  tenant            Tenant?                         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  deliveryAttempts  RevenueCatWebhookDeliveryAttempt[]
+
+  @@index([tenantId])
+  @@index([appUserId])
+  @@index([eventType, receivedAt])
+  @@index([receivedAt])
+}
+
+model RevenueCatWebhookDeliveryAttempt {
+  id             String   @id @default(cuid())
+  webhookEventId String
+  reason         String
+  payload        Json
+  receivedAt     DateTime @default(now())
+
+  webhookEvent RevenueCatWebhookEvent @relation(fields: [webhookEventId], references: [id], onDelete: Cascade)
+
+  @@index([webhookEventId, receivedAt])
 }
 
 // MembershipPlan model
