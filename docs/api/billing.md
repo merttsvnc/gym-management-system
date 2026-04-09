@@ -91,8 +91,11 @@ Response:
 { "ok": true, "eventId": "event_uuid" }
 ```
 
-### Webhook idempotency and `IGNORED` retries
+### Webhook idempotency, payload fingerprint, and retries
 
-- **`PROCESSED`:** Same `event.id` is accepted again but does not re-apply side effects (idempotent).
-- **`IGNORED`:** Not a terminal state. A later delivery with the same `event.id` re-runs validation (tenant resolution, replay window, timestamp skew, etc.). If preconditions become valid, the event is applied once and the row moves to `PROCESSED`. If still invalid, the row stays `IGNORED` and a new `RevenueCatWebhookDeliveryAttempt` is recorded (audit trail).
-- **`FAILED`:** Processing error after the row was claimed in a transaction; not automatically retried by this handler (operational retry is a separate concern).
+- **`PROCESSED_APPLIED`:** Terminal — this delivery updated at least one entitlement or subscription snapshot row (timestamp ordering allowed the write). Same `event.id` with the **same** payload fingerprint is a no-op; a different fingerprint after a terminal success is recorded on `RevenueCatWebhookDeliveryAttempt` with reason `payload_integrity_mismatch_after_terminal` (row status is unchanged).
+- **`PROCESSED_NOOP`:** Terminal — processing finished but **no** snapshot row was mutated (e.g. customer-only/unknown event class, stale timestamp vs `lastAppliedEventAt`, or missing `product_id` / entitlement path). Same `event.id` + same fingerprint is a no-op.
+- **`PROCESSED`:** Legacy enum value only; existing rows are migrated to `PROCESSED_APPLIED`. New writes do not use `PROCESSED`.
+- **`IGNORED`:** Not a terminal state. A later delivery with the same `event.id` re-runs validation (tenant resolution, replay window, timestamp skew, etc.). If preconditions become valid, the row is claimed in a transaction and may move to `PROCESSED_APPLIED` or `PROCESSED_NOOP`. If still invalid, the row stays `IGNORED` and a new `RevenueCatWebhookDeliveryAttempt` is recorded (audit trail).
+- **`FAILED`:** The last attempt hit an error inside the processing transaction (row was `RECEIVED` or `FAILED`). This handler does **not** implement an internal retry loop. A **new HTTP delivery** (e.g. RevenueCat retry) calls the endpoint again; if the row is still `FAILED` or `RECEIVED` and the payload fingerprint matches the first-seen value on the row, processing is attempted again.
+- **`INVALID_PAYLOAD`:** Terminal — the same `event.id` was delivered again with a different payload fingerprint than the one stored on the first persist for that row (SHA-256 of `JSON.stringify` of the raw body). Further deliveries append `RevenueCatWebhookDeliveryAttempt` rows and return `ok` without re-applying.

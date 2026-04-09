@@ -45,14 +45,27 @@ type AppUserResolutionResult =
   | AppUserResolutionFailure
   | AppUserResolutionSuccess;
 
+function isTerminalRevenueCatSuccess(status: RevenueCatWebhookStatus): boolean {
+  return (
+    status === RevenueCatWebhookStatus.PROCESSED_APPLIED ||
+    status === RevenueCatWebhookStatus.PROCESSED_NOOP ||
+    status === RevenueCatWebhookStatus.PROCESSED
+  );
+}
+
 /**
  * RevenueCat webhook ingestion.
  *
  * **Webhook row status semantics**
- * - `PROCESSED`: terminal — event applied successfully; duplicate `eventId` deliveries are no-ops.
+ * - `PROCESSED_APPLIED`: terminal — at least one entitlement/subscription snapshot row was updated for this delivery.
+ * - `PROCESSED_NOOP`: terminal — processing completed but no snapshot mutation (e.g. unknown/customer-only type, stale timestamps, missing product id).
+ * - `PROCESSED`: legacy DB enum only; migrated to `PROCESSED_APPLIED` and must not be written by new code.
  * - `IGNORED`: retryable — preconditions failed (e.g. tenant missing, replay window); same `eventId`
  *   may be re-evaluated on a later delivery; `RevenueCatWebhookDeliveryAttempt` rows record each try.
- * - `FAILED`: terminal for that delivery’s processing attempt (transaction error); not auto-retried here.
+ * - `FAILED`: last attempt ended in a transaction error. There is no in-handler retry loop; a **new HTTP delivery**
+ *   (RevenueCat retry or ops replay) re-enters `processWebhook`, which may move the row back to `RECEIVED` and try again
+ *   if the row is still `FAILED` or `RECEIVED` and the payload fingerprint matches the first-seen value.
+ * - `INVALID_PAYLOAD`: terminal — same `eventId` was re-sent with a different payload fingerprint than the first persisted row.
  */
 @Injectable()
 export class RevenueCatWebhookService {
@@ -64,6 +77,13 @@ export class RevenueCatWebhookService {
     @Inject(REVENUECAT_REPLAY_WINDOW_MS) private readonly replayWindowMs: number,
     @Inject(APP_VALIDATED_ENV) private readonly env: Env,
   ) {}
+
+  /** SHA-256 of `JSON.stringify(payload)`; used as an immutable per-`eventId` fingerprint after first persist. */
+  private payloadFingerprint(payload: unknown): string {
+    return createHash('sha256')
+      .update(JSON.stringify(payload ?? null))
+      .digest('hex');
+  }
 
   verifyWebhookAuthorization(authorizationHeader?: string) {
     const secret = this.env.REVENUECAT_WEBHOOK_SECRET;
@@ -107,12 +127,36 @@ export class RevenueCatWebhookService {
 
     const eventId = eventIdRaw;
     const eventType = eventTypeRaw;
+    const incomingPayloadFingerprint = this.payloadFingerprint(payload);
 
     const existingPeek = await this.prisma.revenueCatWebhookEvent.findUnique({
       where: { eventId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, idempotencyKey: true },
     });
-    if (existingPeek?.status === RevenueCatWebhookStatus.PROCESSED) {
+
+    if (existingPeek?.status === RevenueCatWebhookStatus.INVALID_PAYLOAD) {
+      await this.appendDeliveryAttempt({
+        webhookEventId: existingPeek.id,
+        reason: 'duplicate_delivery_after_invalid_payload',
+        payload: payload as Prisma.InputJsonValue,
+      });
+      return { ok: true, eventId };
+    }
+
+    if (existingPeek && isTerminalRevenueCatSuccess(existingPeek.status)) {
+      if (
+        existingPeek.idempotencyKey &&
+        existingPeek.idempotencyKey !== incomingPayloadFingerprint
+      ) {
+        await this.appendDeliveryAttempt({
+          webhookEventId: existingPeek.id,
+          reason: 'payload_integrity_mismatch_after_terminal',
+          payload: payload as Prisma.InputJsonValue,
+        });
+        this.logger.warn(
+          `eventId=${eventId} duplicate delivery with different payload fingerprint after terminal status=${existingPeek.status}`,
+        );
+      }
       return { ok: true, eventId };
     }
 
@@ -121,7 +165,14 @@ export class RevenueCatWebhookService {
     );
 
     if (!eventTimestamp) {
-      await this.markEventIgnored(eventId, body, eventType, 'missing_timestamp');
+      await this.markEventIgnored(
+        eventId,
+        payload,
+        body,
+        eventType,
+        'missing_timestamp',
+        incomingPayloadFingerprint,
+      );
       return { ok: true, eventId };
     }
 
@@ -131,22 +182,29 @@ export class RevenueCatWebhookService {
     if (ageMs > this.replayWindowMs) {
       await this.markEventIgnored(
         eventId,
+        payload,
         body,
         eventType,
         'stale_replay',
+        incomingPayloadFingerprint,
       );
       return { ok: true, eventId };
     }
     if (eventMs - nowMs > RevenueCatWebhookService.MAX_FUTURE_SKEW_MS) {
-      await this.markEventIgnored(eventId, body, eventType, 'future_skew');
+      await this.markEventIgnored(
+        eventId,
+        payload,
+        body,
+        eventType,
+        'future_skew',
+        incomingPayloadFingerprint,
+      );
       return { ok: true, eventId };
     }
 
     const appUserId = this.readString(event.app_user_id);
     const originalAppUserId = this.readString(event.original_app_user_id);
-    const idempotencyKey = createHash('sha256')
-      .update(JSON.stringify(payload))
-      .digest('hex');
+    const idempotencyKey = incomingPayloadFingerprint;
 
     const appUserResolution = await this.resolveCanonicalAppUserContext(
       appUserId,
@@ -155,9 +213,11 @@ export class RevenueCatWebhookService {
     if (!appUserResolution.ok) {
       await this.markEventIgnored(
         eventId,
+        payload,
         body,
         eventType,
         appUserResolution.reason,
+        incomingPayloadFingerprint,
       );
       return { ok: true, eventId };
     }
@@ -170,13 +230,18 @@ export class RevenueCatWebhookService {
       await this.prisma.$transaction(
         async (tx) => {
           const rows = await tx.$queryRaw<
-            { id: string; status: RevenueCatWebhookStatus }[]
+            {
+              id: string;
+              status: RevenueCatWebhookStatus;
+              idempotencyKey: string | null;
+            }[]
           >(
-            Prisma.sql`SELECT id, status FROM "RevenueCatWebhookEvent" WHERE "eventId" = ${eventId} FOR UPDATE`,
+            Prisma.sql`SELECT id, status, "idempotencyKey" FROM "RevenueCatWebhookEvent" WHERE "eventId" = ${eventId} FOR UPDATE`,
           );
 
           let rowId: string;
           let rowStatus: RevenueCatWebhookStatus;
+          let storedPayloadFingerprint: string | null;
 
           if (rows.length === 0) {
             try {
@@ -197,21 +262,27 @@ export class RevenueCatWebhookService {
               });
               rowId = created.id;
               rowStatus = RevenueCatWebhookStatus.RECEIVED;
+              storedPayloadFingerprint = idempotencyKey;
             } catch (createErr) {
               if (
                 createErr instanceof Prisma.PrismaClientKnownRequestError &&
                 createErr.code === 'P2002'
               ) {
                 const again = await tx.$queryRaw<
-                  { id: string; status: RevenueCatWebhookStatus }[]
+                  {
+                    id: string;
+                    status: RevenueCatWebhookStatus;
+                    idempotencyKey: string | null;
+                  }[]
                 >(
-                  Prisma.sql`SELECT id, status FROM "RevenueCatWebhookEvent" WHERE "eventId" = ${eventId} FOR UPDATE`,
+                  Prisma.sql`SELECT id, status, "idempotencyKey" FROM "RevenueCatWebhookEvent" WHERE "eventId" = ${eventId} FOR UPDATE`,
                 );
                 if (!again.length) {
                   throw createErr;
                 }
                 rowId = again[0].id;
                 rowStatus = again[0].status;
+                storedPayloadFingerprint = again[0].idempotencyKey;
               } else {
                 throw createErr;
               }
@@ -219,9 +290,29 @@ export class RevenueCatWebhookService {
           } else {
             rowId = rows[0].id;
             rowStatus = rows[0].status;
+            storedPayloadFingerprint = rows[0].idempotencyKey;
           }
 
-          if (rowStatus === RevenueCatWebhookStatus.PROCESSED) {
+          if (isTerminalRevenueCatSuccess(rowStatus)) {
+            return;
+          }
+
+          if (rowStatus === RevenueCatWebhookStatus.INVALID_PAYLOAD) {
+            return;
+          }
+
+          if (
+            storedPayloadFingerprint &&
+            storedPayloadFingerprint !== idempotencyKey
+          ) {
+            await tx.revenueCatWebhookEvent.update({
+              where: { id: rowId },
+              data: {
+                status: RevenueCatWebhookStatus.INVALID_PAYLOAD,
+                errorMessage: 'payload_integrity_mismatch',
+                processedAt: new Date(),
+              },
+            });
             return;
           }
 
@@ -234,7 +325,9 @@ export class RevenueCatWebhookService {
               originalAppUserId,
               tenantId,
               eventTimestamp,
-              idempotencyKey,
+              ...(storedPayloadFingerprint
+                ? {}
+                : { idempotencyKey }),
               payload: payload as Prisma.InputJsonValue,
               status: RevenueCatWebhookStatus.RECEIVED,
               processedAt: null,
@@ -242,7 +335,7 @@ export class RevenueCatWebhookService {
             },
           });
 
-          await this.applyEvent(
+          const { snapshotApplied } = await this.applyEvent(
             tx,
             body,
             tenantId,
@@ -252,7 +345,9 @@ export class RevenueCatWebhookService {
           await tx.revenueCatWebhookEvent.update({
             where: { id: rowId },
             data: {
-              status: RevenueCatWebhookStatus.PROCESSED,
+              status: snapshotApplied
+                ? RevenueCatWebhookStatus.PROCESSED_APPLIED
+                : RevenueCatWebhookStatus.PROCESSED_NOOP,
               processedAt: new Date(),
             },
           });
@@ -264,7 +359,10 @@ export class RevenueCatWebhookService {
         where: { eventId },
         select: { status: true },
       });
-      if (after?.status === RevenueCatWebhookStatus.PROCESSED) {
+      if (after?.status && isTerminalRevenueCatSuccess(after.status)) {
+        return { ok: true, eventId };
+      }
+      if (after?.status === RevenueCatWebhookStatus.INVALID_PAYLOAD) {
         return { ok: true, eventId };
       }
 
@@ -359,15 +457,33 @@ export class RevenueCatWebhookService {
       args.envelope.event?.event_timestamp_ms ??
         args.envelope.event?.event_timestamp,
     );
-    const idempotencyKey = createHash('sha256')
-      .update(JSON.stringify(args.rawPayload ?? {}))
-      .digest('hex');
+    const idempotencyKey = this.payloadFingerprint(args.rawPayload);
 
     const existing = await this.prisma.revenueCatWebhookEvent.findUnique({
       where: { eventId: args.eventId },
-      select: { id: true },
+      select: { id: true, idempotencyKey: true, status: true },
     });
     if (existing) {
+      if (
+        existing.idempotencyKey &&
+        existing.idempotencyKey !== idempotencyKey &&
+        existing.status !== RevenueCatWebhookStatus.INVALID_PAYLOAD
+      ) {
+        if (!isTerminalRevenueCatSuccess(existing.status)) {
+          await this.prisma.revenueCatWebhookEvent.update({
+            where: { id: existing.id },
+            data: {
+              status: RevenueCatWebhookStatus.INVALID_PAYLOAD,
+              errorMessage: 'payload_integrity_mismatch',
+              processedAt: new Date(),
+            },
+          });
+        } else {
+          this.logger.warn(
+            `eventId=${args.eventId} malformed duplicate with different payload fingerprint after terminal status=${existing.status}`,
+          );
+        }
+      }
       await this.appendDeliveryAttempt({
         webhookEventId: existing.id,
         reason: args.reason,
@@ -417,6 +533,7 @@ export class RevenueCatWebhookService {
 
   private async markEventIgnored(
     eventId: string,
+    payload: unknown,
     body: RevenueCatEventEnvelope,
     eventType: string,
     reason:
@@ -424,6 +541,7 @@ export class RevenueCatWebhookService {
       | 'missing_timestamp'
       | 'stale_replay'
       | 'future_skew',
+    incomingPayloadFingerprint: string,
   ): Promise<void> {
     const appUserId = this.readString(body.event?.app_user_id);
     const originalAppUserId = this.readString(body.event?.original_app_user_id);
@@ -433,17 +551,34 @@ export class RevenueCatWebhookService {
     const eventTimestamp = this.toDate(
       body.event?.event_timestamp_ms ?? body.event?.event_timestamp,
     );
-    const idempotencyKey = createHash('sha256')
-      .update(JSON.stringify(body))
-      .digest('hex');
     const existing = await this.prisma.revenueCatWebhookEvent.findUnique({
       where: { eventId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, idempotencyKey: true },
     });
-    if (existing?.status === RevenueCatWebhookStatus.PROCESSED) {
+    if (existing && isTerminalRevenueCatSuccess(existing.status)) {
       return;
     }
     if (existing) {
+      if (
+        existing.idempotencyKey &&
+        existing.idempotencyKey !== incomingPayloadFingerprint &&
+        existing.status !== RevenueCatWebhookStatus.INVALID_PAYLOAD
+      ) {
+        await this.prisma.revenueCatWebhookEvent.update({
+          where: { id: existing.id },
+          data: {
+            status: RevenueCatWebhookStatus.INVALID_PAYLOAD,
+            errorMessage: 'payload_integrity_mismatch',
+            processedAt: new Date(),
+          },
+        });
+        await this.appendDeliveryAttempt({
+          webhookEventId: existing.id,
+          reason: 'payload_integrity_mismatch',
+          payload: body as Prisma.InputJsonValue,
+        });
+        return;
+      }
       if (existing.status === RevenueCatWebhookStatus.IGNORED) {
         await this.prisma.revenueCatWebhookEvent.update({
           where: { id: existing.id },
@@ -456,7 +591,7 @@ export class RevenueCatWebhookService {
       await this.appendDeliveryAttempt({
         webhookEventId: existing.id,
         reason,
-        payload: body as Prisma.InputJsonValue,
+        payload: payload as Prisma.InputJsonValue,
       });
       return;
     }
@@ -470,8 +605,8 @@ export class RevenueCatWebhookService {
           originalAppUserId,
           tenantId: null,
           eventTimestamp,
-          idempotencyKey,
-          payload: body as Prisma.InputJsonValue,
+          idempotencyKey: incomingPayloadFingerprint,
+          payload: payload as Prisma.InputJsonValue,
           status: RevenueCatWebhookStatus.IGNORED,
           errorMessage: reason,
           processedAt: null,
@@ -484,13 +619,29 @@ export class RevenueCatWebhookService {
       ) {
         const again = await this.prisma.revenueCatWebhookEvent.findUnique({
           where: { eventId },
-          select: { id: true },
+          select: { id: true, idempotencyKey: true, status: true },
         });
         if (again) {
+          if (
+            again.idempotencyKey &&
+            again.idempotencyKey !== incomingPayloadFingerprint &&
+            again.status !== RevenueCatWebhookStatus.INVALID_PAYLOAD
+          ) {
+            if (!isTerminalRevenueCatSuccess(again.status)) {
+              await this.prisma.revenueCatWebhookEvent.update({
+                where: { id: again.id },
+                data: {
+                  status: RevenueCatWebhookStatus.INVALID_PAYLOAD,
+                  errorMessage: 'payload_integrity_mismatch',
+                  processedAt: new Date(),
+                },
+              });
+            }
+          }
           await this.appendDeliveryAttempt({
             webhookEventId: again.id,
             reason,
-            payload: body as Prisma.InputJsonValue,
+            payload: payload as Prisma.InputJsonValue,
           });
         }
         return;
@@ -505,10 +656,11 @@ export class RevenueCatWebhookService {
     tenantId: string | null,
     resolvedAppUserId: string,
     eventTimestamp: Date,
-  ) {
+  ): Promise<{ snapshotApplied: boolean }> {
+    let snapshotApplied = false;
     const event = (body.event ?? {}) as Record<string, unknown>;
     if (!tenantId || !resolvedAppUserId) {
-      return;
+      return { snapshotApplied };
     }
 
     const entitlementId = this.readString(event.entitlement_id);
@@ -548,7 +700,7 @@ export class RevenueCatWebhookService {
     });
 
     if (eventClass !== 'snapshot') {
-      return;
+      return { snapshotApplied };
     }
 
     if (snapshotEntitlementId) {
@@ -649,6 +801,7 @@ export class RevenueCatWebhookService {
             lastAppliedEventAt: eventTimestamp,
           },
         });
+        snapshotApplied = true;
       }
     }
 
@@ -767,8 +920,11 @@ export class RevenueCatWebhookService {
             lastAppliedEventAt: eventTimestamp,
           },
         });
+        snapshotApplied = true;
       }
     }
+
+    return { snapshotApplied };
   }
 
   /**

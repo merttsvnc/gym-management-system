@@ -1,6 +1,13 @@
+import { createHash } from 'crypto';
 import { RevenueCatWebhookStatus } from '@prisma/client';
 import { validateEnv } from '../config/env';
 import { RevenueCatWebhookService } from './revenuecat-webhook.service';
+
+function payloadFingerprint(payload: unknown): string {
+  return createHash('sha256')
+    .update(JSON.stringify(payload ?? null))
+    .digest('hex');
+}
 
 function buildSnapshotPayload(args: {
   eventId: string;
@@ -93,7 +100,7 @@ describe('RevenueCatWebhookService', () => {
   });
 
   describe('IGNORED retry and idempotency', () => {
-    it('tenant_not_found → IGNORED → tenant exists → same eventId → PROCESSED (single apply)', async () => {
+    it('tenant_not_found → IGNORED → tenant exists → same eventId → PROCESSED_APPLIED (single apply)', async () => {
       const tenantId = 't-wh-1';
       const eventId = 'ev-wh-1';
       const ts = Date.now();
@@ -141,7 +148,13 @@ describe('RevenueCatWebhookService', () => {
       });
       findUniqueTenant.mockResolvedValue({ id: tenantId });
 
-      queryRaw.mockResolvedValue([{ id: 'row-1', status: RevenueCatWebhookStatus.IGNORED }]);
+      queryRaw.mockResolvedValue([
+        {
+          id: 'row-1',
+          status: RevenueCatWebhookStatus.IGNORED,
+          idempotencyKey: payloadFingerprint(payload),
+        },
+      ]);
       findUniqueEntitlementSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
       findUniqueSubscriptionSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
 
@@ -160,7 +173,9 @@ describe('RevenueCatWebhookService', () => {
       expect(updateWebhookEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'row-1' },
-          data: expect.objectContaining({ status: RevenueCatWebhookStatus.PROCESSED }),
+          data: expect.objectContaining({
+            status: RevenueCatWebhookStatus.PROCESSED_APPLIED,
+          }),
         }),
       );
       expect(revenueCatCustomerUpsert).toHaveBeenCalledTimes(1);
@@ -204,7 +219,13 @@ describe('RevenueCatWebhookService', () => {
         premiumEntitlementId: env.REVENUECAT_PREMIUM_ENTITLEMENT_ID,
       });
       findUniqueWebhookEvent.mockResolvedValue(null);
-      queryRaw.mockResolvedValue([{ id: 'row-2', status: RevenueCatWebhookStatus.IGNORED }]);
+      queryRaw.mockResolvedValue([
+        {
+          id: 'row-2',
+          status: RevenueCatWebhookStatus.IGNORED,
+          idempotencyKey: payloadFingerprint(payloadFresh),
+        },
+      ]);
       findUniqueEntitlementSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
       findUniqueSubscriptionSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
 
@@ -250,7 +271,7 @@ describe('RevenueCatWebhookService', () => {
       expect(createWebhookEvent).toHaveBeenCalledTimes(1);
     });
 
-    it('PROCESSED short-circuits without transaction or side effects', async () => {
+    it('terminal success status short-circuits without transaction or side effects', async () => {
       const tenantId = 't-wh-4';
       const eventId = 'ev-wh-4';
       const payload = buildSnapshotPayload({
@@ -262,13 +283,89 @@ describe('RevenueCatWebhookService', () => {
 
       findUniqueWebhookEvent.mockResolvedValue({
         id: 'done',
-        status: RevenueCatWebhookStatus.PROCESSED,
+        status: RevenueCatWebhookStatus.PROCESSED_APPLIED,
+        idempotencyKey: null,
       });
 
       await service.processWebhook(payload);
 
       expect($transaction).not.toHaveBeenCalled();
       expect(findUniqueTenant).not.toHaveBeenCalled();
+    });
+
+    it('customer_only event completes as PROCESSED_NOOP (no snapshot upsert)', async () => {
+      const tenantId = 't-wh-5';
+      const eventId = 'ev-wh-5';
+      const ts = Date.now();
+      const payload = {
+        api_version: '1.0',
+        event: {
+          id: eventId,
+          type: 'TEST',
+          app_user_id: `tenant:${tenantId}`,
+          event_timestamp_ms: ts,
+        },
+      };
+
+      findUniqueWebhookEvent.mockResolvedValue(null);
+      findUniqueTenant.mockResolvedValue({ id: tenantId });
+      queryRaw.mockResolvedValue([]);
+      createWebhookEvent.mockResolvedValue({ id: 'row-test' });
+
+      await service.processWebhook(payload);
+
+      expect($transaction).toHaveBeenCalled();
+      expect(upsertEntitlementSnapshot).not.toHaveBeenCalled();
+      expect(upsertSubscriptionSnapshot).not.toHaveBeenCalled();
+      expect(updateWebhookEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: RevenueCatWebhookStatus.PROCESSED_NOOP,
+          }),
+        }),
+      );
+    });
+
+    it('same eventId with different payload fingerprint marks INVALID_PAYLOAD in transaction', async () => {
+      const tenantId = 't-wh-6';
+      const eventId = 'ev-wh-6';
+      const ts = Date.now();
+      const payloadA = buildSnapshotPayload({
+        eventId,
+        tenantId,
+        eventTimestampMs: ts,
+        premiumEntitlementId: env.REVENUECAT_PREMIUM_ENTITLEMENT_ID,
+      });
+      const payloadB = {
+        ...payloadA,
+        event: {
+          ...(payloadA.event as object),
+          product_id: 'other_product',
+        },
+      };
+
+      findUniqueWebhookEvent.mockResolvedValue(null);
+      findUniqueTenant.mockResolvedValue({ id: tenantId });
+      queryRaw.mockResolvedValue([
+        {
+          id: 'row-6',
+          status: RevenueCatWebhookStatus.IGNORED,
+          idempotencyKey: 'fingerprint-a',
+        },
+      ]);
+
+      await service.processWebhook(payloadB);
+
+      expect(updateWebhookEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'row-6' },
+          data: expect.objectContaining({
+            status: RevenueCatWebhookStatus.INVALID_PAYLOAD,
+            errorMessage: 'payload_integrity_mismatch',
+          }),
+        }),
+      );
+      expect(revenueCatCustomerUpsert).not.toHaveBeenCalled();
     });
   });
 });

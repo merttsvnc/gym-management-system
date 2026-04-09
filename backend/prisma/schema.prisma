@@ -104,8 +104,11 @@ enum EntitlementState {
 enum RevenueCatWebhookStatus {
   RECEIVED
   PROCESSED
+  PROCESSED_APPLIED
+  PROCESSED_NOOP
   IGNORED
   FAILED
+  INVALID_PAYLOAD
 }
 
 // Payment method enum
