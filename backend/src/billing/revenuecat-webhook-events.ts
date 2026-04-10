@@ -77,6 +77,17 @@ function toDate(value: unknown): Date | null {
 
 /**
  * Entitlement state for a snapshot-eligible event type (strict `event.type`, no substring matching).
+ *
+ * RevenueCat event semantics:
+ * - CANCELLATION: user disabled auto-renew; access continues until `expiration_at`. Falls through to
+ *   date-based logic. Do NOT immediately revoke — the paid period is not over.
+ * - EXPIRATION: subscription truly ended → INACTIVE immediately.
+ * - REFUND: money returned → REFUNDED / no access immediately.
+ * - SUBSCRIPTION_PAUSED (Android): subscription paused; no access during pause window even if
+ *   `expiration_at` is in the future (that field holds the pause-end/resume date) → INACTIVE.
+ * - BILLING_ISSUE: payment failed; RevenueCat issues a grace period (`grace_period_expiration_at`).
+ *   Falls through to default which checks grace first, then expiration → GRACE_PERIOD or INACTIVE.
+ * - RENEWAL / INITIAL_PURCHASE / UNCANCELLATION / PRODUCT_CHANGE / etc.: fall through to date logic.
  */
 export function computeEntitlementStateForSnapshotEvent(
   eventType: string,
@@ -84,12 +95,16 @@ export function computeEntitlementStateForSnapshotEvent(
   now: Date,
 ): { state: EntitlementState; isActive: boolean } {
   switch (eventType) {
-    case 'CANCELLATION':
-      return { state: EntitlementState.REVOKED, isActive: false };
     case 'EXPIRATION':
       return { state: EntitlementState.INACTIVE, isActive: false };
     case 'REFUND':
       return { state: EntitlementState.REFUNDED, isActive: false };
+    case 'SUBSCRIPTION_PAUSED':
+      // Android-only pause: no premium access during the pause window.
+      // expiration_at in this event holds the resume date, not a premium window end.
+      return { state: EntitlementState.INACTIVE, isActive: false };
+    // CANCELLATION intentionally falls through to default:
+    // auto-renew was turned off but the user retains access until expiration_at.
     default: {
       const expiresAt = toDate(event.expiration_at_ms ?? event.expiration_at);
       const gracePeriodEnds = toDate(

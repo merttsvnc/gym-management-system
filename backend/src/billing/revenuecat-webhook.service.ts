@@ -1,12 +1,7 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AppStore, Prisma, RevenueCatWebhookStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { createHash, timingSafeEqual } from 'crypto';
+import { createHash } from 'crypto';
 import { APP_VALIDATED_ENV } from '../config/app-env.token';
 import type { Env } from '../config/env';
 import {
@@ -90,28 +85,6 @@ export class RevenueCatWebhookService {
     return createHash('sha256')
       .update(JSON.stringify(payload ?? null))
       .digest('hex');
-  }
-
-  verifyWebhookAuthorization(authorizationHeader?: string) {
-    const secret = this.env.REVENUECAT_WEBHOOK_SECRET;
-    if (!authorizationHeader || !secret) {
-      throw new UnauthorizedException(
-        'Missing RevenueCat webhook authorization',
-      );
-    }
-
-    const token = authorizationHeader.replace(/^Bearer\s+/i, '').trim();
-    const expected = Buffer.from(secret, 'utf8');
-    const actual = Buffer.from(token, 'utf8');
-
-    if (
-      expected.length !== actual.length ||
-      !timingSafeEqual(expected, actual)
-    ) {
-      throw new UnauthorizedException(
-        'Invalid RevenueCat webhook authorization',
-      );
-    }
   }
 
   async processWebhook(
@@ -915,6 +888,9 @@ export class RevenueCatWebhookService {
             lastAppliedEventAt: eventTimestamp,
           },
           update: {
+            // entitlementId ?? undefined: Prisma treats undefined as "do not update".
+            // Later events (e.g. EXPIRATION) may omit entitlement_id; we preserve
+            // the previously stored value rather than overwriting with null.
             entitlementId: entitlementId ?? undefined,
             store,
             originalTransactionId: this.readString(
