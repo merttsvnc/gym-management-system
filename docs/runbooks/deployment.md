@@ -85,6 +85,30 @@ sudo docker logs --tail 200 gym-api
 sudo docker logs --tail 200 gym_api_db
 ```
 
+### Resolving a failed migration (P3018 / 55P04 enum error)
+
+When a migration fails mid-way (e.g. PostgreSQL error `55P04`: new enum values used in the same
+transaction they were added), Prisma marks it as failed in `_prisma_migrations` and blocks all
+subsequent deploys.
+
+**Step 1** — mark the failed migration as rolled back (run on VPS):
+
+```bash
+sudo docker exec -i gym-api sh -lc \
+  "npx prisma migrate resolve --rolled-back 20260409100000_revenuecat_webhook_status_semantics \
+   --schema=prisma/schema.prisma"
+```
+
+**Step 2** — pull the fixed migration files and re-deploy:
+
+```bash
+git pull origin main
+./deploy.sh force
+```
+
+Prisma will re-apply the corrected migration (ALTER TYPE only) and then the new data migration
+(`20260409200000_revenuecat_webhook_status_update_data`) in separate transactions.
+
 ### Last-resort schema rollback snippet (manual SQL)
 
 ```sql
