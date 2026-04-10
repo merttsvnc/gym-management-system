@@ -91,7 +91,7 @@ export class RevenueCatWebhookService {
     payload: unknown,
   ): Promise<{ ok: true; eventId: string }> {
     const body = payload as RevenueCatEventEnvelope;
-    const event = (body.event ?? {}) as Record<string, unknown>;
+    const event = body.event ?? {};
     const eventIdRaw = this.readString(event.id);
     const eventTypeRaw = this.readString(event.type);
 
@@ -650,7 +650,7 @@ export class RevenueCatWebhookService {
     eventTimestamp: Date,
   ): Promise<{ snapshotApplied: boolean }> {
     let snapshotApplied = false;
-    const event = (body.event ?? {}) as Record<string, unknown>;
+    const event = body.event ?? {};
     if (!tenantId || !resolvedAppUserId) {
       return { snapshotApplied };
     }
