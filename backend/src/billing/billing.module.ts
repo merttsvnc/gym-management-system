@@ -13,6 +13,7 @@ import {
   RevenueCatWebhookService,
 } from './revenuecat-webhook.service';
 import { MeEntitlementsController } from './me-entitlements.controller';
+import { RevenueCatWebhookAuthGuard } from './revenuecat-webhook-auth.guard';
 
 @Module({
   imports: [PrismaModule],
@@ -23,6 +24,7 @@ import { MeEntitlementsController } from './me-entitlements.controller';
       useFactory: () => validateEnv(),
     },
     BillingEntitlementService,
+    RevenueCatWebhookAuthGuard,
     {
       provide: REVENUECAT_REPLAY_WINDOW_MS,
       useFactory: (env: Env) => getRevenueCatReplayWindowMs(env),

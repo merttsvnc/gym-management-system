@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { RevenueCatWebhookStatus } from '@prisma/client';
 import { validateEnv } from '../config/env';
 import { RevenueCatWebhookService } from './revenuecat-webhook.service';
+import { RevenueCatTenantNotFoundError } from './revenuecat-tenant-not-found.error';
 
 function payloadFingerprint(payload: unknown): string {
   return createHash('sha256')
@@ -94,13 +95,15 @@ describe('RevenueCatWebhookService', () => {
       replayWindowMs,
       env,
     );
-    $transaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
-      await fn(mockTx());
-    });
+    $transaction.mockImplementation(
+      async (fn: (tx: unknown) => Promise<void>) => {
+        await fn(mockTx());
+      },
+    );
   });
 
   describe('IGNORED retry and idempotency', () => {
-    it('tenant_not_found → IGNORED → tenant exists → same eventId → PROCESSED_APPLIED (single apply)', async () => {
+    it('tenant_not_found → IGNORED + throws → tenant exists → same eventId → PROCESSED_APPLIED (single apply)', async () => {
       const tenantId = 't-wh-1';
       const eventId = 'ev-wh-1';
       const ts = Date.now();
@@ -116,7 +119,10 @@ describe('RevenueCatWebhookService', () => {
         .mockResolvedValueOnce(null);
       findUniqueTenant.mockResolvedValueOnce(null);
 
-      await service.processWebhook(payload);
+      // tenant_not_found now throws so RevenueCat can retry
+      await expect(service.processWebhook(payload)).rejects.toThrow(
+        RevenueCatTenantNotFoundError,
+      );
 
       expect(createWebhookEvent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -155,8 +161,12 @@ describe('RevenueCatWebhookService', () => {
           idempotencyKey: payloadFingerprint(payload),
         },
       ]);
-      findUniqueEntitlementSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
-      findUniqueSubscriptionSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
+      findUniqueEntitlementSnapshot.mockResolvedValue({
+        lastAppliedEventAt: null,
+      });
+      findUniqueSubscriptionSnapshot.mockResolvedValue({
+        lastAppliedEventAt: null,
+      });
 
       await service.processWebhook(payload);
 
@@ -226,8 +236,12 @@ describe('RevenueCatWebhookService', () => {
           idempotencyKey: payloadFingerprint(payloadFresh),
         },
       ]);
-      findUniqueEntitlementSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
-      findUniqueSubscriptionSnapshot.mockResolvedValue({ lastAppliedEventAt: null });
+      findUniqueEntitlementSnapshot.mockResolvedValue({
+        lastAppliedEventAt: null,
+      });
+      findUniqueSubscriptionSnapshot.mockResolvedValue({
+        lastAppliedEventAt: null,
+      });
 
       await service.processWebhook(payloadFresh);
 
@@ -249,7 +263,10 @@ describe('RevenueCatWebhookService', () => {
       findUniqueTenant.mockResolvedValue(null);
 
       findUniqueWebhookEvent.mockResolvedValue(null);
-      await service.processWebhook(payload);
+      // tenant_not_found now throws
+      await expect(service.processWebhook(payload)).rejects.toThrow(
+        RevenueCatTenantNotFoundError,
+      );
       expect(createWebhookEvent).toHaveBeenCalledTimes(1);
 
       const row = {
@@ -257,7 +274,9 @@ describe('RevenueCatWebhookService', () => {
         status: RevenueCatWebhookStatus.IGNORED,
       };
       findUniqueWebhookEvent.mockResolvedValue(row);
-      await service.processWebhook(payload);
+      await expect(service.processWebhook(payload)).rejects.toThrow(
+        RevenueCatTenantNotFoundError,
+      );
 
       expect(createDeliveryAttempt).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -266,7 +285,9 @@ describe('RevenueCatWebhookService', () => {
         }),
       });
 
-      await service.processWebhook(payload);
+      await expect(service.processWebhook(payload)).rejects.toThrow(
+        RevenueCatTenantNotFoundError,
+      );
       expect(createDeliveryAttempt).toHaveBeenCalledTimes(2);
       expect(createWebhookEvent).toHaveBeenCalledTimes(1);
     });

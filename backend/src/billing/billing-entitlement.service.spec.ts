@@ -146,4 +146,133 @@ describe('BillingEntitlementService', () => {
     expect(r.source).toBe('revenuecat');
     expect(r.entitlement?.state).toBe(EntitlementState.REFUNDED);
   });
+
+  // --- Legacy fallback path tests ---
+
+  describe('legacy fallback path', () => {
+    beforeEach(() => {
+      // No RevenueCat entitlement snapshot in these tests
+      findEntitlement.mockResolvedValue(null);
+    });
+
+    it('legacy enabled + ACTIVE => premium true', async () => {
+      process.env.BILLING_LEGACY_FALLBACK_ENABLED = 'true';
+      const module = await Test.createTestingModule({
+        providers: [
+          BillingEntitlementService,
+          { provide: APP_VALIDATED_ENV, useFactory: () => validateEnv() },
+          {
+            provide: PrismaService,
+            useValue: {
+              revenueCatEntitlementSnapshot: { findUnique: findEntitlement },
+              tenant: { findUnique: findTenant },
+            },
+          },
+        ],
+      }).compile();
+      const svc = module.get(BillingEntitlementService);
+
+      findTenant.mockResolvedValue({
+        billingStatus: BillingStatus.ACTIVE,
+        trialEndsAt: null,
+      });
+
+      const r = await svc.getPremiumAccessForTenant('tenant-1');
+      expect(r.hasPremiumAccess).toBe(true);
+      expect(r.source).toBe('legacy_fallback');
+    });
+
+    it('legacy enabled + TRIAL + future trialEndsAt => premium true', async () => {
+      process.env.BILLING_LEGACY_FALLBACK_ENABLED = 'true';
+      const module = await Test.createTestingModule({
+        providers: [
+          BillingEntitlementService,
+          { provide: APP_VALIDATED_ENV, useFactory: () => validateEnv() },
+          {
+            provide: PrismaService,
+            useValue: {
+              revenueCatEntitlementSnapshot: { findUnique: findEntitlement },
+              tenant: { findUnique: findTenant },
+            },
+          },
+        ],
+      }).compile();
+      const svc = module.get(BillingEntitlementService);
+
+      findTenant.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+
+      const r = await svc.getPremiumAccessForTenant('tenant-1');
+      expect(r.hasPremiumAccess).toBe(true);
+      expect(r.source).toBe('legacy_fallback');
+    });
+
+    it('legacy enabled + TRIAL + expired trialEndsAt => premium false', async () => {
+      process.env.BILLING_LEGACY_FALLBACK_ENABLED = 'true';
+      const module = await Test.createTestingModule({
+        providers: [
+          BillingEntitlementService,
+          { provide: APP_VALIDATED_ENV, useFactory: () => validateEnv() },
+          {
+            provide: PrismaService,
+            useValue: {
+              revenueCatEntitlementSnapshot: { findUnique: findEntitlement },
+              tenant: { findUnique: findTenant },
+            },
+          },
+        ],
+      }).compile();
+      const svc = module.get(BillingEntitlementService);
+
+      findTenant.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      });
+
+      const r = await svc.getPremiumAccessForTenant('tenant-1');
+      expect(r.hasPremiumAccess).toBe(false);
+      expect(r.source).toBe('legacy_fallback');
+    });
+
+    it('legacy enabled + PAST_DUE => premium false', async () => {
+      process.env.BILLING_LEGACY_FALLBACK_ENABLED = 'true';
+      const module = await Test.createTestingModule({
+        providers: [
+          BillingEntitlementService,
+          { provide: APP_VALIDATED_ENV, useFactory: () => validateEnv() },
+          {
+            provide: PrismaService,
+            useValue: {
+              revenueCatEntitlementSnapshot: { findUnique: findEntitlement },
+              tenant: { findUnique: findTenant },
+            },
+          },
+        ],
+      }).compile();
+      const svc = module.get(BillingEntitlementService);
+
+      findTenant.mockResolvedValue({
+        billingStatus: BillingStatus.PAST_DUE,
+        trialEndsAt: null,
+      });
+
+      const r = await svc.getPremiumAccessForTenant('tenant-1');
+      expect(r.hasPremiumAccess).toBe(false);
+      expect(r.source).toBe('legacy_fallback');
+    });
+
+    it('legacy disabled + no snapshot => source none, premium false', async () => {
+      // BILLING_LEGACY_FALLBACK_ENABLED is not set (deleted in beforeEach)
+      findTenant.mockResolvedValue({
+        billingStatus: BillingStatus.ACTIVE,
+        trialEndsAt: null,
+      });
+
+      const r = await service.getPremiumAccessForTenant('tenant-1');
+      expect(r.hasPremiumAccess).toBe(false);
+      expect(r.source).toBe('none');
+    });
+  });
 });

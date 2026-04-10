@@ -1,4 +1,9 @@
-import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AppStore, Prisma, RevenueCatWebhookStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { createHash, timingSafeEqual } from 'crypto';
@@ -15,6 +20,7 @@ import {
   entitlementSnapshotAdvisoryLockSql,
   subscriptionSnapshotAdvisoryLockSql,
 } from './revenuecat-snapshot-advisory-lock.util';
+import { RevenueCatTenantNotFoundError } from './revenuecat-tenant-not-found.error';
 
 export const REVENUECAT_REPLAY_WINDOW_MS = 'REVENUECAT_REPLAY_WINDOW_MS';
 
@@ -74,7 +80,8 @@ export class RevenueCatWebhookService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(REVENUECAT_REPLAY_WINDOW_MS) private readonly replayWindowMs: number,
+    @Inject(REVENUECAT_REPLAY_WINDOW_MS)
+    private readonly replayWindowMs: number,
     @Inject(APP_VALIDATED_ENV) private readonly env: Env,
   ) {}
 
@@ -88,19 +95,28 @@ export class RevenueCatWebhookService {
   verifyWebhookAuthorization(authorizationHeader?: string) {
     const secret = this.env.REVENUECAT_WEBHOOK_SECRET;
     if (!authorizationHeader || !secret) {
-      throw new UnauthorizedException('Missing RevenueCat webhook authorization');
+      throw new UnauthorizedException(
+        'Missing RevenueCat webhook authorization',
+      );
     }
 
     const token = authorizationHeader.replace(/^Bearer\s+/i, '').trim();
     const expected = Buffer.from(secret, 'utf8');
     const actual = Buffer.from(token, 'utf8');
 
-    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-      throw new UnauthorizedException('Invalid RevenueCat webhook authorization');
+    if (
+      expected.length !== actual.length ||
+      !timingSafeEqual(expected, actual)
+    ) {
+      throw new UnauthorizedException(
+        'Invalid RevenueCat webhook authorization',
+      );
     }
   }
 
-  async processWebhook(payload: unknown): Promise<{ ok: true; eventId: string }> {
+  async processWebhook(
+    payload: unknown,
+  ): Promise<{ ok: true; eventId: string }> {
     const body = payload as RevenueCatEventEnvelope;
     const event = (body.event ?? {}) as Record<string, unknown>;
     const eventIdRaw = this.readString(event.id);
@@ -219,6 +235,11 @@ export class RevenueCatWebhookService {
         appUserResolution.reason,
         incomingPayloadFingerprint,
       );
+      // tenant_not_found is transient (signup race); signal RevenueCat to retry.
+      // Other ignored reasons (invalid_format) are permanent — 200 OK is correct.
+      if (appUserResolution.reason === 'tenant_not_found') {
+        throw new RevenueCatTenantNotFoundError(eventId);
+      }
       return { ok: true, eventId };
     }
 
@@ -325,9 +346,7 @@ export class RevenueCatWebhookService {
               originalAppUserId,
               tenantId,
               eventTimestamp,
-              ...(storedPayloadFingerprint
-                ? {}
-                : { idempotencyKey }),
+              ...(storedPayloadFingerprint ? {} : { idempotencyKey }),
               payload: payload as Prisma.InputJsonValue,
               status: RevenueCatWebhookStatus.RECEIVED,
               processedAt: null,
@@ -747,11 +766,15 @@ export class RevenueCatWebhookService {
             productId,
             store,
             periodType: this.readString(event.period_type),
-            purchasedAt: this.toDate(event.purchased_at_ms ?? event.purchased_at),
+            purchasedAt: this.toDate(
+              event.purchased_at_ms ?? event.purchased_at,
+            ),
             originalPurchaseDate: this.toDate(
               event.original_purchase_at_ms ?? event.original_purchase_at,
             ),
-            expiresAt: this.toDate(event.expiration_at_ms ?? event.expiration_at),
+            expiresAt: this.toDate(
+              event.expiration_at_ms ?? event.expiration_at,
+            ),
             gracePeriodExpiresAt: this.toDate(
               event.grace_period_expiration_at_ms ??
                 event.grace_period_expiration_at,
@@ -777,11 +800,15 @@ export class RevenueCatWebhookService {
             productId,
             store,
             periodType: this.readString(event.period_type),
-            purchasedAt: this.toDate(event.purchased_at_ms ?? event.purchased_at),
+            purchasedAt: this.toDate(
+              event.purchased_at_ms ?? event.purchased_at,
+            ),
             originalPurchaseDate: this.toDate(
               event.original_purchase_at_ms ?? event.original_purchase_at,
             ),
-            expiresAt: this.toDate(event.expiration_at_ms ?? event.expiration_at),
+            expiresAt: this.toDate(
+              event.expiration_at_ms ?? event.expiration_at,
+            ),
             gracePeriodExpiresAt: this.toDate(
               event.grace_period_expiration_at_ms ??
                 event.grace_period_expiration_at,
@@ -867,7 +894,9 @@ export class RevenueCatWebhookService {
             originalPurchaseDate: this.toDate(
               event.original_purchase_at_ms ?? event.original_purchase_at,
             ),
-            expiresAt: this.toDate(event.expiration_at_ms ?? event.expiration_at),
+            expiresAt: this.toDate(
+              event.expiration_at_ms ?? event.expiration_at,
+            ),
             gracePeriodExpiresAt: this.toDate(
               event.grace_period_expiration_at_ms ??
                 event.grace_period_expiration_at,
@@ -901,7 +930,9 @@ export class RevenueCatWebhookService {
             originalPurchaseDate: this.toDate(
               event.original_purchase_at_ms ?? event.original_purchase_at,
             ),
-            expiresAt: this.toDate(event.expiration_at_ms ?? event.expiration_at),
+            expiresAt: this.toDate(
+              event.expiration_at_ms ?? event.expiration_at,
+            ),
             gracePeriodExpiresAt: this.toDate(
               event.grace_period_expiration_at_ms ??
                 event.grace_period_expiration_at,
@@ -934,8 +965,8 @@ export class RevenueCatWebhookService {
     appUserId: string | null,
     originalAppUserId: string | null,
   ): string | null {
-    const candidates = [appUserId, originalAppUserId].filter(
-      (v): v is string => Boolean(v),
+    const candidates = [appUserId, originalAppUserId].filter((v): v is string =>
+      Boolean(v),
     );
     for (const candidate of candidates) {
       if (candidate.startsWith('tenant:')) {
@@ -953,8 +984,8 @@ export class RevenueCatWebhookService {
     appUserId: string | null,
     originalAppUserId: string | null,
   ): string | null {
-    const candidates = [appUserId, originalAppUserId].filter(
-      (v): v is string => Boolean(v),
+    const candidates = [appUserId, originalAppUserId].filter((v): v is string =>
+      Boolean(v),
     );
     for (const candidate of candidates) {
       if (candidate.startsWith('tenant:')) {
