@@ -145,12 +145,30 @@ describe('computeEntitlementStateForSnapshotEvent', () => {
     ).toBe(false);
   });
 
-  it('SUBSCRIPTION_PAUSED yields INACTIVE regardless of expiration_at (pause-end date)', () => {
-    // expiration_at holds pause-end/resume date on Android, not a premium window.
-    const resumeDateMs = new Date('2026-05-01T00:00:00.000Z').getTime();
+  it('SUBSCRIPTION_PAUSED with future expiration_at_ms keeps premium (access revoked at expiration, not at pause)', () => {
+    const futureMs = new Date('2026-05-01T00:00:00.000Z').getTime();
     const r = computeEntitlementStateForSnapshotEvent(
       'SUBSCRIPTION_PAUSED',
-      { type: 'SUBSCRIPTION_PAUSED', expiration_at_ms: resumeDateMs },
+      { type: 'SUBSCRIPTION_PAUSED', expiration_at_ms: futureMs },
+      now,
+    );
+    expect(r.state).toBe(EntitlementState.ACTIVE);
+    expect(r.isActive).toBe(true);
+    expect(
+      premiumAccessFromEntitlementSnapshot({
+        isActive: r.isActive,
+        expiresAt: new Date(futureMs),
+        gracePeriodExpiresAt: null,
+        now,
+      }),
+    ).toBe(true);
+  });
+
+  it('SUBSCRIPTION_PAUSED with past expiration_at_ms yields INACTIVE (entitlement expired)', () => {
+    const pastMs = new Date('2026-01-01T00:00:00.000Z').getTime();
+    const r = computeEntitlementStateForSnapshotEvent(
+      'SUBSCRIPTION_PAUSED',
+      { type: 'SUBSCRIPTION_PAUSED', expiration_at_ms: pastMs },
       now,
     );
     expect(r.state).toBe(EntitlementState.INACTIVE);
@@ -158,7 +176,7 @@ describe('computeEntitlementStateForSnapshotEvent', () => {
     expect(
       premiumAccessFromEntitlementSnapshot({
         isActive: r.isActive,
-        expiresAt: new Date(resumeDateMs),
+        expiresAt: new Date(pastMs),
         gracePeriodExpiresAt: null,
         now,
       }),
@@ -253,5 +271,69 @@ describe('resolveSnapshotEntitlementId (REFUND premium revocation)', () => {
     );
     expect(state.state).toBe(EntitlementState.REFUNDED);
     expect(state.isActive).toBe(false);
+  });
+});
+
+describe('resolveSnapshotEntitlementId (entitlement_ids fallback)', () => {
+  const premium = 'premium';
+
+  it('no entitlement_id but entitlement_ids includes premium → resolves to premium', () => {
+    const id = resolveSnapshotEntitlementId(
+      'TEMPORARY_ENTITLEMENT_GRANT',
+      null,
+      premium,
+      [premium],
+    );
+    expect(id).toBe(premium);
+  });
+
+  it('no entitlement_id and entitlement_ids has unrelated ids → returns null for non-REFUND event', () => {
+    const id = resolveSnapshotEntitlementId(
+      'TEMPORARY_ENTITLEMENT_GRANT',
+      null,
+      premium,
+      ['other_entitlement', 'yet_another'],
+    );
+    expect(id).toBeNull();
+  });
+
+  it('entitlement_id takes priority over entitlement_ids', () => {
+    const id = resolveSnapshotEntitlementId('RENEWAL', 'explicit_id', premium, [
+      premium,
+      'other',
+    ]);
+    expect(id).toBe('explicit_id');
+  });
+
+  it('entitlement_ids with premium → snapshot write yields ACTIVE for TEMPORARY_ENTITLEMENT_GRANT with future expiration', () => {
+    const now = new Date('2026-04-08T12:00:00.000Z');
+    const futureMs = new Date('2026-05-01T00:00:00.000Z').getTime();
+    const id = resolveSnapshotEntitlementId(
+      'TEMPORARY_ENTITLEMENT_GRANT',
+      null,
+      premium,
+      [premium],
+    );
+    expect(id).toBe(premium);
+    const state = computeEntitlementStateForSnapshotEvent(
+      'TEMPORARY_ENTITLEMENT_GRANT',
+      { type: 'TEMPORARY_ENTITLEMENT_GRANT', expiration_at_ms: futureMs },
+      now,
+    );
+    expect(state.state).toBe(EntitlementState.ACTIVE);
+    expect(state.isActive).toBe(true);
+    expect(
+      premiumAccessFromEntitlementSnapshot({
+        isActive: state.isActive,
+        expiresAt: new Date(futureMs),
+        gracePeriodExpiresAt: null,
+        now,
+      }),
+    ).toBe(true);
+  });
+
+  it('REFUND with no entitlement_id and no entitlement_ids still falls back to premium', () => {
+    const id = resolveSnapshotEntitlementId('REFUND', null, premium, []);
+    expect(id).toBe(premium);
   });
 });

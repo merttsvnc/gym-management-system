@@ -49,18 +49,29 @@ export function classifyRevenueCatWebhookEventType(
 
 /**
  * Entitlement id used for `RevenueCatEntitlementSnapshot` upserts.
- * `REFUND` without `entitlement_id` in the payload still must revoke premium, so we fall back to
- * `REVENUECAT_PREMIUM_ENTITLEMENT_ID` (passed as `premiumEntitlementId`).
+ *
+ * Resolution order:
+ * 1. `entitlement_id` from the event payload (takes priority, per RevenueCat deprecation note).
+ * 2. `entitlement_ids` array: if it contains `premiumEntitlementId`, treat it as the premium
+ *    entitlement. This handles events (e.g. `TEMPORARY_ENTITLEMENT_GRANT`) that only carry
+ *    the array field because `entitlement_id` is deprecated.
+ * 3. `REFUND` fallback: `REFUND` without any entitlement field still must revoke premium, so
+ *    we fall back to `REVENUECAT_PREMIUM_ENTITLEMENT_ID`.
+ * 4. Otherwise return `null` — snapshot will not be updated.
  */
 export function resolveSnapshotEntitlementId(
   eventType: string,
   entitlementIdFromEvent: string | null,
   premiumEntitlementId: string,
+  entitlementIdsFromEvent: string[] = [],
 ): string | null {
-  return (
-    entitlementIdFromEvent ??
-    (eventType === 'REFUND' ? premiumEntitlementId : null)
-  );
+  if (entitlementIdFromEvent) {
+    return entitlementIdFromEvent;
+  }
+  if (entitlementIdsFromEvent.includes(premiumEntitlementId)) {
+    return premiumEntitlementId;
+  }
+  return eventType === 'REFUND' ? premiumEntitlementId : null;
 }
 
 function toDate(value: unknown): Date | null {
@@ -83,8 +94,9 @@ function toDate(value: unknown): Date | null {
  *   date-based logic. Do NOT immediately revoke — the paid period is not over.
  * - EXPIRATION: subscription truly ended → INACTIVE immediately.
  * - REFUND: money returned → REFUNDED / no access immediately.
- * - SUBSCRIPTION_PAUSED (Android): subscription paused; no access during pause window even if
- *   `expiration_at` is in the future (that field holds the pause-end/resume date) → INACTIVE.
+ * - SUBSCRIPTION_PAUSED (Android): subscription is paused but RevenueCat's lifecycle dictates that
+ *   access is revoked at EXPIRATION, not at the pause event itself. Falls through to date-based
+ *   logic — same as CANCELLATION. `expiration_at` is evaluated to determine current access.
  * - BILLING_ISSUE: payment failed; RevenueCat issues a grace period (`grace_period_expiration_at`).
  *   Falls through to default which checks grace first, then expiration → GRACE_PERIOD or INACTIVE.
  * - RENEWAL / INITIAL_PURCHASE / UNCANCELLATION / PRODUCT_CHANGE / etc.: fall through to date logic.
@@ -99,10 +111,9 @@ export function computeEntitlementStateForSnapshotEvent(
       return { state: EntitlementState.INACTIVE, isActive: false };
     case 'REFUND':
       return { state: EntitlementState.REFUNDED, isActive: false };
-    case 'SUBSCRIPTION_PAUSED':
-      // Android-only pause: no premium access during the pause window.
-      // expiration_at in this event holds the resume date, not a premium window end.
-      return { state: EntitlementState.INACTIVE, isActive: false };
+    // SUBSCRIPTION_PAUSED intentionally falls through to default:
+    // RevenueCat revokes access at EXPIRATION, not at the pause event.
+    // expiration_at is evaluated to determine whether the paid period is still active.
     // CANCELLATION intentionally falls through to default:
     // auto-renew was turned off but the user retains access until expiration_at.
     default: {

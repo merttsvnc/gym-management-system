@@ -656,12 +656,14 @@ export class RevenueCatWebhookService {
     }
 
     const entitlementId = this.readString(event.entitlement_id);
+    const entitlementIds = this.readStringArray(event.entitlement_ids);
     const productId = this.readString(event.product_id);
     const eventType = this.readString(event.type) ?? 'UNKNOWN';
     const snapshotEntitlementId = resolveSnapshotEntitlementId(
       eventType,
       entitlementId,
       this.env.REVENUECAT_PREMIUM_ENTITLEMENT_ID,
+      entitlementIds,
     );
     const eventClass = classifyRevenueCatWebhookEventType(eventType);
 
