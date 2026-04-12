@@ -1071,7 +1071,9 @@ export class MembersService {
 
     // B) Plan validation (outside tx — plan data is immutable during renewal)
     const planId = dto.membershipPlanId;
-    let plan: Awaited<ReturnType<typeof this.membershipPlansService.getPlanByIdForTenant>> | null = null;
+    let plan: Awaited<
+      ReturnType<typeof this.membershipPlansService.getPlanByIdForTenant>
+    > | null = null;
     if (planId) {
       plan = await this.membershipPlansService.getPlanByIdForTenant(
         tenantId,
@@ -1233,8 +1235,7 @@ export class MembersService {
         paymentMethod: string;
       } | null = null;
       if (dto.createPayment) {
-        const paymentAmount =
-          dto.paymentAmount ?? membershipPriceAtPurchase;
+        const paymentAmount = dto.paymentAmount ?? membershipPriceAtPurchase;
         const paidOnDate = dto.paidOn ? new Date(dto.paidOn) : new Date();
         paidOnDate.setUTCHours(0, 0, 0, 0);
 

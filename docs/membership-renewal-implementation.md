@@ -148,11 +148,11 @@ Authorization: Bearer <jwt>
 
 ## Dosya Değişiklikleri
 
-| Dosya                                         | İşlem                                             |
-| --------------------------------------------- | ------------------------------------------------- |
-| `src/members/dto/renew-membership.dto.ts`     | Yeni (DTO)                                        |
-| `src/members/members.service.ts`              | Güncellendi (renewMembership — TOCTOU fixli)      |
-| `src/members/members.controller.ts`           | Güncellendi (POST endpoint + rate limiting)       |
-| `test/members/membership-renewal.e2e-spec.ts` | Yeni (21 test senaryosu)                          |
+| Dosya                                         | İşlem                                              |
+| --------------------------------------------- | -------------------------------------------------- |
+| `src/members/dto/renew-membership.dto.ts`     | Yeni (DTO)                                         |
+| `src/members/members.service.ts`              | Güncellendi (renewMembership — TOCTOU fixli)       |
+| `src/members/members.controller.ts`           | Güncellendi (POST endpoint + rate limiting)        |
+| `test/members/membership-renewal.e2e-spec.ts` | Yeni (21 test senaryosu)                           |
 | `prisma/schema.prisma`                        | Güncellendi (changeType comment "RENEWAL" eklendi) |
-| `docs/membership-renewal-implementation.md`   | Yeni (bu dosya)                                   |
+| `docs/membership-renewal-implementation.md`   | Yeni (bu dosya)                                    |
