@@ -20,6 +20,7 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { MemberListQueryDto } from './dto/member-list-query.dto';
 import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
 import { SchedulePlanChangeDto } from './dto/schedule-plan-change.dto';
+import { RenewMembershipDto } from './dto/renew-membership.dto';
 
 @Controller('members')
 @UseGuards(JwtAuthGuard, TenantGuard)
@@ -112,6 +113,26 @@ export class MembersController {
   @HttpCode(HttpStatus.OK)
   archive(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.membersService.archive(tenantId, id);
+  }
+
+  /**
+   * POST /api/v1/members/:id/renew-membership
+   * Renews or extends a member's membership
+   * - Expired member: starts fresh from today
+   * - Active member (early renewal): extends from current end date
+   * - Optionally creates payment record in the same transaction
+   * Returns 400 if member is archived or paused
+   * Returns 404 if member or plan not found
+   */
+  @Post(':id/renew-membership')
+  @HttpCode(HttpStatus.OK)
+  renewMembership(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: RenewMembershipDto,
+  ) {
+    return this.membersService.renewMembership(tenantId, id, dto, userId);
   }
 
   /**

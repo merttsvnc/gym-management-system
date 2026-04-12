@@ -13,7 +13,9 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { MemberListQueryDto } from './dto/member-list-query.dto';
 import { ChangeMemberStatusDto } from './dto/change-member-status.dto';
 import { SchedulePlanChangeDto } from './dto/schedule-plan-change.dto';
+import { RenewMembershipDto } from './dto/renew-membership.dto';
 import { MemberStatus, Prisma } from '@prisma/client';
+import { Decimal } from 'decimal.js';
 import { MembershipPlansService } from '../membership-plans/membership-plans.service';
 import { calculateMembershipEndDate } from '../membership-plans/utils/duration-calculator';
 import {
@@ -1010,5 +1012,273 @@ export class MembersService {
     });
 
     return this.enrichMemberWithComputedFields(updatedMember);
+  }
+
+  /**
+   * Renew membership for a member
+   *
+   * Business rules:
+   * - ARCHIVED members cannot renew
+   * - PAUSED members cannot renew (must resume first)
+   * - If membershipPlanId provided in DTO, use that plan; otherwise use member's current plan
+   * - Plan must be ACTIVE and belong to tenant
+   * - Branch-scoped plans must match member's branch
+   * - Expired member: newStart = now, newEnd = now + plan duration
+   * - Active member (early renewal): keep current start, newEnd = currentEnd + plan duration
+   * - Optionally creates payment record in the same transaction
+   * - Creates history record with changeType="RENEWAL"
+   * - Sets member status to ACTIVE if not already
+   * - Clears pending plan change if present (renewal supersedes scheduled changes)
+   */
+  async renewMembership(
+    tenantId: string,
+    memberId: string,
+    dto: RenewMembershipDto,
+    userId: string,
+  ) {
+    // A) Find member with tenant isolation
+    const member = await this.findOne(tenantId, memberId);
+
+    // Archived members cannot renew
+    if (member.status === 'ARCHIVED') {
+      throw new BadRequestException('Arşivlenmiş üyelerin üyeliği yenilenemez');
+    }
+
+    // Paused members must resume first
+    if (member.status === 'PAUSED') {
+      throw new BadRequestException(
+        'Dondurulmuş üyelerin üyeliği yenilenemez. Önce üyeliği devam ettirin.',
+      );
+    }
+
+    // B) Determine which plan to use
+    const planId = dto.membershipPlanId || member.membershipPlanId;
+
+    if (!planId) {
+      throw new BadRequestException(
+        'Üyelik planı belirtilmedi ve üyenin mevcut planı bulunamadı',
+      );
+    }
+
+    const plan = await this.membershipPlansService.getPlanByIdForTenant(
+      tenantId,
+      planId,
+    );
+
+    // Plan must be ACTIVE
+    if (plan.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        'Arşivlenmiş planlar üyelik yenilemesi için kullanılamaz',
+      );
+    }
+
+    // Validate branch constraints (branch-scoped plan must match member's branch)
+    if (plan.scope === 'BRANCH' && plan.branchId !== member.branchId) {
+      throw new BadRequestException('Seçilen plan bu şube için geçerli değil');
+    }
+
+    // C) Calculate new membership dates
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Normalize to start of day
+
+    const currentEndDate = new Date(member.membershipEndDate);
+    currentEndDate.setHours(0, 0, 0, 0);
+
+    const isExpired = currentEndDate < now;
+
+    let newStartDate: Date;
+    let newEndDate: Date;
+
+    if (isExpired) {
+      // Expired member: start fresh from today
+      newStartDate = now;
+      newEndDate = calculateMembershipEndDate(
+        now,
+        plan.durationType,
+        plan.durationValue,
+      );
+    } else {
+      // Active/early renewal: extend from current end date
+      newStartDate = new Date(member.membershipStartDate);
+      newEndDate = calculateMembershipEndDate(
+        currentEndDate,
+        plan.durationType,
+        plan.durationValue,
+      );
+    }
+
+    // D) Prepare member update data
+    const membershipPriceAtPurchase = plan.price.toNumber();
+
+    const memberUpdateData: any = {
+      membershipPlanId: planId,
+      membershipStartDate: newStartDate,
+      membershipEndDate: newEndDate,
+      membershipPriceAtPurchase: membershipPriceAtPurchase,
+    };
+
+    // Set status to ACTIVE if not already (covers INACTIVE case)
+    if (member.status !== 'ACTIVE') {
+      memberUpdateData.status = 'ACTIVE';
+    }
+
+    // Clear pending plan change (renewal supersedes scheduled changes)
+    if (member.pendingMembershipPlanId) {
+      memberUpdateData.pendingMembershipPlanId = null;
+      memberUpdateData.pendingMembershipStartDate = null;
+      memberUpdateData.pendingMembershipEndDate = null;
+      memberUpdateData.pendingMembershipPriceAtPurchase = null;
+      memberUpdateData.pendingMembershipScheduledAt = null;
+      memberUpdateData.pendingMembershipScheduledByUserId = null;
+    }
+
+    // Clear pause-related fields since member is being renewed/activated
+    if (member.pausedAt || member.resumedAt) {
+      memberUpdateData.pausedAt = null;
+      memberUpdateData.resumedAt = null;
+    }
+
+    // E) Validate payment fields if createPayment=true
+    if (dto.createPayment) {
+      if (!dto.paymentMethod) {
+        throw new BadRequestException(
+          'Ödeme oluşturmak için ödeme yöntemi zorunludur',
+        );
+      }
+
+      const paymentAmount = dto.paymentAmount ?? membershipPriceAtPurchase;
+
+      if (paymentAmount < 0.01 || paymentAmount > 999999.99) {
+        throw new BadRequestException(
+          'Ödeme tutarı 0.01 ile 999999.99 arasında olmalıdır',
+        );
+      }
+
+      // Validate max 2 decimal places
+      const decimalParts = paymentAmount.toString().split('.');
+      if (decimalParts[1] && decimalParts[1].length > 2) {
+        throw new BadRequestException(
+          'Ödeme tutarı en fazla 2 ondalık basamak içerebilir',
+        );
+      }
+
+      // Validate paidOn is not in future
+      if (dto.paidOn) {
+        const paidOnDate = new Date(dto.paidOn);
+        paidOnDate.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (paidOnDate > today) {
+          throw new BadRequestException('Ödeme tarihi gelecekte olamaz');
+        }
+      }
+    }
+
+    // F) Execute atomically in a transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update member record
+      const updatedMember = await tx.member.update({
+        where: { id_tenantId: { id: memberId, tenantId } },
+        data: memberUpdateData,
+      });
+
+      // Create history record (changeType="RENEWAL")
+      await tx.memberPlanChangeHistory.create({
+        data: {
+          tenantId,
+          memberId,
+          oldPlanId: member.membershipPlanId,
+          newPlanId: planId,
+          oldStartDate: member.membershipStartDate,
+          oldEndDate: member.membershipEndDate,
+          newStartDate,
+          newEndDate,
+          oldPriceAtPurchase: member.membershipPriceAtPurchase
+            ? member.membershipPriceAtPurchase.toNumber()
+            : null,
+          newPriceAtPurchase: membershipPriceAtPurchase,
+          changeType: 'RENEWAL',
+          appliedAt: new Date(),
+          changedByUserId: userId,
+        },
+      });
+
+      // Optionally create payment record
+      let payment: {
+        id: string;
+        amount: Decimal;
+        paidOn: Date;
+        paymentMethod: string;
+      } | null = null;
+      if (dto.createPayment) {
+        const paymentAmount = dto.paymentAmount ?? membershipPriceAtPurchase;
+        const paidOnDate = dto.paidOn ? new Date(dto.paidOn) : new Date();
+        // Truncate to UTC midnight (date-only semantics)
+        paidOnDate.setUTCHours(0, 0, 0, 0);
+
+        payment = await tx.payment.create({
+          data: {
+            tenantId,
+            branchId: member.branchId,
+            memberId,
+            amount: new Decimal(paymentAmount),
+            paidOn: paidOnDate,
+            paymentMethod: dto.paymentMethod!,
+            note: dto.note || null,
+            createdBy: userId,
+          },
+          include: {
+            member: true,
+            branch: true,
+          },
+        });
+      }
+
+      return { updatedMember, payment };
+    });
+
+    // Structured logging
+    this.logger.log(
+      JSON.stringify({
+        event: 'membership.renewed',
+        memberId,
+        tenantId,
+        planId,
+        isExpired,
+        oldStartDate: member.membershipStartDate,
+        oldEndDate: member.membershipEndDate,
+        newStartDate: newStartDate.toISOString(),
+        newEndDate: newEndDate.toISOString(),
+        paymentCreated: !!result.payment,
+        changedByUserId: userId,
+      }),
+    );
+
+    const enrichedMember = this.enrichMemberWithComputedFields(
+      result.updatedMember,
+    );
+
+    return {
+      ...enrichedMember,
+      renewal: {
+        previousStartDate: member.membershipStartDate,
+        previousEndDate: member.membershipEndDate,
+        newStartDate,
+        newEndDate,
+        planId,
+        planName: plan.name,
+        wasExpired: isExpired,
+      },
+      ...(result.payment
+        ? {
+            payment: {
+              id: result.payment.id,
+              amount: result.payment.amount.toString(),
+              paidOn: result.payment.paidOn,
+              paymentMethod: result.payment.paymentMethod,
+            },
+          }
+        : {}),
+    };
   }
 }
