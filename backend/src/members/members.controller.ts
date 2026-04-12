@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -125,6 +126,8 @@ export class MembersController {
    * Returns 404 if member or plan not found
    */
   @Post(':id/renew-membership')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 100, ttl: 900000 } }) // 100 requests per 15 minutes per user
   @HttpCode(HttpStatus.OK)
   renewMembership(
     @CurrentUser('tenantId') tenantId: string,

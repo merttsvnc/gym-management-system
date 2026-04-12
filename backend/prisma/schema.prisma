@@ -543,7 +543,7 @@ model MemberPlanChangeHistory {
   newPriceAtPurchase Decimal?  @db.Decimal(10, 2)
 
   // Change tracking
-  changeType      String // "SCHEDULED" | "APPLIED" | "CANCELLED"
+  changeType      String // "SCHEDULED" | "APPLIED" | "CANCELLED" | "RENEWAL"
   scheduledAt     DateTime?
   appliedAt       DateTime?
   changedByUserId String?

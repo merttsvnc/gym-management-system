@@ -117,7 +117,9 @@ Authorization: Bearer <jwt>
 
 ### 6. Atomik Transaction
 
-- Member güncellemesi + history kaydı + opsiyonel payment aynı transaction içinde
+- Member read + güncellemesi + history kaydı + opsiyonel payment aynı transaction içinde
+- Member, transaction içinde okunur — concurrent renewal'larda stale-read riski engellenir
+- Rate limiting: Endpoint `@Throttle` ile korunur (100 req/15 dk)
 
 ## Handled Edge Cases
 
@@ -146,10 +148,11 @@ Authorization: Bearer <jwt>
 
 ## Dosya Değişiklikleri
 
-| Dosya                                         | İşlem                                |
-| --------------------------------------------- | ------------------------------------ |
-| `src/members/dto/renew-membership.dto.ts`     | Yeni (DTO)                           |
-| `src/members/members.service.ts`              | Güncellendi (renewMembership metodu) |
-| `src/members/members.controller.ts`           | Güncellendi (POST endpoint)          |
-| `test/members/membership-renewal.e2e-spec.ts` | Yeni (18 test senaryosu)             |
-| `docs/membership-renewal-implementation.md`   | Yeni (bu dosya)                      |
+| Dosya                                         | İşlem                                             |
+| --------------------------------------------- | ------------------------------------------------- |
+| `src/members/dto/renew-membership.dto.ts`     | Yeni (DTO)                                        |
+| `src/members/members.service.ts`              | Güncellendi (renewMembership — TOCTOU fixli)      |
+| `src/members/members.controller.ts`           | Güncellendi (POST endpoint + rate limiting)       |
+| `test/members/membership-renewal.e2e-spec.ts` | Yeni (21 test senaryosu)                          |
+| `prisma/schema.prisma`                        | Güncellendi (changeType comment "RENEWAL" eklendi) |
+| `docs/membership-renewal-implementation.md`   | Yeni (bu dosya)                                   |

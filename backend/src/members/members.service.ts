@@ -1036,109 +1036,7 @@ export class MembersService {
     dto: RenewMembershipDto,
     userId: string,
   ) {
-    // A) Find member with tenant isolation
-    const member = await this.findOne(tenantId, memberId);
-
-    // Archived members cannot renew
-    if (member.status === 'ARCHIVED') {
-      throw new BadRequestException('Arşivlenmiş üyelerin üyeliği yenilenemez');
-    }
-
-    // Paused members must resume first
-    if (member.status === 'PAUSED') {
-      throw new BadRequestException(
-        'Dondurulmuş üyelerin üyeliği yenilenemez. Önce üyeliği devam ettirin.',
-      );
-    }
-
-    // B) Determine which plan to use
-    const planId = dto.membershipPlanId || member.membershipPlanId;
-
-    if (!planId) {
-      throw new BadRequestException(
-        'Üyelik planı belirtilmedi ve üyenin mevcut planı bulunamadı',
-      );
-    }
-
-    const plan = await this.membershipPlansService.getPlanByIdForTenant(
-      tenantId,
-      planId,
-    );
-
-    // Plan must be ACTIVE
-    if (plan.status !== 'ACTIVE') {
-      throw new BadRequestException(
-        'Arşivlenmiş planlar üyelik yenilemesi için kullanılamaz',
-      );
-    }
-
-    // Validate branch constraints (branch-scoped plan must match member's branch)
-    if (plan.scope === 'BRANCH' && plan.branchId !== member.branchId) {
-      throw new BadRequestException('Seçilen plan bu şube için geçerli değil');
-    }
-
-    // C) Calculate new membership dates
-    const now = new Date();
-    now.setHours(0, 0, 0, 0); // Normalize to start of day
-
-    const currentEndDate = new Date(member.membershipEndDate);
-    currentEndDate.setHours(0, 0, 0, 0);
-
-    const isExpired = currentEndDate < now;
-
-    let newStartDate: Date;
-    let newEndDate: Date;
-
-    if (isExpired) {
-      // Expired member: start fresh from today
-      newStartDate = now;
-      newEndDate = calculateMembershipEndDate(
-        now,
-        plan.durationType,
-        plan.durationValue,
-      );
-    } else {
-      // Active/early renewal: extend from current end date
-      newStartDate = new Date(member.membershipStartDate);
-      newEndDate = calculateMembershipEndDate(
-        currentEndDate,
-        plan.durationType,
-        plan.durationValue,
-      );
-    }
-
-    // D) Prepare member update data
-    const membershipPriceAtPurchase = plan.price.toNumber();
-
-    const memberUpdateData: any = {
-      membershipPlanId: planId,
-      membershipStartDate: newStartDate,
-      membershipEndDate: newEndDate,
-      membershipPriceAtPurchase: membershipPriceAtPurchase,
-    };
-
-    // Set status to ACTIVE if not already (covers INACTIVE case)
-    if (member.status !== 'ACTIVE') {
-      memberUpdateData.status = 'ACTIVE';
-    }
-
-    // Clear pending plan change (renewal supersedes scheduled changes)
-    if (member.pendingMembershipPlanId) {
-      memberUpdateData.pendingMembershipPlanId = null;
-      memberUpdateData.pendingMembershipStartDate = null;
-      memberUpdateData.pendingMembershipEndDate = null;
-      memberUpdateData.pendingMembershipPriceAtPurchase = null;
-      memberUpdateData.pendingMembershipScheduledAt = null;
-      memberUpdateData.pendingMembershipScheduledByUserId = null;
-    }
-
-    // Clear pause-related fields since member is being renewed/activated
-    if (member.pausedAt || member.resumedAt) {
-      memberUpdateData.pausedAt = null;
-      memberUpdateData.resumedAt = null;
-    }
-
-    // E) Validate payment fields if createPayment=true
+    // A) Pre-transaction validation: validate payment fields early to fail fast
     if (dto.createPayment) {
       if (!dto.paymentMethod) {
         throw new BadRequestException(
@@ -1146,23 +1044,20 @@ export class MembersService {
         );
       }
 
-      const paymentAmount = dto.paymentAmount ?? membershipPriceAtPurchase;
-
-      if (paymentAmount < 0.01 || paymentAmount > 999999.99) {
-        throw new BadRequestException(
-          'Ödeme tutarı 0.01 ile 999999.99 arasında olmalıdır',
-        );
+      if (dto.paymentAmount !== undefined) {
+        if (dto.paymentAmount < 0.01 || dto.paymentAmount > 999999.99) {
+          throw new BadRequestException(
+            'Ödeme tutarı 0.01 ile 999999.99 arasında olmalıdır',
+          );
+        }
+        const decimalParts = dto.paymentAmount.toString().split('.');
+        if (decimalParts[1] && decimalParts[1].length > 2) {
+          throw new BadRequestException(
+            'Ödeme tutarı en fazla 2 ondalık basamak içerebilir',
+          );
+        }
       }
 
-      // Validate max 2 decimal places
-      const decimalParts = paymentAmount.toString().split('.');
-      if (decimalParts[1] && decimalParts[1].length > 2) {
-        throw new BadRequestException(
-          'Ödeme tutarı en fazla 2 ondalık basamak içerebilir',
-        );
-      }
-
-      // Validate paidOn is not in future
       if (dto.paidOn) {
         const paidOnDate = new Date(dto.paidOn);
         paidOnDate.setHours(0, 0, 0, 0);
@@ -1174,21 +1069,148 @@ export class MembersService {
       }
     }
 
-    // F) Execute atomically in a transaction
+    // B) Plan validation (outside tx — plan data is immutable during renewal)
+    const planId = dto.membershipPlanId;
+    let plan: Awaited<ReturnType<typeof this.membershipPlansService.getPlanByIdForTenant>> | null = null;
+    if (planId) {
+      plan = await this.membershipPlansService.getPlanByIdForTenant(
+        tenantId,
+        planId,
+      );
+      if (plan.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          'Arşivlenmiş planlar üyelik yenilemesi için kullanılamaz',
+        );
+      }
+    }
+
+    // C) Execute all member-dependent logic inside a transaction to prevent TOCTOU race.
+    // By reading the member inside the transaction, concurrent renewals are serialized
+    // at the database level (Prisma interactive transactions use serializable-like semantics
+    // within the same row because the UPDATE will block on the row lock).
     const result = await this.prisma.$transaction(async (tx) => {
+      // Read member inside transaction to get consistent state
+      const member = await tx.member.findFirst({
+        where: { id: memberId, tenantId },
+        include: { branch: true },
+      });
+
+      if (!member) {
+        throw new NotFoundException('Üye bulunamadı');
+      }
+
+      // Archived members cannot renew
+      if (member.status === 'ARCHIVED') {
+        throw new BadRequestException(
+          'Arşivlenmiş üyelerin üyeliği yenilenemez',
+        );
+      }
+
+      // Paused members must resume first
+      if (member.status === 'PAUSED') {
+        throw new BadRequestException(
+          'Dondurulmuş üyelerin üyeliği yenilenemez. Önce üyeliği devam ettirin.',
+        );
+      }
+
+      // Determine which plan to use
+      const effectivePlanId = planId || member.membershipPlanId;
+
+      if (!effectivePlanId) {
+        throw new BadRequestException(
+          'Üyelik planı belirtilmedi ve üyenin mevcut planı bulunamadı',
+        );
+      }
+
+      // If no plan was pre-validated (using member's current plan), fetch it now
+      if (!plan) {
+        plan = await this.membershipPlansService.getPlanByIdForTenant(
+          tenantId,
+          effectivePlanId,
+        );
+        if (plan.status !== 'ACTIVE') {
+          throw new BadRequestException(
+            'Arşivlenmiş planlar üyelik yenilemesi için kullanılamaz',
+          );
+        }
+      }
+
+      // Validate branch constraints
+      if (plan.scope === 'BRANCH' && plan.branchId !== member.branchId) {
+        throw new BadRequestException(
+          'Seçilen plan bu şube için geçerli değil',
+        );
+      }
+
+      // Calculate new membership dates using fresh member data
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
+      const currentEndDate = new Date(member.membershipEndDate);
+      currentEndDate.setHours(0, 0, 0, 0);
+
+      const isExpired = currentEndDate < now;
+
+      let newStartDate: Date;
+      let newEndDate: Date;
+
+      if (isExpired) {
+        newStartDate = now;
+        newEndDate = calculateMembershipEndDate(
+          now,
+          plan.durationType,
+          plan.durationValue,
+        );
+      } else {
+        newStartDate = new Date(member.membershipStartDate);
+        newEndDate = calculateMembershipEndDate(
+          currentEndDate,
+          plan.durationType,
+          plan.durationValue,
+        );
+      }
+
+      // Prepare member update data
+      const membershipPriceAtPurchase = plan.price.toNumber();
+
+      const memberUpdateData: any = {
+        membershipPlanId: effectivePlanId,
+        membershipStartDate: newStartDate,
+        membershipEndDate: newEndDate,
+        membershipPriceAtPurchase: membershipPriceAtPurchase,
+      };
+
+      if (member.status !== 'ACTIVE') {
+        memberUpdateData.status = 'ACTIVE';
+      }
+
+      if (member.pendingMembershipPlanId) {
+        memberUpdateData.pendingMembershipPlanId = null;
+        memberUpdateData.pendingMembershipStartDate = null;
+        memberUpdateData.pendingMembershipEndDate = null;
+        memberUpdateData.pendingMembershipPriceAtPurchase = null;
+        memberUpdateData.pendingMembershipScheduledAt = null;
+        memberUpdateData.pendingMembershipScheduledByUserId = null;
+      }
+
+      if (member.pausedAt || member.resumedAt) {
+        memberUpdateData.pausedAt = null;
+        memberUpdateData.resumedAt = null;
+      }
+
       // Update member record
       const updatedMember = await tx.member.update({
         where: { id_tenantId: { id: memberId, tenantId } },
         data: memberUpdateData,
       });
 
-      // Create history record (changeType="RENEWAL")
+      // Create history record
       await tx.memberPlanChangeHistory.create({
         data: {
           tenantId,
           memberId,
           oldPlanId: member.membershipPlanId,
-          newPlanId: planId,
+          newPlanId: effectivePlanId,
           oldStartDate: member.membershipStartDate,
           oldEndDate: member.membershipEndDate,
           newStartDate,
@@ -1211,9 +1233,9 @@ export class MembersService {
         paymentMethod: string;
       } | null = null;
       if (dto.createPayment) {
-        const paymentAmount = dto.paymentAmount ?? membershipPriceAtPurchase;
+        const paymentAmount =
+          dto.paymentAmount ?? membershipPriceAtPurchase;
         const paidOnDate = dto.paidOn ? new Date(dto.paidOn) : new Date();
-        // Truncate to UTC midnight (date-only semantics)
         paidOnDate.setUTCHours(0, 0, 0, 0);
 
         payment = await tx.payment.create({
@@ -1227,14 +1249,25 @@ export class MembersService {
             note: dto.note || null,
             createdBy: userId,
           },
-          include: {
-            member: true,
-            branch: true,
+          select: {
+            id: true,
+            amount: true,
+            paidOn: true,
+            paymentMethod: true,
           },
         });
       }
 
-      return { updatedMember, payment };
+      return {
+        updatedMember,
+        payment,
+        member,
+        effectivePlanId,
+        isExpired,
+        newStartDate,
+        newEndDate,
+        membershipPriceAtPurchase,
+      };
     });
 
     // Structured logging
@@ -1243,12 +1276,12 @@ export class MembersService {
         event: 'membership.renewed',
         memberId,
         tenantId,
-        planId,
-        isExpired,
-        oldStartDate: member.membershipStartDate,
-        oldEndDate: member.membershipEndDate,
-        newStartDate: newStartDate.toISOString(),
-        newEndDate: newEndDate.toISOString(),
+        planId: result.effectivePlanId,
+        isExpired: result.isExpired,
+        oldStartDate: result.member.membershipStartDate,
+        oldEndDate: result.member.membershipEndDate,
+        newStartDate: result.newStartDate.toISOString(),
+        newEndDate: result.newEndDate.toISOString(),
         paymentCreated: !!result.payment,
         changedByUserId: userId,
       }),
@@ -1261,13 +1294,13 @@ export class MembersService {
     return {
       ...enrichedMember,
       renewal: {
-        previousStartDate: member.membershipStartDate,
-        previousEndDate: member.membershipEndDate,
-        newStartDate,
-        newEndDate,
-        planId,
-        planName: plan.name,
-        wasExpired: isExpired,
+        previousStartDate: result.member.membershipStartDate,
+        previousEndDate: result.member.membershipEndDate,
+        newStartDate: result.newStartDate,
+        newEndDate: result.newEndDate,
+        planId: result.effectivePlanId,
+        planName: plan!.name,
+        wasExpired: result.isExpired,
       },
       ...(result.payment
         ? {
