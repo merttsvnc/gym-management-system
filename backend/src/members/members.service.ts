@@ -1086,12 +1086,19 @@ export class MembersService {
       }
     }
 
-    // C) Execute all member-dependent logic inside a transaction to prevent TOCTOU race.
-    // By reading the member inside the transaction, concurrent renewals are serialized
-    // at the database level (Prisma interactive transactions use serializable-like semantics
-    // within the same row because the UPDATE will block on the row lock).
+    // C) Execute all member-dependent logic inside a transaction with row-level locking.
+    // PostgreSQL READ COMMITTED + plain SELECT allows two concurrent transactions to
+    // read the same stale membershipEndDate. Since we compute newEndDate as an absolute
+    // value (currentEndDate + duration), the second tx would overwrite the first's result.
+    // SELECT ... FOR UPDATE acquires an exclusive row lock BEFORE reading, so the second
+    // tx blocks here until the first commits, then reads the freshly committed endDate.
     const result = await this.prisma.$transaction(async (tx) => {
-      // Read member inside transaction to get consistent state
+      // Acquire exclusive row lock — concurrent renewals for the same member will
+      // serialize at this point. The second transaction blocks until the first commits,
+      // then reads the updated (committed) row data via the subsequent findFirst.
+      await tx.$queryRaw`SELECT 1 FROM "Member" WHERE "id" = ${memberId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+
+      // Read member with full Prisma types (row is already locked by us)
       const member = await tx.member.findFirst({
         where: { id: memberId, tenantId },
         include: { branch: true },

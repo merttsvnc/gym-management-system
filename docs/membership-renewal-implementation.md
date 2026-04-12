@@ -118,7 +118,7 @@ Authorization: Bearer <jwt>
 ### 6. Atomik Transaction
 
 - Member read + güncellemesi + history kaydı + opsiyonel payment aynı transaction içinde
-- Member, transaction içinde okunur — concurrent renewal'larda stale-read riski engellenir
+- `SELECT ... FOR UPDATE` ile row-level pessimistic lock: concurrent renewal'larda ikinci tx, birincisi commit edene kadar bekler, sonra güncel `endDate` ile hesaplama yapar
 - Rate limiting: Endpoint `@Throttle` ile korunur (100 req/15 dk)
 
 ## Handled Edge Cases
