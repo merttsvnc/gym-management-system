@@ -484,4 +484,77 @@ describe('Member Start Date Update E2E Tests', () => {
       );
     });
   });
+
+  // =====================================================================
+  // T-SD-10: Sending both start and end dates together → 400 error
+  // =====================================================================
+  describe('T-SD-10 - Start + end date together returns 400', () => {
+    it('should reject when both membershipStartDate and membershipEndDate are sent', async () => {
+      const plan = await createTestMembershipPlan(
+        prisma,
+        tenant.id,
+        undefined,
+        {
+          name: 'Dual Date Reject Plan',
+          durationType: 'MONTHS',
+          durationValue: 1,
+          price: 100,
+        },
+      );
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const member = await createMember(plan.id, today.toISOString());
+
+      const newStartDate = addDays(today, -5);
+      const manualEndDate = addDays(newStartDate, 45);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          membershipStartDate: newStartDate.toISOString(),
+          membershipEndDate: manualEndDate.toISOString(),
+        })
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'Başlangıç tarihi güncellendiğinde bitiş tarihi sistem tarafından otomatik hesaplanır.',
+      );
+    });
+
+    it('should reject when legacy aliases membershipStartAt and membershipEndAt are sent together', async () => {
+      const plan = await createTestMembershipPlan(
+        prisma,
+        tenant.id,
+        undefined,
+        {
+          name: 'Legacy Dual Reject Plan',
+          durationType: 'DAYS',
+          durationValue: 30,
+          price: 150,
+        },
+      );
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const member = await createMember(plan.id, today.toISOString());
+
+      const newStartDate = addDays(today, -2);
+      const manualEndDate = addDays(newStartDate, 60);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/members/${member.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          membershipStartAt: newStartDate.toISOString(),
+          membershipEndAt: manualEndDate.toISOString(),
+        })
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'Başlangıç tarihi güncellendiğinde bitiş tarihi sistem tarafından otomatik hesaplanır.',
+      );
+    });
+  });
 });

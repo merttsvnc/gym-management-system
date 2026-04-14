@@ -186,11 +186,15 @@ export class MembersService {
       });
 
       return this.enrichMemberWithComputedFields(member);
-    } catch (error) {
+    } catch (error: unknown) {
       // Handle unique constraint violation from database
       // P2002: "Unique constraint failed on the {constraint}"
-      if (error.code === 'P2002') {
-        const target = error.meta?.target;
+      const prismaError = error as {
+        code?: string;
+        meta?: { target?: unknown };
+      };
+      if (prismaError.code === 'P2002') {
+        const target = prismaError.meta?.target;
         // Check if target contains 'phone' (target can be array or string)
         const isPhoneConstraint =
           (Array.isArray(target) && target.includes('phone')) ||
@@ -474,6 +478,16 @@ export class MembersService {
         dto.membershipStartAt !== undefined) &&
       new Date(dto.membershipStartDate || dto.membershipStartAt!).getTime() !==
         existingMember.membershipStartDate.getTime();
+
+    // EDGE CASE: Block sending both start and end dates together.
+    // When start date changes, end date is auto-recalculated from the plan duration.
+    const hasEndDate =
+      dto.membershipEndDate !== undefined || dto.membershipEndAt !== undefined;
+    if (isStartDateChanging && hasEndDate) {
+      throw new BadRequestException(
+        'Başlangıç tarihi güncellendiğinde bitiş tarihi sistem tarafından otomatik hesaplanır.',
+      );
+    }
 
     // EDGE CASE: Block start date changes for PAUSED members
     // Freeze/resume logic (calculateRemainingDays) depends on stable membershipStartDate.
