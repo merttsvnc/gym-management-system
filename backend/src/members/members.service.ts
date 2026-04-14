@@ -428,6 +428,9 @@ export class MembersService {
    * - Enforces phone uniqueness within tenant (excluding current member)
    * - Validates membershipEndAt is after membershipStartAt if dates are being updated
    * - Rejects membershipPlanId and membershipPriceAtPurchase updates (v1 restriction - enforced at DTO level)
+   * - If membershipStartDate changes: auto-recalculates membershipEndDate from plan duration
+   * - If member is PAUSED: membershipStartDate changes are rejected (freeze logic depends on stable dates)
+   * - If pending plan change exists and start date changes: pending dates are recalculated for consistency
    */
 
   async update(tenantId: string, id: string, dto: UpdateMemberDto) {
@@ -465,14 +468,55 @@ export class MembersService {
       }
     }
 
-    // Validate membership dates if being updated
-    // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
-    const membershipStartDate = dto.membershipStartDate
-      ? new Date(dto.membershipStartDate)
-      : existingMember.membershipStartDate;
-    const membershipEndDate = dto.membershipEndDate
-      ? new Date(dto.membershipEndDate)
-      : existingMember.membershipEndDate;
+    // Determine if membershipStartDate is being changed
+    const isStartDateChanging =
+      (dto.membershipStartDate !== undefined ||
+        dto.membershipStartAt !== undefined) &&
+      new Date(dto.membershipStartDate || dto.membershipStartAt!).getTime() !==
+        existingMember.membershipStartDate.getTime();
+
+    // EDGE CASE: Block start date changes for PAUSED members
+    // Freeze/resume logic (calculateRemainingDays) depends on stable membershipStartDate.
+    // Changing it while paused would corrupt the remaining-days calculation.
+    if (isStartDateChanging && existingMember.status === 'PAUSED') {
+      throw new BadRequestException(
+        'Dondurulmuş üyelerin başlangıç tarihi değiştirilemez. Önce üyeliği devam ettirin.',
+      );
+    }
+
+    // Resolve the new membershipStartDate value
+    const membershipStartDate =
+      dto.membershipStartDate || dto.membershipStartAt
+        ? new Date(dto.membershipStartDate || dto.membershipStartAt!)
+        : existingMember.membershipStartDate;
+
+    // If start date is changing, auto-recalculate end date from the member's current plan
+    let membershipEndDate: Date;
+
+    if (isStartDateChanging) {
+      // Fetch the member's current plan to get duration info
+      const plan = await this.membershipPlansService.getPlanByIdForTenant(
+        tenantId,
+        existingMember.membershipPlanId,
+      );
+
+      membershipEndDate = calculateMembershipEndDate(
+        membershipStartDate,
+        plan.durationType,
+        plan.durationValue,
+      );
+
+      this.logger.log(
+        `Member ${id}: membershipStartDate changed → recalculated membershipEndDate ` +
+          `(plan: ${plan.name}, ${plan.durationType}/${plan.durationValue}, ` +
+          `new start: ${membershipStartDate.toISOString()}, new end: ${membershipEndDate.toISOString()})`,
+      );
+    } else {
+      // Start date not changing — use explicitly provided endDate or keep existing
+      membershipEndDate = dto.membershipEndDate
+        ? new Date(dto.membershipEndDate)
+        : existingMember.membershipEndDate;
+    }
 
     if (membershipEndDate <= membershipStartDate) {
       throw new BadRequestException(
@@ -509,17 +553,52 @@ export class MembersService {
     // Note: membershipPlanId changes are not allowed in v1 (spec restriction)
     // membershipType is deprecated and will be removed in Phase 3
 
-    if (
-      dto.membershipStartDate !== undefined ||
-      dto.membershipStartAt !== undefined
-    )
+    if (isStartDateChanging) {
+      // Start date changed → write both start and recalculated end date
       updateData.membershipStartDate = membershipStartDate;
-
-    if (
-      dto.membershipEndDate !== undefined ||
-      dto.membershipEndAt !== undefined
-    )
       updateData.membershipEndDate = membershipEndDate;
+    } else {
+      // Start date not changed — handle each date field independently (legacy behavior)
+      if (
+        dto.membershipStartDate !== undefined ||
+        dto.membershipStartAt !== undefined
+      )
+        updateData.membershipStartDate = membershipStartDate;
+
+      if (
+        dto.membershipEndDate !== undefined ||
+        dto.membershipEndAt !== undefined
+      )
+        updateData.membershipEndDate = membershipEndDate;
+    }
+
+    // EDGE CASE: If start date changed and a pending plan change exists,
+    // recalculate pending dates to stay consistent (pendingStart = newEndDate + 1 day)
+    if (isStartDateChanging && existingMember.pendingMembershipPlanId) {
+      const pendingPlan =
+        await this.membershipPlansService.getPlanByIdForTenant(
+          tenantId,
+          existingMember.pendingMembershipPlanId,
+        );
+
+      const newPendingStartDate = new Date(membershipEndDate);
+      newPendingStartDate.setUTCDate(newPendingStartDate.getUTCDate() + 1);
+      newPendingStartDate.setUTCHours(0, 0, 0, 0);
+
+      const newPendingEndDate = calculateMembershipEndDate(
+        newPendingStartDate,
+        pendingPlan.durationType,
+        pendingPlan.durationValue,
+      );
+
+      updateData.pendingMembershipStartDate = newPendingStartDate;
+      updateData.pendingMembershipEndDate = newPendingEndDate;
+
+      this.logger.log(
+        `Member ${id}: pending plan change dates recalculated ` +
+          `(pendingStart: ${newPendingStartDate.toISOString()}, pendingEnd: ${newPendingEndDate.toISOString()})`,
+      );
+    }
 
     if (dto.notes !== undefined)
       updateData.notes = dto.notes ? dto.notes.trim() : null;
