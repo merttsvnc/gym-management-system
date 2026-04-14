@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Test, TestingModule } from '@nestjs/testing';
@@ -10,7 +9,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 describe('PR-3 Observability (e2e)', () => {
   let app: INestApplication;
-  let prisma: PrismaService;
+  let _prisma: PrismaService;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -21,7 +20,7 @@ describe('PR-3 Observability (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    _prisma = moduleFixture.get<PrismaService>(PrismaService);
 
     app.useGlobalPipes(
       new ValidationPipe({
@@ -44,9 +43,7 @@ describe('PR-3 Observability (e2e)', () => {
 
   describe('GET /health', () => {
     it('should return 200 with db:ok when Prisma check resolves', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/health')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/health').expect(200);
 
       expect(res.body).toMatchObject({
         status: 'ok',

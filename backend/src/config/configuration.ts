@@ -1,5 +1,3 @@
-import { validateEnv } from './env';
-
 /**
  * NestJS ConfigModule factory. Uses validated env from validateEnv().
  * Call validateEnv() in main.ts before bootstrap to fail fast.

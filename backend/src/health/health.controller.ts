@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  ServiceUnavailableException,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,11 +18,14 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  async check(@Res({ passthrough: true }) res: Response): Promise<HealthResponse> {
+  async check(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<HealthResponse> {
     const timestamp = new Date().toISOString();
     let version = process.env.APP_VERSION;
     if (!version) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         version = require('../../package.json')?.version;
       } catch {
         // ignore

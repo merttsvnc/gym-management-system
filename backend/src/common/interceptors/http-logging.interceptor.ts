@@ -6,12 +6,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
 import { Request } from 'express';
 import { RequestWithRequestId } from '../middleware/request-id.middleware';
 
 /** UUID v4 pattern - safe to log as opaque identifier */
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Masks email for safe logging (e.g. "u***@***.com")
@@ -22,8 +22,7 @@ function maskEmail(value: string): string {
   if (at <= 0) return '[redacted]';
   const local = value.slice(0, at);
   const domain = value.slice(at + 1);
-  const maskedLocal =
-    local.length > 1 ? `${local[0]}***` : '***';
+  const maskedLocal = local.length > 1 ? `${local[0]}***` : '***';
   const maskedDomain =
     domain.length > 2 ? `***.${domain.slice(domain.lastIndexOf('.'))}` : '***';
   return `${maskedLocal}@${maskedDomain}`;
@@ -46,6 +45,7 @@ function maskPhone(value: string): string {
  */
 function safeUserId(value: unknown): string | undefined {
   if (value == null) return undefined;
+  if (typeof value !== 'string' && typeof value !== 'number') return '[opaque]';
   const s = String(value);
   if (UUID_REGEX.test(s)) return s;
   if (s.includes('@')) return maskEmail(s);
@@ -89,8 +89,9 @@ export class HttpLoggingInterceptor implements NestInterceptor {
       };
 
       // Add tenantId and userId when available (from JWT)
-      const user = (req as unknown as { user?: { sub?: string; tenantId?: string } })
-        .user;
+      const user = (
+        req as unknown as { user?: { sub?: string; tenantId?: string } }
+      ).user;
       if (user?.tenantId) {
         payload.tenantId = user.tenantId;
       }

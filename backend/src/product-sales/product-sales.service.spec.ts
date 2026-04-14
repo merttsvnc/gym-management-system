@@ -87,10 +87,10 @@ describe('ProductSalesService', () => {
       const dtoWithoutPrice = {
         ...mockDto,
         items: [
-        {
-          productId: validCuid,
-          quantity: 2,
-        },
+          {
+            productId: validCuid,
+            quantity: 2,
+          },
         ],
       };
 
@@ -476,9 +476,9 @@ describe('ProductSalesService', () => {
 
       mockPrismaService.productSale.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.remove(id, tenantId, wrongBranchId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.remove(id, tenantId, wrongBranchId)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(mockPrismaService.productSale.deleteMany).not.toHaveBeenCalled();
     });

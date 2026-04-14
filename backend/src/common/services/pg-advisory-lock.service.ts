@@ -49,7 +49,9 @@ export class PgAdvisoryLockService {
       return await this.prisma.$transaction(async (tx) => {
         const result = await (tx as PrismaTx).$queryRaw<
           [{ acquired: boolean }]
-        >(Prisma.sql`SELECT pg_try_advisory_lock(hashtext(${lockName})) as acquired`);
+        >(
+          Prisma.sql`SELECT pg_try_advisory_lock(hashtext(${lockName})) as acquired`,
+        );
 
         const acquired = result[0]?.acquired ?? false;
 
@@ -71,15 +73,19 @@ export class PgAdvisoryLockService {
         } finally {
           const unlockResult = await (tx as PrismaTx).$queryRaw<
             [{ pg_advisory_unlock: boolean }]
-          >(Prisma.sql`SELECT pg_advisory_unlock(hashtext(${lockName})) as "pg_advisory_unlock"`);
+          >(
+            Prisma.sql`SELECT pg_advisory_unlock(hashtext(${lockName})) as "pg_advisory_unlock"`,
+          );
           const released = unlockResult[0]?.pg_advisory_unlock ?? false;
           if (released) {
             this.logger.debug(`[${correlationId}] Lock released: ${lockName}`);
           }
         }
       });
-    } catch (error) {
-      // Lock was acquired but work threw; rethrow so caller can handle
+    } catch (error: unknown) {
+      this.logger.error(
+        `Lock error: ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw error;
     }
   }
@@ -95,9 +101,9 @@ export class PgAdvisoryLockService {
    */
   async tryAcquire(lockName: string, correlationId: string): Promise<boolean> {
     try {
-      const result = await this.prisma.$queryRaw<
-        [{ acquired: boolean }]
-      >(Prisma.sql`SELECT pg_try_advisory_lock(hashtext(${lockName})) as acquired`);
+      const result = await this.prisma.$queryRaw<[{ acquired: boolean }]>(
+        Prisma.sql`SELECT pg_try_advisory_lock(hashtext(${lockName})) as acquired`,
+      );
 
       const acquired = result[0]?.acquired ?? false;
 
@@ -129,7 +135,9 @@ export class PgAdvisoryLockService {
     try {
       const result = await this.prisma.$queryRaw<
         [{ pg_advisory_unlock: boolean }]
-      >(Prisma.sql`SELECT pg_advisory_unlock(hashtext(${lockName})) as "pg_advisory_unlock"`);
+      >(
+        Prisma.sql`SELECT pg_advisory_unlock(hashtext(${lockName})) as "pg_advisory_unlock"`,
+      );
 
       const released = result[0]?.pg_advisory_unlock ?? false;
 

@@ -42,18 +42,16 @@ export class MemberStatusSyncService {
     timeZone: 'UTC',
   })
   async handleCron() {
-    const correlationId =
-      this.lockService.generateCorrelationId('status-sync');
+    const correlationId = this.lockService.generateCorrelationId('status-sync');
 
-    const cronEnabled = this.configService.get<string>('CRON_ENABLED') !== 'false';
+    const cronEnabled =
+      this.configService.get<string>('CRON_ENABLED') !== 'false';
     if (!cronEnabled) {
       this.logger.log(`[${correlationId}] Cron disabled by env`);
       return;
     }
 
-    this.logger.log(
-      `[${correlationId}] Starting daily member status sync job`,
-    );
+    this.logger.log(`[${correlationId}] Starting daily member status sync job`);
 
     const { acquired } = await this.lockService.executeWithLock(
       GLOBAL_LOCK_NAME,
@@ -75,9 +73,7 @@ export class MemberStatusSyncService {
    * @param correlationId Optional correlation ID for logging (defaults to "manual")
    * @returns Object with counts of updated members per tenant
    */
-  async syncExpiredMemberStatuses(
-    correlationId: string = 'manual',
-  ): Promise<{
+  async syncExpiredMemberStatuses(correlationId: string = 'manual'): Promise<{
     totalUpdated: number;
     updatesByTenant: Record<string, number>;
   }> {

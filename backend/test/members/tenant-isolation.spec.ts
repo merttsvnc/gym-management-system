@@ -132,7 +132,7 @@ describe('MembersService - Tenant Isolation', () => {
   describe('update - Tenant Isolation', () => {
     it('should throw NotFoundException if member belongs to another tenant', async () => {
       const memberId = 'member-1';
-      const memberFromTenant2 = {
+      const _memberFromTenant2 = {
         id: memberId,
         tenantId: tenant2Id,
         firstName: 'John',
@@ -158,7 +158,7 @@ describe('MembersService - Tenant Isolation', () => {
         membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       };
 
-      const branchFromTenant2 = {
+      const _branchFromTenant2 = {
         id: 'branch-1-tenant2',
         tenantId: tenant2Id, // Different tenant
         name: 'Other Tenant Branch',
@@ -219,7 +219,7 @@ describe('MembersService - Tenant Isolation', () => {
   describe('changeStatus - Tenant Isolation', () => {
     it('should throw NotFoundException if member belongs to another tenant', async () => {
       const memberId = 'member-1';
-      const memberFromTenant2 = {
+      const _memberFromTenant2 = {
         id: memberId,
         tenantId: tenant2Id,
         status: MemberStatus.ACTIVE,
@@ -265,7 +265,7 @@ describe('MembersService - Tenant Isolation', () => {
   describe('archive - Tenant Isolation', () => {
     it('should throw NotFoundException if member belongs to another tenant', async () => {
       const memberId = 'member-1';
-      const memberFromTenant2 = {
+      const _memberFromTenant2 = {
         id: memberId,
         tenantId: tenant2Id,
         status: MemberStatus.ACTIVE,
@@ -392,7 +392,7 @@ describe('MembersService - Tenant Isolation', () => {
 
   describe('create - Tenant Isolation', () => {
     it('should not allow creating member with branch from another tenant', async () => {
-      const branchFromTenant2 = {
+      const _branchFromTenant2 = {
         id: 'branch-1-tenant2',
         tenantId: tenant2Id,
         name: 'Other Tenant Branch',

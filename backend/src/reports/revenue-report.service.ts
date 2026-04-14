@@ -3,7 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import {
   getMonthRangeUtc,
-  normalizeDayKey,
   getAllDaysInMonth,
   normalizeMonthKey,
 } from '../utils/timezone.util';

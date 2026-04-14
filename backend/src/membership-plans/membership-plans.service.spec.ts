@@ -7,7 +7,6 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { MembershipPlansService } from './membership-plans.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -62,7 +61,7 @@ describe('MembershipPlansService', () => {
   });
 
   const tenantId = 'tenant-123';
-  const otherTenantId = 'tenant-456';
+  const _otherTenantId = 'tenant-456';
   const planId = 'plan-123';
   const branchId = 'branch-123';
   const otherBranchId = 'branch-456';

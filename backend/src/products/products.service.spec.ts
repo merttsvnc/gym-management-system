@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 
 describe('ProductsService', () => {
   let service: ProductsService;
-  let prismaService: PrismaService;
+  let _prismaService: PrismaService;
 
   const mockPrismaService = {
     product: {
@@ -29,7 +29,7 @@ describe('ProductsService', () => {
     }).compile();
 
     service = module.get<ProductsService>(ProductsService);
-    prismaService = module.get<PrismaService>(PrismaService);
+    _prismaService = module.get<PrismaService>(PrismaService);
   });
 
   describe('findAll', () => {

@@ -4,7 +4,7 @@ import { PgAdvisoryLockService } from './pg-advisory-lock.service';
 
 describe('PgAdvisoryLockService', () => {
   let service: PgAdvisoryLockService;
-  let prisma: PrismaService;
+  let _prisma: PrismaService;
 
   const mockQueryRaw = jest.fn();
   const mockTransaction = jest.fn();
@@ -26,7 +26,7 @@ describe('PgAdvisoryLockService', () => {
     }).compile();
 
     service = module.get<PgAdvisoryLockService>(PgAdvisoryLockService);
-    prisma = module.get<PrismaService>(PrismaService);
+    _prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 

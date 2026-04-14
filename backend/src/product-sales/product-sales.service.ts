@@ -3,7 +3,6 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -339,7 +338,7 @@ export class ProductSalesService {
   private assertRequestContext(
     tenantId: string | undefined,
     branchId: string | undefined,
-    userId?: string | undefined,
+    userId?: string,
   ): void {
     if (!tenantId || !userId) {
       throw new BadRequestException(

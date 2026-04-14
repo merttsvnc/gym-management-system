@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { timingSafeEqual, createHash } from 'crypto';
+import { timingSafeEqual } from 'crypto';
 import { Inject } from '@nestjs/common';
 import { APP_VALIDATED_ENV } from '../config/app-env.token';
 import type { Env } from '../config/env';
@@ -22,9 +22,7 @@ export class RevenueCatWebhookAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    const authorizationHeader = request.headers['authorization'] as
-      | string
-      | undefined;
+    const authorizationHeader = request.headers['authorization'];
     const secret = this.env.REVENUECAT_WEBHOOK_SECRET;
 
     if (!authorizationHeader || !secret) {

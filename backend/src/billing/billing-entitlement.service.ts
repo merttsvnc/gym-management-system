@@ -55,7 +55,9 @@ export class BillingEntitlementService {
     return this.env.BILLING_LEGACY_FALLBACK_ENABLED === 'true';
   }
 
-  async getPremiumAccessForTenant(tenantId: string): Promise<PremiumAccessResult> {
+  async getPremiumAccessForTenant(
+    tenantId: string,
+  ): Promise<PremiumAccessResult> {
     const [entitlement, tenant] = await Promise.all([
       this.prisma.revenueCatEntitlementSnapshot.findUnique({
         where: {
@@ -115,8 +117,7 @@ export class BillingEntitlementService {
         tenant.trialEndsAt !== null &&
         tenant.trialEndsAt > now;
       const legacyActive = tenant.billingStatus === BillingStatus.ACTIVE;
-      const hasAccess =
-        !tenantSuspended && (trialActive || legacyActive);
+      const hasAccess = !tenantSuspended && (trialActive || legacyActive);
 
       return {
         hasPremiumAccess: hasAccess,

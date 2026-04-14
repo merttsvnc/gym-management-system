@@ -26,10 +26,12 @@ export class MembershipPlanChangeSchedulerService {
    */
   @Cron('0 2 * * *') // Every day at 02:00 AM
   async applyScheduledMembershipPlanChanges() {
-    const correlationId =
-      this.lockService.generateCorrelationId('plan-change-scheduler');
+    const correlationId = this.lockService.generateCorrelationId(
+      'plan-change-scheduler',
+    );
 
-    const cronEnabled = this.configService.get<string>('CRON_ENABLED') !== 'false';
+    const cronEnabled =
+      this.configService.get<string>('CRON_ENABLED') !== 'false';
     if (!cronEnabled) {
       this.logger.log(`[${correlationId}] Cron disabled by env`);
       return;
@@ -146,7 +148,7 @@ export class MembershipPlanChangeSchedulerService {
     await tx.member.update({
       where: { id: memberId },
       data: {
-        membershipPlanId: member.pendingMembershipPlanId!,
+        membershipPlanId: member.pendingMembershipPlanId,
         membershipPriceAtPurchase: member.pendingMembershipPriceAtPurchase,
         membershipStartDate: member.pendingMembershipStartDate!,
         membershipEndDate: member.pendingMembershipEndDate!,
@@ -170,7 +172,7 @@ export class MembershipPlanChangeSchedulerService {
         tenantId: member.tenantId,
         memberId: member.id,
         oldPlanId: member.membershipPlanId,
-        newPlanId: member.pendingMembershipPlanId!,
+        newPlanId: member.pendingMembershipPlanId,
         oldStartDate: member.membershipStartDate,
         oldEndDate: member.membershipEndDate,
         newStartDate,

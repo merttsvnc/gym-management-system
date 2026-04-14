@@ -6,12 +6,14 @@ import { MembershipPlanChangeSchedulerService } from './membership-plan-change-s
 
 describe('MembershipPlanChangeSchedulerService', () => {
   let service: MembershipPlanChangeSchedulerService;
-  let lockService: PgAdvisoryLockService;
+  let _lockService: PgAdvisoryLockService;
 
   const mockExecuteWithLock = jest.fn();
   const mockGenerateCorrelationId = jest.fn();
   const mockConfigService = {
-    get: jest.fn((key: string) => (key === 'CRON_ENABLED' ? 'true' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'CRON_ENABLED' ? 'true' : undefined,
+    ),
   };
 
   const mockMember = {
@@ -67,7 +69,7 @@ describe('MembershipPlanChangeSchedulerService', () => {
     service = module.get<MembershipPlanChangeSchedulerService>(
       MembershipPlanChangeSchedulerService,
     );
-    lockService = module.get<PgAdvisoryLockService>(PgAdvisoryLockService);
+    _lockService = module.get<PgAdvisoryLockService>(PgAdvisoryLockService);
 
     jest.clearAllMocks();
     mockGenerateCorrelationId.mockReturnValue('corr-123');
@@ -103,17 +105,21 @@ describe('MembershipPlanChangeSchedulerService', () => {
     it('should apply change when lock is acquired', async () => {
       mockPrismaService.member.findMany.mockResolvedValue([mockMember]);
       mockPrismaService.member.findUnique.mockResolvedValue(mockMember);
-      mockExecuteWithLock.mockImplementation(async (_lockName, _corrId, work) => {
-        const tx = {
-          member: {
-            findUnique: jest.fn().mockResolvedValue(mockMember),
-            update: jest.fn().mockResolvedValue({}),
-          },
-          memberPlanChangeHistory: { create: jest.fn().mockResolvedValue({}) },
-        };
-        await work(tx);
-        return { acquired: true };
-      });
+      mockExecuteWithLock.mockImplementation(
+        async (_lockName, _corrId, work) => {
+          const tx = {
+            member: {
+              findUnique: jest.fn().mockResolvedValue(mockMember),
+              update: jest.fn().mockResolvedValue({}),
+            },
+            memberPlanChangeHistory: {
+              create: jest.fn().mockResolvedValue({}),
+            },
+          };
+          await work(tx);
+          return { acquired: true };
+        },
+      );
 
       await service.applyScheduledMembershipPlanChanges();
 
@@ -127,17 +133,23 @@ describe('MembershipPlanChangeSchedulerService', () => {
 
     it('should count error when applyPendingChange throws', async () => {
       mockPrismaService.member.findMany.mockResolvedValue([mockMember]);
-      mockExecuteWithLock.mockImplementation(async (_lockName, _corrId, work) => {
-        const tx = {
-          member: {
-            findUnique: jest.fn().mockResolvedValue(mockMember),
-            update: jest.fn().mockRejectedValue(new Error('Transaction failed')),
-          },
-          memberPlanChangeHistory: { create: jest.fn().mockResolvedValue({}) },
-        };
-        await work(tx);
-        return { acquired: true };
-      });
+      mockExecuteWithLock.mockImplementation(
+        async (_lockName, _corrId, work) => {
+          const tx = {
+            member: {
+              findUnique: jest.fn().mockResolvedValue(mockMember),
+              update: jest
+                .fn()
+                .mockRejectedValue(new Error('Transaction failed')),
+            },
+            memberPlanChangeHistory: {
+              create: jest.fn().mockResolvedValue({}),
+            },
+          };
+          await work(tx);
+          return { acquired: true };
+        },
+      );
 
       await service.applyScheduledMembershipPlanChanges();
 

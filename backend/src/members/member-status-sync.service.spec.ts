@@ -9,7 +9,9 @@ describe('MemberStatusSyncService', () => {
 
   const mockExecuteWithLock = jest.fn();
   const mockConfigService = {
-    get: jest.fn((key: string) => (key === 'CRON_ENABLED' ? 'true' : undefined)),
+    get: jest.fn((key: string) =>
+      key === 'CRON_ENABLED' ? 'true' : undefined,
+    ),
   };
 
   const mockPrismaService = {
@@ -80,18 +82,18 @@ describe('MemberStatusSyncService', () => {
     });
 
     it('should run sync when lock is acquired', async () => {
-      mockPrismaService.member.findMany.mockResolvedValue([
-        { id: 'member-1' },
-      ]);
+      mockPrismaService.member.findMany.mockResolvedValue([{ id: 'member-1' }]);
       mockPrismaService.member.updateMany.mockResolvedValue({ count: 5 });
-      mockExecuteWithLock.mockImplementation(async (_lockName, _corrId, work) => {
-        const tx = {
-          tenant: mockPrismaService.tenant,
-          member: mockPrismaService.member,
-        };
-        const result = await work(tx);
-        return { acquired: true, result };
-      });
+      mockExecuteWithLock.mockImplementation(
+        async (_lockName, _corrId, work) => {
+          const tx = {
+            tenant: mockPrismaService.tenant,
+            member: mockPrismaService.member,
+          };
+          const result = await work(tx);
+          return { acquired: true, result };
+        },
+      );
 
       await service.handleCron();
 
@@ -104,14 +106,18 @@ describe('MemberStatusSyncService', () => {
     });
 
     it('should rethrow when sync throws', async () => {
-      mockExecuteWithLock.mockImplementation(async (_lockName, _corrId, work) => {
-        const tx = {
-          tenant: { findMany: jest.fn().mockRejectedValue(new Error('DB error')) },
-          member: mockPrismaService.member,
-        };
-        await work(tx);
-        return { acquired: true };
-      });
+      mockExecuteWithLock.mockImplementation(
+        async (_lockName, _corrId, work) => {
+          const tx = {
+            tenant: {
+              findMany: jest.fn().mockRejectedValue(new Error('DB error')),
+            },
+            member: mockPrismaService.member,
+          };
+          await work(tx);
+          return { acquired: true };
+        },
+      );
 
       await expect(service.handleCron()).rejects.toThrow('DB error');
     });

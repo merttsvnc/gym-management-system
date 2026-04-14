@@ -86,7 +86,9 @@ export class BillingStatusGuard implements CanActivate {
 
     try {
       const premiumStatus =
-        await this.billingEntitlementService.getPremiumAccessForTenant(tenantId);
+        await this.billingEntitlementService.getPremiumAccessForTenant(
+          tenantId,
+        );
 
       if (premiumStatus.tenantSuspended) {
         throw new HttpException(

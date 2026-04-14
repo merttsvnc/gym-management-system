@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { BillingStatus, EntitlementState } from '@prisma/client';
@@ -135,7 +131,11 @@ describe('BillingStatusGuard', () => {
       },
       legacy: baseLegacy,
     });
-    const get = createMockExecutionContext({ tenantId: 't1' }, 'GET', '/api/v1/members');
+    const get = createMockExecutionContext(
+      { tenantId: 't1' },
+      'GET',
+      '/api/v1/members',
+    );
     await expect(guard.canActivate(get)).resolves.toBe(true);
   });
 
@@ -279,7 +279,11 @@ describe('BillingStatusGuard', () => {
       },
       legacy: baseLegacy,
     });
-    const get = createMockExecutionContext({ tenantId: 't1' }, 'GET', '/api/v1/members');
+    const get = createMockExecutionContext(
+      { tenantId: 't1' },
+      'GET',
+      '/api/v1/members',
+    );
     try {
       await guard.canActivate(get);
       fail('expected HttpException');

@@ -391,9 +391,7 @@ describe('PaymentsService', () => {
         ...mockPayment,
         tenantId: 'other-tenant',
       };
-      mockPrismaService.payment.findFirst.mockResolvedValue(
-        otherTenantPayment,
-      );
+      mockPrismaService.payment.findFirst.mockResolvedValue(otherTenantPayment);
 
       await expect(
         service.correctPayment(tenantId, userId, paymentId, correctInput),

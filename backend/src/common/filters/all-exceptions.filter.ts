@@ -98,9 +98,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return map[status] ?? 'Error';
   }
 
-  private mapPrismaError(
-    error: Prisma.PrismaClientKnownRequestError,
-  ): { statusCode: number; error: string; message: string } {
+  private mapPrismaError(error: Prisma.PrismaClientKnownRequestError): {
+    statusCode: number;
+    error: string;
+    message: string;
+  } {
     switch (error.code) {
       case 'P2002':
         return {

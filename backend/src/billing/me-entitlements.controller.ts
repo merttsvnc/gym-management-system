@@ -7,7 +7,9 @@ import { BillingEntitlementService } from './billing-entitlement.service';
 @Controller('me')
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class MeEntitlementsController {
-  constructor(private readonly billingEntitlementService: BillingEntitlementService) {}
+  constructor(
+    private readonly billingEntitlementService: BillingEntitlementService,
+  ) {}
 
   @Get('entitlements')
   async getEntitlements(@CurrentUser('tenantId') tenantId: string) {

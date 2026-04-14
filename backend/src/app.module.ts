@@ -77,8 +77,6 @@ import { BillingModule } from './billing/billing.module';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // RequestId first (for correlation), then ClientIp (for rate limiting)
-    consumer
-      .apply(RequestIdMiddleware, ClientIpMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestIdMiddleware, ClientIpMiddleware).forRoutes('*');
   }
 }

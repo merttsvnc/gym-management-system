@@ -15,13 +15,19 @@ import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 
 async function createBootstrapApp(
-  overrides: { NODE_ENV?: string; CORS_ORIGINS?: string; FRONTEND_URL?: string; AUTH_EMAIL_VERIFICATION_ENABLED?: string } = {},
+  overrides: {
+    NODE_ENV?: string;
+    CORS_ORIGINS?: string;
+    FRONTEND_URL?: string;
+    AUTH_EMAIL_VERIFICATION_ENABLED?: string;
+  } = {},
 ): Promise<INestApplication> {
   const orig = {
     NODE_ENV: process.env.NODE_ENV,
     CORS_ORIGINS: process.env.CORS_ORIGINS,
     FRONTEND_URL: process.env.FRONTEND_URL,
-    AUTH_EMAIL_VERIFICATION_ENABLED: process.env.AUTH_EMAIL_VERIFICATION_ENABLED,
+    AUTH_EMAIL_VERIFICATION_ENABLED:
+      process.env.AUTH_EMAIL_VERIFICATION_ENABLED,
   };
   Object.assign(process.env, overrides);
 
@@ -45,7 +51,9 @@ async function createBootstrapApp(
   );
 
   const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    ? process.env.CORS_ORIGINS.split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
     : process.env.FRONTEND_URL || 'http://localhost:5173';
   app.enableCors({
     origin: corsOrigins,

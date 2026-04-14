@@ -24,7 +24,9 @@ import { PaymentMethod, Prisma } from '@prisma/client';
 export class SaleItemDto {
   @IsOptional()
   @IsString()
-  @IsProductIdOrUuid({ message: 'productId must be either CUID or UUID format' })
+  @IsProductIdOrUuid({
+    message: 'productId must be either CUID or UUID format',
+  })
   @ValidateIf((o) => !o.customName)
   productId?: string;
 
