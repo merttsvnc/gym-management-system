@@ -56,7 +56,8 @@ endDate korunur. Test T-SD-03 bunu doğrular.
 
 ```typescript
 const isStartDateChanging =
-  (dto.membershipStartDate !== undefined || dto.membershipStartAt !== undefined) &&
+  (dto.membershipStartDate !== undefined ||
+    dto.membershipStartAt !== undefined) &&
   new Date(dto.membershipStartDate || dto.membershipStartAt!).getTime() !==
     existingMember.membershipStartDate.getTime();
 ```
@@ -68,9 +69,9 @@ Timestamp karşılaştırması sayesinde aynı tarih gönderildiğinde `isStartD
 Satır 479–484:
 
 ```typescript
-if (isStartDateChanging && existingMember.status === 'PAUSED') {
+if (isStartDateChanging && existingMember.status === "PAUSED") {
   throw new BadRequestException(
-    'Dondurulmuş üyelerin başlangıç tarihi değiştirilemez...',
+    "Dondurulmuş üyelerin başlangıç tarihi değiştirilemez...",
   );
 }
 ```
@@ -84,13 +85,16 @@ Satır 556–574:
 ```typescript
 if (isStartDateChanging && existingMember.pendingMembershipPlanId) {
   const pendingPlan = await this.membershipPlansService.getPlanByIdForTenant(
-    tenantId, existingMember.pendingMembershipPlanId,
+    tenantId,
+    existingMember.pendingMembershipPlanId,
   );
   const newPendingStartDate = new Date(membershipEndDate);
   newPendingStartDate.setUTCDate(newPendingStartDate.getUTCDate() + 1);
   newPendingStartDate.setUTCHours(0, 0, 0, 0);
   const newPendingEndDate = calculateMembershipEndDate(
-    newPendingStartDate, pendingPlan.durationType, pendingPlan.durationValue,
+    newPendingStartDate,
+    pendingPlan.durationType,
+    pendingPlan.durationValue,
   );
   updateData.pendingMembershipStartDate = newPendingStartDate;
   updateData.pendingMembershipEndDate = newPendingEndDate;
@@ -126,6 +130,7 @@ DTO her iki field'ı da kabul ediyor. Service logic'te `dto.membershipStartDate 
 **Konum:** `members.service.ts` satır 494–519
 
 Akış:
+
 1. `isStartDateChanging = true` (start date farklı)
 2. `membershipEndDate`, plan süresinden **hesaplanarak** set ediliyor
 3. DTO'daki `dto.membershipEndDate` **tamamen yok sayılıyor** (okunmuyor bile)
@@ -144,6 +149,7 @@ if (isStartDateChanging) {
 **Etki:** Kullanıcı (frontend veya API consumer) hem start hem end gönderirse, gönderdiği end date **sessizce ezilir**. Hata fırlatılmaz, log yazılmaz, response'ta hesaplanan değer döner ama kullanıcı fark etmeyebilir.
 
 **Öneri:** Bu durumda ya:
+
 - (a) `dto.membershipEndDate` varken start date değişiyorsa 400 hatası fırlatılmalı ("Başlangıç tarihi değiştirildiğinde bitiş tarihi otomatik hesaplanır, lütfen ikisini birlikte göndermeyin"), ya da
 - (b) Bu davranış açıkça loglanmalı ve response'ta `endDateAutoRecalculated: true` gibi bir flag dönülmeli.
 
@@ -162,6 +168,7 @@ Test suite'inde `membershipStartDate` ve `membershipEndDate`'in birlikte gönder
 `membershipStartDate` DTO'dan ISO string olarak gelir ve `new Date(dto.membershipStartDate)` ile parse edilir. `date-fns`'in `addDays`/`addMonths` fonksiyonları local Date nesnesine göre çalışır.
 
 **Mevcut durum:**
+
 - Create'te: `membershipStartDate` doğrudan DB'ye yazılıyor (Date objesi)
 - Update'te: aynı şekilde
 - Pending date'lerde: `setUTCHours(0,0,0,0)` ile UTC normalizasyonu yapılıyor
@@ -183,6 +190,7 @@ Eğer null ise, `getPlanByIdForTenant(tenantId, null)` çağrısı `NotFoundExce
 ### ⚠️ Risk #3: Atomiklik — Update transaction'da değil
 
 Ana update işlemi (`prisma.member.update`) tek bir Prisma çağrısı. Ancak bu çağrıdan önce iki ayrı read yapılıyor:
+
 1. `findOne()` — üyeyi oku
 2. `getPlanByIdForTenant()` — planı oku
 
@@ -198,14 +206,14 @@ Update flow'da plan fetch edilirken `plan.status` kontrol EDİLMİYOR. Create ve
 
 ## 5. Kod Kalitesi ve Mimari
 
-| Kriter | Değerlendirme |
-|--------|---------------|
-| Değişiklik sadece gerekli yerde mi? | ✅ Update method'a eklenen logic minimal ve odaklı |
-| Gereksiz refactor var mı? | ✅ Yok — sadece gerekli iş kuralı eklenmiş |
-| Logic tek yerde mi? | ✅ `calculateMembershipEndDate` reuse ediliyor, logic dağılmamış |
-| Helper doğru reuse edilmiş mi? | ✅ duration-calculator.ts 4 farklı flow'da kullanılıyor |
-| Okunabilirlik | ✅ Yorum satırları açıklayıcı, log mesajları bilgilendirici, akış lineer |
-| Fragile mi? | ⚠️ start+end birlikte gönderilme durumu implicit — fragile değil ama belirsiz |
+| Kriter                              | Değerlendirme                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| Değişiklik sadece gerekli yerde mi? | ✅ Update method'a eklenen logic minimal ve odaklı                            |
+| Gereksiz refactor var mı?           | ✅ Yok — sadece gerekli iş kuralı eklenmiş                                    |
+| Logic tek yerde mi?                 | ✅ `calculateMembershipEndDate` reuse ediliyor, logic dağılmamış              |
+| Helper doğru reuse edilmiş mi?      | ✅ duration-calculator.ts 4 farklı flow'da kullanılıyor                       |
+| Okunabilirlik                       | ✅ Yorum satırları açıklayıcı, log mesajları bilgilendirici, akış lineer      |
+| Fragile mi?                         | ⚠️ start+end birlikte gönderilme durumu implicit — fragile değil ama belirsiz |
 
 ---
 
@@ -213,25 +221,25 @@ Update flow'da plan fetch edilirken `plan.status` kontrol EDİLMİYOR. Create ve
 
 ### Kapsanan senaryolar:
 
-| Test ID | Senaryo | Sonuç |
-|---------|---------|-------|
-| T-SD-01 | Start date değişince end date yeniden hesaplanır (MONTHS) | ✅ Gerçek E2E test |
-| T-SD-02 | Start date değişince end date yeniden hesaplanır (DAYS) | ✅ Gerçek E2E test |
-| T-SD-03 | Start date yoksa end date korunur | ✅ Gerçek E2E test |
-| T-SD-04 | Aynı start date → idempotent | ✅ Gerçek E2E test |
-| T-SD-05 | PAUSED üye → 400 hatası | ✅ Gerçek E2E test, mesaj kontrolü var |
-| T-SD-06 | Pending plan dates recalculated | ✅ Gerçek E2E test, tarih karşılaştırması var |
-| T-SD-07 | Explicit end date update hâlâ çalışır | ✅ Gerçek E2E test |
-| T-SD-08 | membershipPlanId PATCH'te yasak | ✅ Gerçek E2E test |
-| T-SD-09 | Legacy alias membershipStartAt çalışır | ✅ Gerçek E2E test |
+| Test ID | Senaryo                                                   | Sonuç                                         |
+| ------- | --------------------------------------------------------- | --------------------------------------------- |
+| T-SD-01 | Start date değişince end date yeniden hesaplanır (MONTHS) | ✅ Gerçek E2E test                            |
+| T-SD-02 | Start date değişince end date yeniden hesaplanır (DAYS)   | ✅ Gerçek E2E test                            |
+| T-SD-03 | Start date yoksa end date korunur                         | ✅ Gerçek E2E test                            |
+| T-SD-04 | Aynı start date → idempotent                              | ✅ Gerçek E2E test                            |
+| T-SD-05 | PAUSED üye → 400 hatası                                   | ✅ Gerçek E2E test, mesaj kontrolü var        |
+| T-SD-06 | Pending plan dates recalculated                           | ✅ Gerçek E2E test, tarih karşılaştırması var |
+| T-SD-07 | Explicit end date update hâlâ çalışır                     | ✅ Gerçek E2E test                            |
+| T-SD-08 | membershipPlanId PATCH'te yasak                           | ✅ Gerçek E2E test                            |
+| T-SD-09 | Legacy alias membershipStartAt çalışır                    | ✅ Gerçek E2E test                            |
 
 ### Eksik senaryolar:
 
-| Eksik Test | Açıklama | Önem |
-|------------|----------|------|
-| Start + End birlikte gönderilir | Davranışın (end override) doğrulanması gerekir | 🔴 Orta |
-| INACTIVE üye start date güncellemesi | INACTIVE statüsünde start date değişikliği çalışmalı ama test edilmemiş | 🟡 Düşük |
-| Pending plan yok ama pendingMembershipPlanId null | No-op guard testi | 🟢 Çok düşük |
+| Eksik Test                                        | Açıklama                                                                | Önem         |
+| ------------------------------------------------- | ----------------------------------------------------------------------- | ------------ |
+| Start + End birlikte gönderilir                   | Davranışın (end override) doğrulanması gerekir                          | 🔴 Orta      |
+| INACTIVE üye start date güncellemesi              | INACTIVE statüsünde start date değişikliği çalışmalı ama test edilmemiş | 🟡 Düşük     |
+| Pending plan yok ama pendingMembershipPlanId null | No-op guard testi                                                       | 🟢 Çok düşük |
 
 ### Testlerin kalitesi:
 
@@ -247,15 +255,18 @@ Update flow'da plan fetch edilirken `plan.status` kontrol EDİLMİYOR. Create ve
 ### ⚠️ Büyük ölçüde doğru ama bir konuda davranış belirsizliği var
 
 ### Bulunan bug'lar:
+
 1. **Yok** — Mevcut iş kuralları doğru implement edilmiş, çalışmayan bir path tespit edilmedi.
 
 ### Riskli noktalar:
+
 1. 🔴 **start + end birlikte gönderildiğinde end sessizce ezilir** — API kullanıcısını yanıltabilir
 2. 🟡 **Timezone normalizasyonu ana start/end date'lerde eksik** — pending dates'te var ama birincil dates'te yok
 3. 🟡 **membershipPlanId null edge case** — hata fırlatılır ama mesaj yanıltıcı olabilir
 4. 🟢 **Race condition** — düşük olasılık, gym uygulaması bağlamında ihmal edilebilir
 
 ### Geliştirme önerileri (sadece gerekli olanlar):
+
 1. **Start + end birlikte gönderildiğine dair explicit handling ekle** — ya 400 hatası ya da log + response flag
 2. **Bu senaryoyu kapsayan bir E2E test ekle** (T-SD-10)
 3. **Ana start/end date hesaplamalarında UTC normalizasyonu düşün** (pending dates'tekine benzer şekilde)
