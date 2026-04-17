@@ -12,9 +12,21 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { MemberStatus, MemberGender } from '@prisma/client';
+import { addMonths } from 'date-fns';
 
 describe('MembersService', () => {
   let service: MembersService;
+
+  const mockGetPlanByIdForTenant = jest.fn().mockResolvedValue({
+    id: 'plan-1',
+    name: 'Basic Plan',
+    durationType: 'MONTHS',
+    durationValue: 1,
+    price: { toNumber: () => 100 },
+    currency: 'USD',
+    status: 'ACTIVE',
+    tenantId: 'tenant-1',
+  });
 
   // Mock PrismaService
   const mockPrismaService = {
@@ -28,6 +40,7 @@ describe('MembersService', () => {
     },
     branch: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -42,16 +55,7 @@ describe('MembersService', () => {
         {
           provide: MembershipPlansService,
           useValue: {
-            getPlanByIdForTenant: jest.fn().mockResolvedValue({
-              id: 'plan-1',
-              name: 'Basic Plan',
-              durationType: 'MONTHS',
-              durationValue: 1,
-              price: { toNumber: () => 100 },
-              currency: 'USD',
-              status: 'ACTIVE',
-              tenantId: 'tenant-1',
-            }),
+            getPlanByIdForTenant: mockGetPlanByIdForTenant,
           },
         },
       ],
@@ -61,6 +65,17 @@ describe('MembersService', () => {
 
     // Clear all mocks before each test
     jest.clearAllMocks();
+    mockGetPlanByIdForTenant.mockReset();
+    mockGetPlanByIdForTenant.mockResolvedValue({
+      id: 'plan-1',
+      name: 'Basic Plan',
+      durationType: 'MONTHS',
+      durationValue: 1,
+      price: { toNumber: () => 100 },
+      currency: 'USD',
+      status: 'ACTIVE',
+      tenantId: 'tenant-1',
+    });
   });
 
   it('should be defined', () => {
@@ -612,7 +627,8 @@ describe('MembersService', () => {
   describe('update', () => {
     const tenantId = 'tenant-1';
     const memberId = 'member-1';
-    const existingMember = {
+
+    const memberBase = {
       id: memberId,
       tenantId,
       branchId: 'branch-1',
@@ -620,20 +636,36 @@ describe('MembersService', () => {
       lastName: 'Doe',
       phone: '+1234567890',
       email: 'john@example.com',
-      membershipStartDate: new Date('2024-01-01'),
-      membershipEndDate: new Date('2025-01-01'),
+      membershipPlanId: 'plan-1',
+      membershipStartDate: new Date('2026-05-12T00:00:00.000Z'),
+      membershipEndDate: new Date('2027-05-12T00:00:00.000Z'),
       status: MemberStatus.ACTIVE,
       pausedAt: null,
       resumedAt: null,
+      pendingMembershipPlanId: null,
+      pendingMembershipStartDate: null,
+      pendingMembershipEndDate: null,
+      branch: {
+        id: 'branch-1',
+        tenantId,
+        name: 'Main Branch',
+        isDefault: true,
+        isActive: true,
+      },
     };
 
     beforeEach(() => {
-      mockPrismaService.member.findUnique.mockResolvedValue(existingMember);
+      mockPrismaService.member.findFirst.mockResolvedValue(memberBase);
+      mockPrismaService.branch.findFirst.mockResolvedValue({
+        id: 'branch-1',
+        tenantId,
+        name: 'Main Branch',
+      });
     });
 
     it('should update member successfully', async () => {
       const updateDto = { firstName: 'Jane' };
-      const updatedMember = { ...existingMember, firstName: 'Jane' };
+      const updatedMember = { ...memberBase, firstName: 'Jane' };
 
       mockPrismaService.member.update.mockResolvedValue(updatedMember);
 
@@ -644,10 +676,7 @@ describe('MembersService', () => {
     });
 
     it('should throw NotFoundException if member belongs to another tenant', async () => {
-      mockPrismaService.member.findUnique.mockResolvedValue({
-        ...existingMember,
-        tenantId: 'other-tenant',
-      });
+      mockPrismaService.member.findFirst.mockResolvedValue(null);
 
       await expect(
         service.update(tenantId, memberId, { firstName: 'Jane' }),
@@ -655,7 +684,7 @@ describe('MembersService', () => {
     });
 
     it('should throw NotFoundException if new branch does not exist', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue(null);
+      mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
       await expect(
         service.update(tenantId, memberId, { branchId: 'new-branch' }),
@@ -663,10 +692,8 @@ describe('MembersService', () => {
     });
 
     it('should throw NotFoundException if new branch belongs to another tenant', async () => {
-      mockPrismaService.branch.findUnique.mockResolvedValue({
-        id: 'new-branch',
-        tenantId: 'other-tenant',
-      });
+      // Tenant-scoped findFirst returns no row when branch exists only under another tenant
+      mockPrismaService.branch.findFirst.mockResolvedValue(null);
 
       await expect(
         service.update(tenantId, memberId, { branchId: 'new-branch' }),
@@ -675,11 +702,14 @@ describe('MembersService', () => {
 
     it('should throw ConflictException if phone number is already used by another member', async () => {
       const updateDto = { phone: '+9876543210' };
-      mockPrismaService.member.findFirst.mockResolvedValue({
-        id: 'other-member',
-        phone: '+9876543210',
-        tenantId,
-      });
+      mockPrismaService.member.findFirst.mockReset();
+      mockPrismaService.member.findFirst
+        .mockResolvedValueOnce(memberBase)
+        .mockResolvedValueOnce({
+          id: 'other-member',
+          phone: '+9876543210',
+          tenantId,
+        });
 
       await expect(
         service.update(tenantId, memberId, updateDto),
@@ -688,8 +718,11 @@ describe('MembersService', () => {
 
     it('should allow updating phone to same value', async () => {
       const updateDto = { phone: '+1234567890' };
-      mockPrismaService.member.findFirst.mockResolvedValue(null);
-      mockPrismaService.member.update.mockResolvedValue(existingMember);
+      mockPrismaService.member.findFirst.mockReset();
+      mockPrismaService.member.findFirst
+        .mockResolvedValueOnce(memberBase)
+        .mockResolvedValueOnce(null);
+      mockPrismaService.member.update.mockResolvedValue(memberBase);
 
       await service.update(tenantId, memberId, updateDto);
 
@@ -715,8 +748,11 @@ describe('MembersService', () => {
         phone: '  +9876543210  ',
       };
 
-      mockPrismaService.member.findFirst.mockResolvedValue(null);
-      mockPrismaService.member.update.mockResolvedValue(existingMember);
+      mockPrismaService.member.findFirst.mockReset();
+      mockPrismaService.member.findFirst
+        .mockResolvedValueOnce(memberBase)
+        .mockResolvedValueOnce(null);
+      mockPrismaService.member.update.mockResolvedValue(memberBase);
 
       await service.update(tenantId, memberId, updateDto);
 
@@ -729,6 +765,70 @@ describe('MembersService', () => {
           }),
         }),
       );
+    });
+
+    it('should persist recalculated membershipEndDate when membershipStartDate changes', async () => {
+      mockGetPlanByIdForTenant.mockResolvedValue({
+        id: 'plan-year',
+        name: 'Yearly',
+        durationType: 'MONTHS',
+        durationValue: 12,
+        price: { toNumber: () => 1200 },
+        currency: 'TRY',
+        status: 'ACTIVE',
+        tenantId,
+      });
+
+      mockPrismaService.member.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...memberBase, ...data }),
+      );
+
+      const newStartIso = '2026-04-20T00:00:00.000Z';
+      await service.update(tenantId, memberId, {
+        membershipStartDate: newStartIso,
+      });
+
+      const updateCall = mockPrismaService.member.update.mock.calls[0][0];
+      const newStart = new Date(newStartIso);
+      expect(updateCall.data.membershipStartDate).toEqual(newStart);
+      const expectedEnd = addMonths(newStart, 12);
+      expect(
+        (updateCall.data.membershipEndDate as Date).toISOString().slice(0, 10),
+      ).toBe(expectedEnd.toISOString().slice(0, 10));
+    });
+
+    it('should use membershipStartAt when membershipStartDate is null (recalc end)', async () => {
+      mockPrismaService.member.findFirst.mockReset();
+      mockPrismaService.member.findFirst.mockResolvedValue(memberBase);
+
+      mockGetPlanByIdForTenant.mockResolvedValue({
+        id: 'plan-year',
+        name: 'Yearly',
+        durationType: 'MONTHS',
+        durationValue: 12,
+        price: { toNumber: () => 1200 },
+        currency: 'TRY',
+        status: 'ACTIVE',
+        tenantId,
+      });
+
+      mockPrismaService.member.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...memberBase, ...data }),
+      );
+
+      const newStartIso = '2026-04-20T00:00:00.000Z';
+      await service.update(tenantId, memberId, {
+        membershipStartDate: null as any,
+        membershipStartAt: newStartIso,
+      });
+
+      const updateCall = mockPrismaService.member.update.mock.calls[0][0];
+      const newStart = new Date(newStartIso);
+      expect(updateCall.data.membershipStartDate).toEqual(newStart);
+      const expectedEnd = addMonths(newStart, 12);
+      expect(
+        (updateCall.data.membershipEndDate as Date).toISOString().slice(0, 10),
+      ).toBe(expectedEnd.toISOString().slice(0, 10));
     });
   });
 

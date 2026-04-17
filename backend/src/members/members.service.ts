@@ -472,17 +472,32 @@ export class MembersService {
       }
     }
 
-    // Determine if membershipStartDate is being changed
+    // Treat null/empty string as "not provided" so legacy clients don't accidentally
+    // trigger the wrong branch (e.g. membershipStartDate: null with membershipStartAt set).
+    const requestedStartRaw =
+      dto.membershipStartDate != null && dto.membershipStartDate !== ''
+        ? dto.membershipStartDate
+        : dto.membershipStartAt != null && dto.membershipStartAt !== ''
+          ? dto.membershipStartAt
+          : undefined;
+
+    const existingStartMs = new Date(
+      existingMember.membershipStartDate,
+    ).getTime();
+    const requestedStartMs = new Date(
+      requestedStartRaw ?? existingMember.membershipStartDate,
+    ).getTime();
+
     const isStartDateChanging =
-      (dto.membershipStartDate !== undefined ||
-        dto.membershipStartAt !== undefined) &&
-      new Date(dto.membershipStartDate || dto.membershipStartAt!).getTime() !==
-        existingMember.membershipStartDate.getTime();
+      requestedStartRaw !== undefined &&
+      !Number.isNaN(requestedStartMs) &&
+      requestedStartMs !== existingStartMs;
 
     // EDGE CASE: Block sending both start and end dates together.
     // When start date changes, end date is auto-recalculated from the plan duration.
     const hasEndDate =
-      dto.membershipEndDate !== undefined || dto.membershipEndAt !== undefined;
+      (dto.membershipEndDate != null && dto.membershipEndDate !== '') ||
+      (dto.membershipEndAt != null && dto.membershipEndAt !== '');
     if (isStartDateChanging && hasEndDate) {
       throw new BadRequestException(
         'Başlangıç tarihi güncellendiğinde bitiş tarihi sistem tarafından otomatik hesaplanır.',
@@ -500,8 +515,8 @@ export class MembersService {
 
     // Resolve the new membershipStartDate value
     const membershipStartDate =
-      dto.membershipStartDate || dto.membershipStartAt
-        ? new Date(dto.membershipStartDate || dto.membershipStartAt!)
+      requestedStartRaw !== undefined
+        ? new Date(requestedStartRaw)
         : existingMember.membershipStartDate;
 
     // If start date is changing, auto-recalculate end date from the member's current plan
@@ -527,8 +542,15 @@ export class MembersService {
       );
     } else {
       // Start date not changing — use explicitly provided endDate or keep existing
-      membershipEndDate = dto.membershipEndDate
-        ? new Date(dto.membershipEndDate)
+      const requestedEndRaw =
+        dto.membershipEndDate != null && dto.membershipEndDate !== ''
+          ? dto.membershipEndDate
+          : dto.membershipEndAt != null && dto.membershipEndAt !== ''
+            ? dto.membershipEndAt
+            : undefined;
+
+      membershipEndDate = requestedEndRaw
+        ? new Date(requestedEndRaw)
         : existingMember.membershipEndDate;
     }
 
@@ -573,17 +595,10 @@ export class MembersService {
       updateData.membershipEndDate = membershipEndDate;
     } else {
       // Start date not changed — handle each date field independently (legacy behavior)
-      if (
-        dto.membershipStartDate !== undefined ||
-        dto.membershipStartAt !== undefined
-      )
+      if (requestedStartRaw !== undefined)
         updateData.membershipStartDate = membershipStartDate;
 
-      if (
-        dto.membershipEndDate !== undefined ||
-        dto.membershipEndAt !== undefined
-      )
-        updateData.membershipEndDate = membershipEndDate;
+      if (hasEndDate) updateData.membershipEndDate = membershipEndDate;
     }
 
     // EDGE CASE: If start date changed and a pending plan change exists,
