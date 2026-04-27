@@ -1066,93 +1066,85 @@ describe('Billing Status E2E Tests', () => {
     });
   });
 
-  describe('Expired TRIAL tenant behavior (E2E)', () => {
-    let expiredTrialTenant: any;
-    let expiredTrialUser: any;
-    let expiredTrialToken: string;
+  describe('TRIAL tenant without RevenueCat entitlement behavior (E2E)', () => {
+    let trialTenant: any;
+    let trialUser: any;
+    let trialToken: string;
     let branch: any;
     let membershipPlan: any;
 
     beforeEach(async () => {
       const setup = await createTestTenantAndUser(prisma, {
-        tenantName: 'Expired Trial Gym',
-        userEmail: 'expiredtrial@test.com',
+        tenantName: 'Trial Gym',
+        userEmail: 'trialuser@test.com',
       });
-      expiredTrialTenant = setup.tenant;
-      expiredTrialUser = setup.user;
+      trialTenant = setup.tenant;
+      trialUser = setup.user;
 
-      // Set tenant to TRIAL with expired trialEndsAt (yesterday)
+      // Tenant has TRIAL billingStatus but NO RevenueCat entitlement snapshot.
+      // Since free trial is now managed by StoreKit / RevenueCat only, backend TRIAL
+      // must not grant premium access regardless of trialEndsAt.
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
 
       await prisma.tenant.update({
-        where: { id: expiredTrialTenant.id },
+        where: { id: trialTenant.id },
         data: {
           billingStatus: BillingStatus.TRIAL,
-          trialStartedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
+          trialStartedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
           trialEndsAt: yesterday,
         },
       });
 
-      branch = await createTestBranch(prisma, expiredTrialTenant.id, {
+      branch = await createTestBranch(prisma, trialTenant.id, {
         name: 'Main Branch',
         isDefault: true,
       });
 
       membershipPlan = await createTestMembershipPlan(
         prisma,
-        expiredTrialTenant.id,
+        trialTenant.id,
         branch.id,
       );
 
-      // Create mock token to avoid rate limiting
-      expiredTrialToken = createMockToken({
-        userId: expiredTrialUser.id,
-        tenantId: expiredTrialTenant.id,
-        email: expiredTrialUser.email,
+      trialToken = createMockToken({
+        userId: trialUser.id,
+        tenantId: trialTenant.id,
+        email: trialUser.email,
       });
     });
 
-    it('should allow GET /api/v1/members for expired TRIAL tenant', async () => {
+    it('should allow GET /api/v1/members for TRIAL tenant without entitlement (read-only)', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/members')
-        .set('Authorization', `Bearer ${expiredTrialToken}`);
+        .set('Authorization', `Bearer ${trialToken}`);
 
       expect(response.status).toBe(200);
-      // Response might be paginated object or array, just verify we can read
       expect(response.body).toBeTruthy();
     });
 
-    it('should allow HEAD request for expired TRIAL tenant', async () => {
+    it('should allow HEAD request for TRIAL tenant without entitlement', async () => {
       const response = await request(app.getHttpServer())
         .head('/api/v1/members')
-        .set('Authorization', `Bearer ${expiredTrialToken}`);
+        .set('Authorization', `Bearer ${trialToken}`);
 
       expect(response.status).toBe(200);
     });
 
-    it('should allow OPTIONS request for expired TRIAL tenant', async () => {
+    it('should allow OPTIONS request for TRIAL tenant without entitlement', async () => {
       const response = await request(app.getHttpServer())
         .options('/api/v1/members')
-        .set('Authorization', `Bearer ${expiredTrialToken}`);
+        .set('Authorization', `Bearer ${trialToken}`);
 
-      // OPTIONS typically returns 204 or 200
       expect([200, 204]).toContain(response.status);
     });
 
-    it('should block POST request with 402 for expired TRIAL tenant', async () => {
-      // DEBUG: Check tenant status before request
-      const tenantCheck = await prisma.tenant.findUnique({
-        where: { id: expiredTrialTenant.id },
-        select: { billingStatus: true, trialEndsAt: true },
-      });
-      console.log(
-        `DEBUG POST test: tenant status = ${tenantCheck?.billingStatus}, trialEndsAt = ${tenantCheck?.trialEndsAt?.toISOString()}`,
-      );
-
+    it('should block POST with 402 PREMIUM_REQUIRED for TRIAL tenant without RevenueCat entitlement', async () => {
+      // Backend TRIAL must not unlock premium. Without a RevenueCat entitlement snapshot,
+      // source is 'none' and mutations return 402 with PREMIUM_REQUIRED (billing required).
       const response = await request(app.getHttpServer())
         .post('/api/v1/members')
-        .set('Authorization', `Bearer ${expiredTrialToken}`)
+        .set('Authorization', `Bearer ${trialToken}`)
         .send({
           firstName: 'John',
           lastName: 'Doe',
@@ -1164,24 +1156,17 @@ describe('Billing Status E2E Tests', () => {
           membershipPlanId: membershipPlan.id,
         });
 
-      console.log(
-        `DEBUG POST test: response status = ${response.status}, body = ${JSON.stringify(response.body)}`,
-      );
-
       expect(response.status).toBe(402);
-      expect(response.body.code).toBe('TRIAL_EXPIRED');
-      expect(response.body.message).toContain('Deneme süreniz dolmuştur');
-      expect(response.body.trialEndsAt).toBeTruthy();
+      expect(response.body.code).toBe(BILLING_ERROR_CODES.PREMIUM_REQUIRED);
     });
 
-    it('should block PATCH request with 402 for expired TRIAL tenant', async () => {
-      // Create member via DB first
+    it('should block PATCH with 402 PREMIUM_REQUIRED for TRIAL tenant without RevenueCat entitlement', async () => {
       const now = new Date();
       const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const endDate = new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
       const member = await prisma.member.create({
         data: {
-          tenantId: expiredTrialTenant.id,
+          tenantId: trialTenant.id,
           branchId: branch.id,
           membershipPlanId: membershipPlan.id,
           firstName: 'Test',
@@ -1199,21 +1184,20 @@ describe('Billing Status E2E Tests', () => {
 
       const response = await request(app.getHttpServer())
         .patch(`/api/v1/members/${member.id}`)
-        .set('Authorization', `Bearer ${expiredTrialToken}`)
+        .set('Authorization', `Bearer ${trialToken}`)
         .send({ firstName: 'Updated' });
 
       expect(response.status).toBe(402);
-      expect(response.body.code).toBe('TRIAL_EXPIRED');
+      expect(response.body.code).toBe(BILLING_ERROR_CODES.PREMIUM_REQUIRED);
     });
 
-    it('should block DELETE request with 402 for expired TRIAL tenant', async () => {
-      // Create member via DB first
+    it('should block DELETE with 402 PREMIUM_REQUIRED for TRIAL tenant without RevenueCat entitlement', async () => {
       const now = new Date();
       const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const endDate = new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
       const member = await prisma.member.create({
         data: {
-          tenantId: expiredTrialTenant.id,
+          tenantId: trialTenant.id,
           branchId: branch.id,
           membershipPlanId: membershipPlan.id,
           firstName: 'Test',
@@ -1231,20 +1215,19 @@ describe('Billing Status E2E Tests', () => {
 
       const response = await request(app.getHttpServer())
         .delete(`/api/v1/members/${member.id}`)
-        .set('Authorization', `Bearer ${expiredTrialToken}`);
+        .set('Authorization', `Bearer ${trialToken}`);
 
       expect(response.status).toBe(402);
-      expect(response.body.code).toBe('TRIAL_EXPIRED');
+      expect(response.body.code).toBe(BILLING_ERROR_CODES.PREMIUM_REQUIRED);
     });
 
-    it('should block PUT request with 402 for expired TRIAL tenant', async () => {
-      // Create member via DB first
+    it('should block PUT with 402 PREMIUM_REQUIRED for TRIAL tenant without RevenueCat entitlement', async () => {
       const now = new Date();
       const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const endDate = new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
       const member = await prisma.member.create({
         data: {
-          tenantId: expiredTrialTenant.id,
+          tenantId: trialTenant.id,
           branchId: branch.id,
           membershipPlanId: membershipPlan.id,
           firstName: 'Test',
@@ -1262,7 +1245,7 @@ describe('Billing Status E2E Tests', () => {
 
       const response = await request(app.getHttpServer())
         .put(`/api/v1/members/${member.id}`)
-        .set('Authorization', `Bearer ${expiredTrialToken}`)
+        .set('Authorization', `Bearer ${trialToken}`)
         .send({
           firstName: 'Updated',
           lastName: 'Member',
@@ -1275,7 +1258,7 @@ describe('Billing Status E2E Tests', () => {
         });
 
       expect(response.status).toBe(402);
-      expect(response.body.code).toBe('TRIAL_EXPIRED');
+      expect(response.body.code).toBe(BILLING_ERROR_CODES.PREMIUM_REQUIRED);
     });
   });
 });

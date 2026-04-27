@@ -15,8 +15,9 @@ type PremiumSource = 'revenuecat' | 'legacy_fallback' | 'none';
  * - When a **RevenueCat entitlement snapshot** row exists for `REVENUECAT_PREMIUM_ENTITLEMENT_ID`,
  *   premium follows `premiumAccessFromEntitlementSnapshot` only; `billingStatus` **PAST_DUE** does not
  *   revoke access (in-app subscription is source of truth).
- * - **Legacy fallback** (no snapshot, `BILLING_LEGACY_FALLBACK_ENABLED=true`): only `ACTIVE` or non-expired
- *   `TRIAL` grant access; **PAST_DUE** does not (manual/offline billing remains read-only on that path).
+ * - **Legacy fallback** (no snapshot, `BILLING_LEGACY_FALLBACK_ENABLED=true`): only `ACTIVE` grants
+ *   access; **TRIAL** and **PAST_DUE** do not. Backend-managed `TRIAL` no longer unlocks premium
+ *   features — free trial is exclusively managed via StoreKit / RevenueCat introductory offers.
  * - **No snapshot and no legacy access** → `source: 'none'` (mutations → PREMIUM_REQUIRED).
  */
 export interface PremiumAccessResult {
@@ -112,12 +113,11 @@ export class BillingEntitlementService {
     }
 
     if (this.legacyFallbackEnabled && tenant) {
-      const trialActive =
-        tenant.billingStatus === BillingStatus.TRIAL &&
-        tenant.trialEndsAt !== null &&
-        tenant.trialEndsAt > now;
       const legacyActive = tenant.billingStatus === BillingStatus.ACTIVE;
-      const hasAccess = !tenantSuspended && (trialActive || legacyActive);
+      // NOTE: TRIAL is intentionally excluded — backend-managed trial no longer grants
+      // premium access. Free trial is exclusively provided via StoreKit / RevenueCat
+      // introductory offers. Only a real ACTIVE paid status qualifies on this path.
+      const hasAccess = !tenantSuspended && legacyActive;
 
       return {
         hasPremiumAccess: hasAccess,

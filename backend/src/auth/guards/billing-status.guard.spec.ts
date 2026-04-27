@@ -114,6 +114,22 @@ describe('BillingStatusGuard', () => {
     expect(mockGetPremiumAccess).toHaveBeenCalledWith('t1');
   });
 
+  it('allows all methods when TRIAL tenant has active RevenueCat entitlement', async () => {
+    // TRIAL billingStatus alone is not enough, but if RevenueCat entitlement is active the
+    // guard must allow the request — RevenueCat is the source of truth.
+    mockGetPremiumAccess.mockResolvedValue({
+      ...premiumActiveResult,
+      source: 'revenuecat' as const,
+      legacy: { billingStatus: BillingStatus.TRIAL, trialEndsAt: null },
+    });
+    const post = createMockExecutionContext(
+      { tenantId: 't1' },
+      'POST',
+      '/api/v1/members',
+    );
+    await expect(guard.canActivate(post)).resolves.toBe(true);
+  });
+
   it('allows read methods when premium is not active', async () => {
     mockGetPremiumAccess.mockResolvedValue({
       hasPremiumAccess: false,
@@ -165,6 +181,40 @@ describe('BillingStatusGuard', () => {
         message: BILLING_ERROR_MESSAGES.PREMIUM_REQUIRED,
         source: 'none',
       });
+    }
+  });
+
+  it('returns 402 PREMIUM_REQUIRED for TRIAL tenant with no RevenueCat entitlement (source none)', async () => {
+    // Backend TRIAL must NOT grant premium access. A tenant with billingStatus=TRIAL but no
+    // RevenueCat entitlement snapshot has source='none' and must be blocked on mutations.
+    mockGetPremiumAccess.mockResolvedValue({
+      hasPremiumAccess: false,
+      tenantSuspended: false,
+      source: 'none',
+      reason: 'No RevenueCat entitlement snapshot available',
+      entitlement: null,
+      legacy: {
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+      },
+    });
+    const post = createMockExecutionContext(
+      { tenantId: 't1' },
+      'POST',
+      '/api/v1/members',
+    );
+    try {
+      await guard.canActivate(post);
+      fail('expected HttpException');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpException);
+      const ex = e as HttpException;
+      expect(ex.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED);
+      expect((ex.getResponse() as Record<string, unknown>).code).toBe(
+        BILLING_ERROR_CODES.PREMIUM_REQUIRED,
+      );
     }
   });
 

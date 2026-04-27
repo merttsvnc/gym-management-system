@@ -15,7 +15,13 @@
  */
 export const BILLING_ERROR_CODES = {
   TENANT_BILLING_LOCKED: 'TENANT_BILLING_LOCKED',
-  TRIAL_EXPIRED: 'TRIAL_EXPIRED',
+  /**
+   * Replaces the legacy TRIAL_EXPIRED code.
+   * Returned as a 402 PAYMENT_REQUIRED when no RevenueCat entitlement snapshot
+   * exists for the tenant and no qualifying legacy access is active.
+   * Free trial is now exclusively managed via StoreKit / RevenueCat introductory offers.
+   */
+  BILLING_REQUIRED: 'BILLING_REQUIRED',
   /** No RevenueCat snapshot and no qualifying legacy access; mutations require in-app purchase / entitlement. */
   PREMIUM_REQUIRED: 'PREMIUM_REQUIRED',
 } as const;

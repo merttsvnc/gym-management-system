@@ -182,7 +182,10 @@ describe('BillingEntitlementService', () => {
       expect(r.source).toBe('legacy_fallback');
     });
 
-    it('legacy enabled + TRIAL + future trialEndsAt => premium true', async () => {
+    it('legacy enabled + TRIAL + future trialEndsAt => premium false (TRIAL no longer grants access)', async () => {
+      // Backend-managed TRIAL must NOT unlock premium — trial is exclusively via
+      // StoreKit / RevenueCat introductory offers. Only ACTIVE billingStatus qualifies
+      // on the legacy fallback path.
       process.env.BILLING_LEGACY_FALLBACK_ENABLED = 'true';
       const module = await Test.createTestingModule({
         providers: [
@@ -205,7 +208,7 @@ describe('BillingEntitlementService', () => {
       });
 
       const r = await svc.getPremiumAccessForTenant('tenant-1');
-      expect(r.hasPremiumAccess).toBe(true);
+      expect(r.hasPremiumAccess).toBe(false);
       expect(r.source).toBe('legacy_fallback');
     });
 
@@ -273,6 +276,21 @@ describe('BillingEntitlementService', () => {
       const r = await service.getPremiumAccessForTenant('tenant-1');
       expect(r.hasPremiumAccess).toBe(false);
       expect(r.source).toBe('none');
+    });
+
+    it('TRIAL without RevenueCat entitlement + legacy disabled => NO premium access', async () => {
+      // Explicit guard against regression: a tenant whose billingStatus is TRIAL but has no
+      // RevenueCat entitlement snapshot and BILLING_LEGACY_FALLBACK_ENABLED=false must NOT
+      // receive premium access. Free trial comes from StoreKit / RevenueCat only.
+      findTenant.mockResolvedValue({
+        billingStatus: BillingStatus.TRIAL,
+        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // future, but irrelevant
+      });
+
+      const r = await service.getPremiumAccessForTenant('tenant-1');
+      expect(r.hasPremiumAccess).toBe(false);
+      expect(r.source).toBe('none');
+      expect(r.tenantSuspended).toBe(false);
     });
   });
 });
