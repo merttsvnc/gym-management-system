@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersRepository } from '../users/users.repository';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,6 +23,7 @@ describe('AuthService', () => {
   const mockUsersRepository = {
     findByEmail: jest.fn(),
     findById: jest.fn(),
+    softDelete: jest.fn(),
   };
 
   const mockJwtService = {
@@ -140,6 +141,7 @@ describe('AuthService', () => {
         firstName: 'Test',
         lastName: 'User',
         role: 'ADMIN',
+        isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as User;
@@ -390,6 +392,7 @@ describe('AuthService', () => {
         firstName: 'Test',
         lastName: 'User',
         passwordHash: 'hashed',
+        isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as User;
@@ -445,6 +448,7 @@ describe('AuthService', () => {
         firstName: 'Test',
         lastName: 'User',
         passwordHash: 'hashed',
+        isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as User;
@@ -471,6 +475,7 @@ describe('AuthService', () => {
         firstName: 'Test',
         lastName: 'User',
         passwordHash: 'hashed',
+        isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as User;
@@ -512,6 +517,7 @@ describe('AuthService', () => {
         firstName: 'Test',
         lastName: 'User',
         passwordHash: 'hashed',
+        isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as User;
@@ -530,6 +536,117 @@ describe('AuthService', () => {
       // Assert
       expect(result).not.toBeNull();
       expect(result?.tenant.billingStatus).toBe(BillingStatus.PAST_DUE);
+    });
+
+    it('should throw UnauthorizedException when user is inactive', async () => {
+      // Arrange
+      const userId = 'user-123';
+      const tenantId = 'tenant-123';
+      const inactiveUser = {
+        id: userId,
+        email: 'deleted-user-123@deleted.invalid',
+        tenantId,
+        role: 'ADMIN',
+        firstName: 'Deleted',
+        lastName: 'User',
+        passwordHash: '',
+        isActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as User;
+
+      mockUsersRepository.findById.mockResolvedValue(inactiveUser);
+
+      // Act & Assert
+      await expect(service.getCurrentUser(userId, tenantId)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('deleteOwnAccount', () => {
+    const baseUser = {
+      id: 'user-123',
+      email: 'test@example.com',
+      tenantId: 'tenant-123',
+      role: 'ADMIN',
+      firstName: 'Test',
+      lastName: 'User',
+      passwordHash: 'hashed',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as User;
+
+    it('should soft-delete an active user account', async () => {
+      // Arrange
+      mockUsersRepository.findById.mockResolvedValue(baseUser);
+      mockUsersRepository.softDelete.mockResolvedValue({
+        ...baseUser,
+        isActive: false,
+        email: `deleted-${baseUser.id}@deleted.invalid`,
+        firstName: 'Deleted',
+        lastName: 'User',
+        passwordHash: '',
+      });
+
+      // Act
+      await service.deleteOwnAccount(baseUser.id);
+
+      // Assert
+      expect(mockUsersRepository.softDelete).toHaveBeenCalledWith(baseUser.id);
+    });
+
+    it('should throw UnauthorizedException when user is not found', async () => {
+      // Arrange
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.deleteOwnAccount('non-existent')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockUsersRepository.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException when user is already deleted', async () => {
+      // Arrange
+      const inactiveUser = { ...baseUser, isActive: false } as User;
+      mockUsersRepository.findById.mockResolvedValue(inactiveUser);
+
+      // Act & Assert
+      await expect(service.deleteOwnAccount(baseUser.id)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockUsersRepository.softDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('validateUser - inactive user', () => {
+    it('should return null when user is inactive', async () => {
+      // Arrange
+      const inactiveUser = {
+        id: 'user-123',
+        email: 'test@example.com',
+        passwordHash: 'hashed-password',
+        tenantId: 'tenant-123',
+        firstName: 'Deleted',
+        lastName: 'User',
+        role: 'ADMIN',
+        isActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as User;
+
+      mockUsersRepository.findByEmail.mockResolvedValue(inactiveUser);
+
+      // Act
+      const result = await service.validateUser(
+        'test@example.com',
+        'any-password',
+      );
+
+      // Assert
+      expect(result).toBeNull();
     });
   });
 

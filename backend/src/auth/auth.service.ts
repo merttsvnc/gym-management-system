@@ -52,6 +52,10 @@ export class AuthService {
       return null;
     }
 
+    if (!user.isActive) {
+      return null;
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
@@ -125,6 +129,10 @@ export class AuthService {
       return null;
     }
 
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account has been deleted');
+    }
+
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       select: {
@@ -182,6 +190,20 @@ export class AuthService {
       branch: defaultBranch || null,
       planLimits: planConfig,
     };
+  }
+
+  async deleteOwnAccount(userId: string): Promise<void> {
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account already deleted');
+    }
+
+    await this.usersRepository.softDelete(userId);
   }
 
   /**

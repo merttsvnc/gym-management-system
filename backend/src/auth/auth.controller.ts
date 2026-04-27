@@ -4,6 +4,9 @@ import {
   Body,
   UnauthorizedException,
   Get,
+  Delete,
+  HttpCode,
+  HttpStatus,
   UseFilters,
   UseGuards,
   Req,
@@ -32,6 +35,7 @@ import { SignupTokenGuard } from './guards/signup-token.guard';
 import { SignupTokenPayload } from './strategies/signup-token.strategy';
 import { ResetTokenGuard } from './guards/reset-token.guard';
 import { ResetTokenPayload } from './strategies/reset-token.strategy';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RequestWithIp } from '../common/middleware/client-ip.middleware';
 
 /**
@@ -98,6 +102,19 @@ export class AuthController {
     }
 
     return this.authService.getCurrentUser(user.sub, user.tenantId);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async deleteOwnAccount(@CurrentUser() user: AuthUser) {
+    if (!user) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+
+    await this.authService.deleteOwnAccount(user.sub);
+
+    return { success: true, message: 'Account deletion completed' };
   }
 
   @Post('signup/start')
