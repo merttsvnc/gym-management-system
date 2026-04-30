@@ -118,6 +118,10 @@ export class RevenueCatWebhookService {
     const eventType = eventTypeRaw;
     const incomingPayloadFingerprint = this.payloadFingerprint(payload);
 
+    this.logger.log(
+      `RC webhook received: eventId=${eventId} eventType=${eventType} appUserId=${this.readString(event.app_user_id) ?? 'null'} originalAppUserId=${this.readString(event.original_app_user_id) ?? 'null'}`,
+    );
+
     const existingPeek = await this.prisma.revenueCatWebhookEvent.findUnique({
       where: { eventId },
       select: { id: true, status: true, idempotencyKey: true },
@@ -154,6 +158,9 @@ export class RevenueCatWebhookService {
     );
 
     if (!eventTimestamp) {
+      this.logger.warn(
+        `RC webhook ignored: eventId=${eventId} eventType=${eventType} reason=missing_timestamp`,
+      );
       await this.markEventIgnored(
         eventId,
         payload,
@@ -169,6 +176,9 @@ export class RevenueCatWebhookService {
     const eventMs = eventTimestamp.getTime();
     const ageMs = nowMs - eventMs;
     if (ageMs > this.replayWindowMs) {
+      this.logger.warn(
+        `RC webhook ignored: eventId=${eventId} eventType=${eventType} reason=stale_replay ageMs=${ageMs} replayWindowMs=${this.replayWindowMs}`,
+      );
       await this.markEventIgnored(
         eventId,
         payload,
@@ -180,6 +190,9 @@ export class RevenueCatWebhookService {
       return { ok: true, eventId };
     }
     if (eventMs - nowMs > RevenueCatWebhookService.MAX_FUTURE_SKEW_MS) {
+      this.logger.warn(
+        `RC webhook ignored: eventId=${eventId} eventType=${eventType} reason=future_skew skewMs=${eventMs - nowMs}`,
+      );
       await this.markEventIgnored(
         eventId,
         payload,
@@ -200,6 +213,9 @@ export class RevenueCatWebhookService {
       originalAppUserId,
     );
     if (!appUserResolution.ok) {
+      this.logger.warn(
+        `RC webhook ignored: eventId=${eventId} eventType=${eventType} reason=${appUserResolution.reason} appUserId=${appUserId ?? 'null'} originalAppUserId=${originalAppUserId ?? 'null'}`,
+      );
       await this.markEventIgnored(
         eventId,
         payload,
@@ -219,6 +235,10 @@ export class RevenueCatWebhookService {
     const appUserContext = appUserResolution.context;
     const tenantId = appUserContext.tenantId;
     const resolvedAppUserId = appUserContext.resolvedAppUserId;
+
+    this.logger.log(
+      `RC webhook resolved: eventId=${eventId} eventType=${eventType} appUserId=${appUserId ?? 'null'} resolvedAppUserId=${resolvedAppUserId} tenantId=${tenantId}`,
+    );
 
     try {
       await this.prisma.$transaction(
@@ -334,12 +354,16 @@ export class RevenueCatWebhookService {
             resolvedAppUserId,
             eventTimestamp,
           );
+          const finalStatus = snapshotApplied
+            ? RevenueCatWebhookStatus.PROCESSED_APPLIED
+            : RevenueCatWebhookStatus.PROCESSED_NOOP;
+          this.logger.log(
+            `RC applyEvent result: eventId=${eventId} tenantId=${tenantId} snapshotApplied=${snapshotApplied} processingStatus=${finalStatus}`,
+          );
           await tx.revenueCatWebhookEvent.update({
             where: { id: rowId },
             data: {
-              status: snapshotApplied
-                ? RevenueCatWebhookStatus.PROCESSED_APPLIED
-                : RevenueCatWebhookStatus.PROCESSED_NOOP,
+              status: finalStatus,
               processedAt: new Date(),
             },
           });
@@ -406,6 +430,27 @@ export class RevenueCatWebhookService {
 
       throw error;
     }
+
+    const [finalSnapshot, finalTenant] = await Promise.all([
+      this.prisma.revenueCatEntitlementSnapshot.findUnique({
+        where: {
+          tenantId_entitlementId: {
+            tenantId,
+            entitlementId: this.env.REVENUECAT_PREMIUM_ENTITLEMENT_ID,
+          },
+        },
+        select: { isActive: true, state: true, expiresAt: true },
+      }),
+      this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { billingStatus: true },
+      }),
+    ]);
+    this.logger.log(
+      `RC webhook complete: eventId=${eventId} tenantId=${tenantId} ` +
+        `entitlement=${finalSnapshot ? `state=${finalSnapshot.state} isActive=${finalSnapshot.isActive} expiresAt=${finalSnapshot.expiresAt?.toISOString() ?? 'null'}` : 'no_snapshot'} ` +
+        `tenantBillingStatus=${finalTenant?.billingStatus ?? 'null'}`,
+    );
 
     return { ok: true, eventId };
   }
@@ -673,6 +718,10 @@ export class RevenueCatWebhookService {
       );
     }
 
+    this.logger.log(
+      `RC applyEvent: tenantId=${tenantId} appUserId=${resolvedAppUserId} eventType=${eventType} eventClass=${eventClass} snapshotEntitlementId=${snapshotEntitlementId ?? 'null'} productId=${productId ?? 'null'}`,
+    );
+
     const store = this.mapStore(this.readString(event.store));
     const eventId = this.readString(event.id);
     const aliases = this.readStringArray(event.aliases);
@@ -724,6 +773,12 @@ export class RevenueCatWebhookService {
           eventType,
           event,
           now,
+        );
+        const expiresAtForLog = this.toDate(
+          event.expiration_at_ms ?? event.expiration_at,
+        );
+        this.logger.log(
+          `RC entitlement upsert: tenantId=${tenantId} entitlementId=${snapshotEntitlementId} state=${entitlementState.state} isActive=${entitlementState.isActive} expiresAt=${expiresAtForLog?.toISOString() ?? 'null'}`,
         );
         await tx.revenueCatEntitlementSnapshot.upsert({
           where: {
@@ -804,6 +859,9 @@ export class RevenueCatWebhookService {
           },
         });
         snapshotApplied = true;
+        this.logger.log(
+          `RC entitlement snapshot applied: tenantId=${tenantId} entitlementId=${snapshotEntitlementId} isActive=${entitlementState.isActive}`,
+        );
       }
     }
 
