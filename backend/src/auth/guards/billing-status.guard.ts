@@ -92,18 +92,6 @@ export class BillingStatusGuard implements CanActivate {
           tenantId,
         );
 
-      this.logger.debug(
-        `[BillingGuard] method=${method} path=${path} userId=${userId} tenantId=${tenantId} ` +
-          `billingStatus=${premiumStatus.legacy.billingStatus ?? 'null'} ` +
-          `source=${premiumStatus.source} ` +
-          `snapshotFound=${premiumStatus.entitlement !== null} ` +
-          `snapshotEntitlementId=${premiumStatus.entitlement?.entitlementId ?? 'null'} ` +
-          `snapshotIsActive=${premiumStatus.entitlement?.isActive ?? 'null'} ` +
-          `snapshotExpiresAt=${premiumStatus.entitlement?.expiresAt ?? 'null'} ` +
-          `hasPremiumAccess=${premiumStatus.hasPremiumAccess} ` +
-          `tenantSuspended=${premiumStatus.tenantSuspended}`,
-      );
-
       if (premiumStatus.tenantSuspended) {
         this.logger.warn(
           `[BillingGuard] DENY suspended: method=${method} path=${path} userId=${userId} tenantId=${tenantId}`,
@@ -133,9 +121,6 @@ export class BillingStatusGuard implements CanActivate {
       }
 
       if (premiumStatus.source === 'none') {
-        this.logger.warn(
-          `[BillingGuard] DENY 402 no-entitlement: method=${method} path=${path} userId=${userId} tenantId=${tenantId} billingStatus=${premiumStatus.legacy.billingStatus ?? 'null'}`,
-        );
         throw new HttpException(
           {
             code: BILLING_ERROR_CODES.PREMIUM_REQUIRED,

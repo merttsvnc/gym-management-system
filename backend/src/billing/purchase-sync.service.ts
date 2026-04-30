@@ -52,10 +52,6 @@ export class PurchaseSyncService {
     const premiumEntitlementId = this.env.REVENUECAT_PREMIUM_ENTITLEMENT_ID;
     const appUserId = `tenant:${tenantId}`;
 
-    this.logger.log(
-      `purchase-sync start: tenantId=${tenantId} appUserId=${appUserId} entitlementId=${premiumEntitlementId}`,
-    );
-
     const result = await this.rcApi.fetchSubscriberEntitlement(
       appUserId,
       premiumEntitlementId,

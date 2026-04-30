@@ -136,9 +136,6 @@ export class RevenueCatApiService {
         : null;
 
     if (!rawEnt) {
-      this.logger.log(
-        `RC REST API: no entitlement '${premiumEntitlementId}' found for appUserId=${appUserId}`,
-      );
       return { appUserId, entitlement: null };
     }
 
@@ -208,11 +205,6 @@ export class RevenueCatApiService {
       isActive,
       state,
     };
-
-    this.logger.log(
-      `RC REST API parsed: appUserId=${appUserId} entitlementId=${premiumEntitlementId} ` +
-        `isActive=${isActive} state=${state} expiresDate=${expiresDate?.toISOString() ?? 'null'}`,
-    );
 
     return { appUserId, entitlement };
   }
