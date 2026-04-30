@@ -96,11 +96,18 @@ export class AuthController {
   }
 
   @Get('me')
+  @UseGuards(JwtAuthGuard)
   async getCurrentUser(@CurrentUser() user: AuthUser) {
     if (!user) {
+      this.logger.warn(
+        '[GET /auth/me] user not set after JwtAuthGuard — should not happen',
+      );
       throw new UnauthorizedException('User not authenticated');
     }
 
+    this.logger.debug(
+      `[GET /auth/me] userId=${user.sub} tenantId=${user.tenantId} email=${user.email}`,
+    );
     return this.authService.getCurrentUser(user.sub, user.tenantId);
   }
 

@@ -20,6 +20,7 @@ import {
 import { JwtPayload } from './strategies/jwt.strategy';
 import { RegisterDto } from './dto/register.dto';
 import { PLAN_CONFIG } from '../plan/plan.config';
+import { premiumAccessFromEntitlementSnapshot } from '../billing/entitlement-premium.util';
 import { OtpService } from './services/otp.service';
 import { PasswordResetOtpService } from './services/password-reset-otp.service';
 import { RateLimiterService } from './services/rate-limiter.service';
@@ -120,7 +121,12 @@ export class AuthService {
   }
 
   /**
-   * Get current user information including tenant billing status and default branch
+   * Get current user information including tenant billing status and default branch.
+   *
+   * billingStatus in the response reflects the effective premium access:
+   * - ACTIVE when RevenueCat entitlement snapshot grants premium (hasPremiumAccess=true)
+   * - Otherwise falls back to the stored tenant.billingStatus
+   * This ensures mobile post-purchase polling sees ACTIVE once the entitlement webhook fires.
    */
   async getCurrentUser(userId: string, tenantId: string) {
     const user = await this.usersRepository.findById(userId);
@@ -133,16 +139,40 @@ export class AuthService {
       throw new UnauthorizedException('Account has been deleted');
     }
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: {
-        id: true,
-        name: true,
-        billingStatus: true,
-        billingStatusUpdatedAt: true,
-        planKey: true,
-      },
-    });
+    const premiumEntitlementId =
+      this.configService.get<string>('REVENUECAT_PREMIUM_ENTITLEMENT_ID') ?? '';
+
+    const [tenant, entitlementSnapshot, defaultBranch] = await Promise.all([
+      this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: {
+          id: true,
+          name: true,
+          billingStatus: true,
+          billingStatusUpdatedAt: true,
+          planKey: true,
+        },
+      }),
+      premiumEntitlementId
+        ? this.prisma.revenueCatEntitlementSnapshot.findUnique({
+            where: {
+              tenantId_entitlementId: {
+                tenantId,
+                entitlementId: premiumEntitlementId,
+              },
+            },
+            select: {
+              isActive: true,
+              expiresAt: true,
+              gracePeriodExpiresAt: true,
+            },
+          })
+        : Promise.resolve(null),
+      this.prisma.branch.findFirst({
+        where: { tenantId, isDefault: true },
+        select: { id: true, name: true, isDefault: true },
+      }),
+    ]);
 
     if (!tenant) {
       return null;
@@ -155,18 +185,21 @@ export class AuthService {
       });
     }
 
-    // Get default branch
-    const defaultBranch = await this.prisma.branch.findFirst({
-      where: {
-        tenantId,
-        isDefault: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        isDefault: true,
-      },
-    });
+    // Compute effective billing status from RevenueCat entitlement snapshot.
+    // When the entitlement is active (i.e. post-purchase), report ACTIVE so that
+    // mobile post-purchase polling sees ACTIVE without waiting for a manual admin update.
+    const now = new Date();
+    const hasPremiumAccess = entitlementSnapshot
+      ? premiumAccessFromEntitlementSnapshot({
+          isActive: entitlementSnapshot.isActive,
+          expiresAt: entitlementSnapshot.expiresAt,
+          gracePeriodExpiresAt: entitlementSnapshot.gracePeriodExpiresAt,
+          now,
+        })
+      : false;
+    const effectiveBillingStatus = hasPremiumAccess
+      ? BillingStatus.ACTIVE
+      : tenant.billingStatus;
 
     // Get plan limits from config
     const planConfig = PLAN_CONFIG[tenant.planKey as keyof typeof PLAN_CONFIG];
@@ -183,9 +216,10 @@ export class AuthService {
       tenant: {
         id: tenant.id,
         name: tenant.name,
-        billingStatus: tenant.billingStatus,
+        billingStatus: effectiveBillingStatus,
         billingStatusUpdatedAt: tenant.billingStatusUpdatedAt,
         planKey: tenant.planKey,
+        hasPremiumAccess,
       },
       branch: defaultBranch || null,
       planLimits: planConfig,

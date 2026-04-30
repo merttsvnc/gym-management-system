@@ -42,6 +42,9 @@ describe('AuthService', () => {
     branch: {
       findFirst: jest.fn(),
     },
+    revenueCatEntitlementSnapshot: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -418,11 +421,12 @@ describe('AuthService', () => {
         role: mockUser.role,
         tenantId,
       });
-      expect(result?.tenant).toEqual({
+      expect(result?.tenant).toMatchObject({
         id: tenantId,
         name: 'Test Gym',
         billingStatus: BillingStatus.ACTIVE,
         billingStatusUpdatedAt: new Date('2025-01-01'),
+        hasPremiumAccess: false,
       });
     });
 
@@ -536,6 +540,7 @@ describe('AuthService', () => {
       // Assert
       expect(result).not.toBeNull();
       expect(result?.tenant.billingStatus).toBe(BillingStatus.PAST_DUE);
+      expect(result?.tenant.hasPremiumAccess).toBe(false);
     });
 
     it('should throw UnauthorizedException when user is inactive', async () => {
