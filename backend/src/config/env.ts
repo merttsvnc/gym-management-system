@@ -27,6 +27,8 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().optional(),
   BILLING_LEGACY_FALLBACK_ENABLED: z.string().optional(),
   REVENUECAT_REPLAY_WINDOW_HOURS: z.coerce.number().int().min(1).optional(),
+  /** RevenueCat V1 Secret Key for direct REST API calls (e.g. purchase-sync). Optional. */
+  REVENUECAT_V1_API_KEY: z.string().optional(),
   CRON_ENABLED: z
     .string()
     .optional()

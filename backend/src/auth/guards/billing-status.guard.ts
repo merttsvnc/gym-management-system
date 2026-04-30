@@ -82,7 +82,9 @@ export class BillingStatusGuard implements CanActivate {
     }
 
     const tenantId: string = user.tenantId;
+    const userId: string = user.sub;
     const method: string = request.method;
+    const path: string = request.url;
 
     try {
       const premiumStatus =
@@ -90,7 +92,22 @@ export class BillingStatusGuard implements CanActivate {
           tenantId,
         );
 
+      this.logger.debug(
+        `[BillingGuard] method=${method} path=${path} userId=${userId} tenantId=${tenantId} ` +
+          `billingStatus=${premiumStatus.legacy.billingStatus ?? 'null'} ` +
+          `source=${premiumStatus.source} ` +
+          `snapshotFound=${premiumStatus.entitlement !== null} ` +
+          `snapshotEntitlementId=${premiumStatus.entitlement?.entitlementId ?? 'null'} ` +
+          `snapshotIsActive=${premiumStatus.entitlement?.isActive ?? 'null'} ` +
+          `snapshotExpiresAt=${premiumStatus.entitlement?.expiresAt ?? 'null'} ` +
+          `hasPremiumAccess=${premiumStatus.hasPremiumAccess} ` +
+          `tenantSuspended=${premiumStatus.tenantSuspended}`,
+      );
+
       if (premiumStatus.tenantSuspended) {
+        this.logger.warn(
+          `[BillingGuard] DENY suspended: method=${method} path=${path} userId=${userId} tenantId=${tenantId}`,
+        );
         throw new HttpException(
           {
             code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
@@ -116,6 +133,9 @@ export class BillingStatusGuard implements CanActivate {
       }
 
       if (premiumStatus.source === 'none') {
+        this.logger.warn(
+          `[BillingGuard] DENY 402 no-entitlement: method=${method} path=${path} userId=${userId} tenantId=${tenantId} billingStatus=${premiumStatus.legacy.billingStatus ?? 'null'}`,
+        );
         throw new HttpException(
           {
             code: BILLING_ERROR_CODES.PREMIUM_REQUIRED,
@@ -126,6 +146,9 @@ export class BillingStatusGuard implements CanActivate {
         );
       }
 
+      this.logger.warn(
+        `[BillingGuard] DENY 403 inactive-entitlement: method=${method} path=${path} userId=${userId} tenantId=${tenantId} source=${premiumStatus.source} snapshotIsActive=${premiumStatus.entitlement?.isActive ?? 'null'} snapshotExpiresAt=${premiumStatus.entitlement?.expiresAt ?? 'null'}`,
+      );
       throw new HttpException(
         {
           code: BILLING_ERROR_CODES.TENANT_BILLING_LOCKED,
