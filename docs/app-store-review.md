@@ -61,9 +61,81 @@ codebase:
 
 ---
 
+---
+
+## Reviewer test account (App Store Review)
+
+A dedicated test account allows Apple reviewers to access the full app without going through OTP
+or onboarding. The account is created by a manually-run backend script.
+
+### Credentials
+
+| Field    | Value                                      |
+| -------- | ------------------------------------------ |
+| Email    | `quuilo+appreview@quuilo.com`              |
+| Password | `$REVIEWER_TEST_PASSWORD` (env var on VPS) |
+| Tenant   | Quuilo Review Gym                          |
+| Branch   | Main Branch                                |
+
+> The `+` alias in the email is stored as-is and is **not** normalized to `quuilo@quuilo.com`.
+
+### How premium access works for the reviewer
+
+The script upserts a `RevenueCatEntitlementSnapshot` row for the reviewer's tenant with
+`isActive = true` and `expiresAt = null` (lifetime). This is the same path the production code
+takes after a real RevenueCat purchase — no flags are faked.
+
+`/auth/me` will therefore return:
+
+```json
+{
+  "tenant": {
+    "billingStatus": "ACTIVE",
+    "hasPremiumAccess": true
+  }
+}
+```
+
+### Setup script
+
+**File:** `backend/scripts/create-reviewer-account.ts`
+
+The script is idempotent and safe to re-run. It is **not** executed automatically.
+
+**Run locally:**
+
+```bash
+cd backend
+REVIEWER_TEST_PASSWORD=<secret> \
+  npx ts-node -r tsconfig-paths/register scripts/create-reviewer-account.ts
+```
+
+**Run on VPS:**
+
+```bash
+cd /opt/app/backend
+REVIEWER_TEST_PASSWORD=<secret> \
+  npx ts-node -r tsconfig-paths/register scripts/create-reviewer-account.ts
+```
+
+`DATABASE_URL` and `REVENUECAT_PREMIUM_ENTITLEMENT_ID` must already be present in the environment
+(they are set by the deployment). Only `REVIEWER_TEST_PASSWORD` needs to be supplied at call time
+unless it is already exported.
+
+### Required env vars
+
+| Variable                            | Where to set          |
+| ----------------------------------- | --------------------- |
+| `REVIEWER_TEST_PASSWORD`            | Pass inline or export |
+| `DATABASE_URL`                      | App environment       |
+| `REVENUECAT_PREMIUM_ENTITLEMENT_ID` | App environment       |
+
+---
+
 ## Reference
 
 - Backend entitlement service: `backend/src/billing/billing-entitlement.service.ts`
 - Billing guard: `backend/src/auth/guards/billing-status.guard.ts`
 - Billing constants: `backend/src/common/constants/billing-messages.ts`
 - Billing API docs: `docs/api/billing.md`
+- Reviewer script: `backend/scripts/create-reviewer-account.ts`
