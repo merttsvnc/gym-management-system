@@ -54,4 +54,13 @@ export class MemberListQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean({ message: 'includeArchived boolean olmalıdır' })
   includeArchived?: boolean = false;
+
+  /**
+   * When true, returns members with status IN (INACTIVE, PAUSED).
+   * Takes precedence over the `status` param (mirrors dashboard passive count logic).
+   */
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'passive boolean olmalıdır' })
+  passive?: boolean;
 }

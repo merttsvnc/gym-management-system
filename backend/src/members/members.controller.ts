@@ -37,7 +37,10 @@ export class MembersController {
     @CurrentUser('tenantId') tenantId: string,
     @Query() query: MemberListQueryDto,
   ) {
-    return this.membersService.findAll(tenantId, query);
+    return this.membersService.findAll(tenantId, {
+      ...query,
+      isPassiveFilter: !!query.passive,
+    });
   }
 
   /**
